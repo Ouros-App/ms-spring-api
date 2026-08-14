@@ -1,31 +1,10 @@
-# ms-spring-template
+# ms-spring-api
 
-Template Spring REST API com Gradle.
+Projeto inicial Spring REST API com Gradle.
 
-## Estrutura
-
-```text
-src/
-  main/
-    java/com/ourosapp/springtemplate/
-  test/
-```
-
-## Rotas
-
-- `GET /`
-- `GET /health`
-
-## Como rodar
+## Comandos
 
 ```bash
+./gradlew clean build
 ./gradlew bootRun
-./gradlew test
-./gradlew build
-```
-
-## Docker
-
-```bash
-docker compose up --build
 ```
