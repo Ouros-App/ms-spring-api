@@ -1,0 +1,154 @@
+name: CI/CD
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: read
+  checks: write
+  issues: write
+  pull-requests: read
+  security-events: write
+
+jobs:
+  conventional-commits-warning:
+    name: conventional-commits-warning
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'rerun-ci')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Report conventional commit warning
+        uses: actions/github-script@v7
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        with:
+          script: |
+            const { execFileSync } = require("node:child_process");
+            const pattern = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|deps)(\([A-Za-z0-9_.-]+\))?(!)?: .+/;
+            const invalid = [];
+            if (!pattern.test(process.env.PR_TITLE)) invalid.push(`PR title: ${process.env.PR_TITLE}`);
+            const range = `${process.env.BASE_SHA}..${process.env.HEAD_SHA}`;
+            const subjects = execFileSync("git", ["log", "--no-merges", "--format=%s", range], { encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
+            for (const subject of subjects) if (!pattern.test(subject)) invalid.push(`Commit: ${subject}`);
+            const marker = "<!-- conventional-commits-warning -->";
+            const valid = invalid.length === 0;
+            const summary = valid ? "PR title and commit messages follow Conventional Commits." : `The PR remains mergeable, but these messages do not follow Conventional Commits:\n\n${invalid.map(item => `- ${item}`).join("\n")}`;
+            try { await github.rest.checks.create({ owner: context.repo.owner, repo: context.repo.repo, name: "conventional-commits", head_sha: process.env.HEAD_SHA, status: "completed", conclusion: valid ? "success" : "neutral", output: { title: valid ? "Conventional Commits" : "Conventional Commits warning", summary } }); } catch (error) { core.warning(`Could not publish the Conventional Commits check: ${error.message}`); }
+            try {
+              const comments = await github.paginate(github.rest.issues.listComments, { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, per_page: 100 });
+              const existing = comments.find(comment => comment.user?.type === "Bot" && comment.body?.includes(marker));
+              if (invalid.length) { const body = `${marker}\n⚠️ **Conventional Commits:** aviso não bloqueante.\n\n${summary}\n\nO CI funcional continua sendo validado normalmente.`; if (existing) await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body }); else await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body }); }
+              else if (existing) await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body: `${marker}\n✅ **Conventional Commits:** aviso resolvido; o título e os commits estão no padrão.` });
+            } catch (error) { core.warning(`Could not publish the Conventional Commits comment: ${error.message}`); }
+
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    if: github.event.action != 'labeled' || github.event.label.name == 'rerun-ci'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build and test with Gradle
+        run: ./gradlew clean build jacocoTestReport --no-daemon
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            build/libs/
+            build/classes/
+            build/reports/
+          retention-days: 1
+
+  sonarcloud:
+    name: sonarcloud
+    runs-on: ubuntu-latest
+    needs: ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: build/
+
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
+  codeql:
+    name: codeql
+    runs-on: ubuntu-latest
+    needs: ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build for CodeQL
+        run: ./gradlew build --no-daemon
+
+      - name: Analyze with CodeQL
+        uses: github/codeql-action/analyze@v3
+
