@@ -7,4 +7,12 @@ out/
 .project
 .settings/
 .DS_Store
+
+# Environment & local credentials
 .env
+.env.*
+!.env.example
+
+# Local profile properties
+*application-local.properties
+!*application-local.properties.example
