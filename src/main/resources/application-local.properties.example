@@ -1,0 +1,10 @@
+# ===================================================================
+# Template de Configuracoes Locais de Desenvolvimento
+# Instrucoes: Copie este arquivo para 'application-local.properties'
+# e preencha com as credenciais do seu banco de dados local/QA.
+# ===================================================================
+
+spring.datasource.url=jdbc:postgresql://<HOST>:<PORT>/<DATABASE>?sslmode=require
+spring.datasource.username=<USERNAME>
+spring.datasource.password=<PASSWORD>
+spring.datasource.driver-class-name=org.postgresql.Driver
