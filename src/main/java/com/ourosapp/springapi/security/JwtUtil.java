@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +20,13 @@ public class JwtUtil {
 
     @Value("${app.jwt.expiration-ms:86400000}")
     private long expirationMs;
+
+    @PostConstruct
+    public void validateSecret() {
+        if (secret == null || secret.trim().length() < 32) {
+            throw new IllegalStateException("A chave secreta 'app.jwt.secret' deve conter no mínimo 32 caracteres (256 bits).");
+        }
+    }
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
@@ -44,10 +52,7 @@ public class JwtUtil {
     // 3. Extrai o ID de dentro do token
     public Long getIdFromToken(String token) {
         Object idClaim = getClaims(token).get("id");
-        if (idClaim instanceof Integer) {
-            return ((Integer) idClaim).longValue();
-        }
-        return (Long) idClaim;
+        return (idClaim instanceof Number number) ? number.longValue() : null;
     }
 
     // 4. Extrai o email

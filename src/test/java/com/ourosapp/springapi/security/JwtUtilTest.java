@@ -56,4 +56,19 @@ class JwtUtilTest {
         String expiredToken = expiredJwtUtil.generateToken(2L, "expired@test.com", "FARM_OWNER");
         assertFalse(jwtUtil.validateToken(expiredToken));
     }
+
+    @Test
+    void testValidateSecretValid() {
+        assertDoesNotThrow(() -> jwtUtil.validateSecret());
+    }
+
+    @Test
+    void testValidateSecretInvalid() {
+        JwtUtil invalidJwt = new JwtUtil();
+        ReflectionTestUtils.setField(invalidJwt, "secret", "curta");
+        assertThrows(IllegalStateException.class, invalidJwt::validateSecret);
+
+        ReflectionTestUtils.setField(invalidJwt, "secret", null);
+        assertThrows(IllegalStateException.class, invalidJwt::validateSecret);
+    }
 }

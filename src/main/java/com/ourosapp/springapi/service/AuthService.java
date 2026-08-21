@@ -28,36 +28,26 @@ public class AuthService {
     public LoginResponseDTO loginAdm(LoginRequestDTO request) {
         Adm adm = admRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
-
-        if (!passwordEncoder.matches(request.password(), adm.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas.");
-        }
-
-        String token = jwtUtil.generateToken(adm.getId(), adm.getEmail(), "ADM");
-        return new LoginResponseDTO(token);
+        return authenticate(adm.getId(), adm.getEmail(), request.password(), adm.getPassword(), "ADM");
     }
 
     public LoginResponseDTO loginEmployee(LoginRequestDTO request) {
         CompanyEmployee employee = companyEmployeeRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
-
-        if (!passwordEncoder.matches(request.password(), employee.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas.");
-        }
-
-        String token = jwtUtil.generateToken(employee.getId(), employee.getEmail(), "COMPANY_EMPLOYEE");
-        return new LoginResponseDTO(token);
+        return authenticate(employee.getId(), employee.getEmail(), request.password(), employee.getPassword(), "COMPANY_EMPLOYEE");
     }
 
     public LoginResponseDTO loginFarmOwner(LoginRequestDTO request) {
         FarmOwner owner = farmOwnerRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
+        return authenticate(owner.getId(), owner.getEmail(), request.password(), owner.getPassword(), "FARM_OWNER");
+    }
 
-        if (!passwordEncoder.matches(request.password(), owner.getPassword())) {
+    private LoginResponseDTO authenticate(Long id, String email, String rawPassword, String encodedPassword, String role) {
+        if (!passwordEncoder.matches(rawPassword, encodedPassword)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas.");
         }
-
-        String token = jwtUtil.generateToken(owner.getId(), owner.getEmail(), "FARM_OWNER");
+        String token = jwtUtil.generateToken(id, email, role);
         return new LoginResponseDTO(token);
     }
 }

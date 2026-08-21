@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.security;
 
+import com.ourosapp.springapi.service.UserDetailsServiceImpl;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,7 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -28,7 +29,7 @@ class JwtAuthFilterTest {
     private JwtUtil jwtUtil;
 
     @Mock
-    private UserDetailsService userDetailsService;
+    private UserDetailsServiceImpl userDetailsService;
 
     @Mock
     private HttpServletRequest request;
@@ -51,18 +52,40 @@ class JwtAuthFilterTest {
     void testDoFilterInternalValidToken() throws ServletException, IOException {
         String token = "valid-token";
         String email = "test@ouros.com";
+        String role = "ADM";
         UserDetails userDetails = new User(email, "pass", Collections.emptyList());
 
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
         when(jwtUtil.validateToken(token)).thenReturn(true);
         when(jwtUtil.getEmailFromToken(token)).thenReturn(email);
-        when(userDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
+        when(jwtUtil.getRoleFromToken(token)).thenReturn(role);
+        when(userDetailsService.loadUserByEmailAndRole(email, role)).thenReturn(userDetails);
 
         jwtAuthFilter.doFilterInternal(request, response, filterChain);
 
         verify(filterChain).doFilter(request, response);
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
         assertEquals(email, SecurityContextHolder.getContext().getAuthentication().getName());
+    }
+
+    @Test
+    void testDoFilterInternalUserNotFound() throws ServletException, IOException {
+        String token = "valid-token";
+        String email = "deleted@ouros.com";
+        String role = "FARM_OWNER";
+
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(jwtUtil.validateToken(token)).thenReturn(true);
+        when(jwtUtil.getEmailFromToken(token)).thenReturn(email);
+        when(jwtUtil.getRoleFromToken(token)).thenReturn(role);
+        when(userDetailsService.loadUserByEmailAndRole(email, role))
+                .thenThrow(new UsernameNotFoundException("Usuário inativo"));
+
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Usuário não encontrado ou inativo.");
+        verify(filterChain, never()).doFilter(request, response);
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test

@@ -23,6 +23,29 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final FarmOwnerRepository farmOwnerRepository;
 
+    /**
+     * Carrega o usuário a partir do e-mail e da role específica validada no token JWT,
+     * evitando ambiguidades e problemas de escalação de privilégios quando tabelas diferentes compartilham o mesmo e-mail.
+     */
+    public UserDetails loadUserByEmailAndRole(String email, String role) throws UsernameNotFoundException {
+        if (role == null) {
+            return loadUserByUsername(email);
+        }
+
+        return switch (role) {
+            case "ADM" -> admRepository.findByEmail(email)
+                    .map(UserPrincipal::create)
+                    .orElseThrow(() -> new UsernameNotFoundException("Administrador não encontrado: " + email));
+            case "COMPANY_EMPLOYEE" -> companyEmployeeRepository.findByEmail(email)
+                    .map(UserPrincipal::create)
+                    .orElseThrow(() -> new UsernameNotFoundException("Funcionário da empresa não encontrado: " + email));
+            case "FARM_OWNER" -> farmOwnerRepository.findByEmail(email)
+                    .map(UserPrincipal::create)
+                    .orElseThrow(() -> new UsernameNotFoundException("Produtor rural não encontrado: " + email));
+            default -> loadUserByUsername(email);
+        };
+    }
+
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
 
@@ -42,5 +65,4 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         }
         throw new UsernameNotFoundException("Usuário não encontrado ou inativo no banco de dados: " + email);
     }
-
 }

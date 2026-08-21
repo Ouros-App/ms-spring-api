@@ -78,4 +78,72 @@ class UserDetailsServiceImplTest {
 
         assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByUsername("notfound@ouros.com"));
     }
+
+    @Test
+    void testLoadUserByEmailAndRoleAdm() {
+        Adm adm = Adm.builder().id(1L).email("adm@ouros.com").password("pass").build();
+        when(admRepository.findByEmail("adm@ouros.com")).thenReturn(Optional.of(adm));
+
+        UserDetails userDetails = userDetailsService.loadUserByEmailAndRole("adm@ouros.com", "ADM");
+
+        assertNotNull(userDetails);
+        assertEquals("adm@ouros.com", userDetails.getUsername());
+        assertTrue(userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADM")));
+    }
+
+    @Test
+    void testLoadUserByEmailAndRoleAdmNotFound() {
+        when(admRepository.findByEmail("adm@ouros.com")).thenReturn(Optional.empty());
+
+        assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByEmailAndRole("adm@ouros.com", "ADM"));
+    }
+
+    @Test
+    void testLoadUserByEmailAndRoleEmployee() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).email("emp@ouros.com").password("pass").build();
+        when(companyEmployeeRepository.findByEmail("emp@ouros.com")).thenReturn(Optional.of(employee));
+
+        UserDetails userDetails = userDetailsService.loadUserByEmailAndRole("emp@ouros.com", "COMPANY_EMPLOYEE");
+
+        assertNotNull(userDetails);
+        assertEquals("emp@ouros.com", userDetails.getUsername());
+        assertTrue(userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_COMPANY_EMPLOYEE")));
+    }
+
+    @Test
+    void testLoadUserByEmailAndRoleEmployeeNotFound() {
+        when(companyEmployeeRepository.findByEmail("emp@ouros.com")).thenReturn(Optional.empty());
+
+        assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByEmailAndRole("emp@ouros.com", "COMPANY_EMPLOYEE"));
+    }
+
+    @Test
+    void testLoadUserByEmailAndRoleFarmOwner() {
+        FarmOwner owner = FarmOwner.builder().id(3L).email("farmer@ouros.com").password("pass").build();
+        when(farmOwnerRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.of(owner));
+
+        UserDetails userDetails = userDetailsService.loadUserByEmailAndRole("farmer@ouros.com", "FARM_OWNER");
+
+        assertNotNull(userDetails);
+        assertEquals("farmer@ouros.com", userDetails.getUsername());
+        assertTrue(userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_FARM_OWNER")));
+    }
+
+    @Test
+    void testLoadUserByEmailAndRoleFarmOwnerNotFound() {
+        when(farmOwnerRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.empty());
+
+        assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByEmailAndRole("farmer@ouros.com", "FARM_OWNER"));
+    }
+
+    @Test
+    void testLoadUserByEmailAndRoleNullRoleFallback() {
+        Adm adm = Adm.builder().id(1L).email("adm@ouros.com").password("pass").build();
+        when(admRepository.findByEmail("adm@ouros.com")).thenReturn(Optional.of(adm));
+
+        UserDetails userDetails = userDetailsService.loadUserByEmailAndRole("adm@ouros.com", null);
+
+        assertNotNull(userDetails);
+        assertEquals("adm@ouros.com", userDetails.getUsername());
+    }
 }
