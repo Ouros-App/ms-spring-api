@@ -32,7 +32,14 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    // 1. Gera token com ID, Email e Role
+    /**
+     * Gera token JWT assinado contendo ID, e-mail (subject) e role como claims.
+     *
+     * @param id    o ID do usuário
+     * @param email o e-mail do usuário
+     * @param role  o perfil de autorização
+     * @return token JWT formatado
+     */
     public String generateToken(Long id, String email, String role) {
         return Jwts.builder()
                 .subject(email)
@@ -44,42 +51,76 @@ public class JwtUtil {
                 .compact();
     }
 
-    // 2. Sobrecarga simplificada caso precise gerar apenas por email e role
+    /**
+     * Sobrecarga para gerar token com e-mail e role.
+     *
+     * @param email o e-mail do usuário
+     * @param role  o perfil de autorização
+     * @return token JWT formatado
+     */
     public String generateToken(String email, String role) {
         return generateToken(null, email, role);
     }
 
-    // 3. Extrai o ID de dentro do token
-    public Long getIdFromToken(String token) {
-        Object idClaim = getClaims(token).get("id");
-        return (idClaim instanceof Number number) ? number.longValue() : null;
-    }
-
-    // 4. Extrai o email
-    public String getEmailFromToken(String token) {
-        return getClaims(token).getSubject();
-    }
-
-    // 5. Extrai a role
-    public String getRoleFromToken(String token) {
-        return getClaims(token).get("role", String.class);
-    }
-
-    // 6. Valida o token
-    public boolean validateToken(String token) {
-        try {
-            getClaims(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
-    }
-
-    private Claims getClaims(String token) {
+    /**
+     * Valida a assinatura e extrai todas as claims do token JWT em uma única operação criptográfica.
+     *
+     * @param token o token JWT
+     * @return o conjunto de Claims contido no payload
+     * @throws JwtException             se o token for inválido, malformado ou expirado
+     * @throws IllegalArgumentException se o token for nulo ou vazio
+     */
+    public Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    /**
+     * Extrai o ID do usuário de dentro do token JWT.
+     *
+     * @param token o token JWT
+     * @return o ID do usuário ou null
+     */
+    public Long getIdFromToken(String token) {
+        Object idClaim = extractAllClaims(token).get("id");
+        return (idClaim instanceof Number number) ? number.longValue() : null;
+    }
+
+    /**
+     * Extrai o e-mail (subject) do token JWT.
+     *
+     * @param token o token JWT
+     * @return o e-mail do usuário
+     */
+    public String getEmailFromToken(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
+    /**
+     * Extrai a role do token JWT.
+     *
+     * @param token o token JWT
+     * @return o perfil de autorização
+     */
+    public String getRoleFromToken(String token) {
+        return extractAllClaims(token).get("role", String.class);
+    }
+
+    /**
+     * Valida a integridade e expiração do token JWT.
+     *
+     * @param token o token JWT
+     * @return true se o token for válido; false caso contrário
+     */
+    public boolean validateToken(String token) {
+        try {
+            extractAllClaims(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
 }

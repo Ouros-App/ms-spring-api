@@ -25,6 +25,7 @@ class JwtUtilTest {
 
         assertNotNull(token);
         assertTrue(jwtUtil.validateToken(token));
+        assertNotNull(jwtUtil.extractAllClaims(token));
         assertEquals(1L, jwtUtil.getIdFromToken(token));
         assertEquals("user@test.com", jwtUtil.getEmailFromToken(token));
         assertEquals("ADM", jwtUtil.getRoleFromToken(token));

@@ -22,6 +22,9 @@ import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+
 @ExtendWith(MockitoExtension.class)
 class JwtAuthFilterTest {
 
@@ -54,11 +57,12 @@ class JwtAuthFilterTest {
         String email = "test@ouros.com";
         String role = "ADM";
         UserDetails userDetails = new User(email, "pass", Collections.emptyList());
+        Claims claims = mock(Claims.class);
 
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
-        when(jwtUtil.validateToken(token)).thenReturn(true);
-        when(jwtUtil.getEmailFromToken(token)).thenReturn(email);
-        when(jwtUtil.getRoleFromToken(token)).thenReturn(role);
+        when(jwtUtil.extractAllClaims(token)).thenReturn(claims);
+        when(claims.getSubject()).thenReturn(email);
+        when(claims.get("role", String.class)).thenReturn(role);
         when(userDetailsService.loadUserByEmailAndRole(email, role)).thenReturn(userDetails);
 
         jwtAuthFilter.doFilterInternal(request, response, filterChain);
@@ -73,11 +77,12 @@ class JwtAuthFilterTest {
         String token = "valid-token";
         String email = "deleted@ouros.com";
         String role = "FARM_OWNER";
+        Claims claims = mock(Claims.class);
 
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
-        when(jwtUtil.validateToken(token)).thenReturn(true);
-        when(jwtUtil.getEmailFromToken(token)).thenReturn(email);
-        when(jwtUtil.getRoleFromToken(token)).thenReturn(role);
+        when(jwtUtil.extractAllClaims(token)).thenReturn(claims);
+        when(claims.getSubject()).thenReturn(email);
+        when(claims.get("role", String.class)).thenReturn(role);
         when(userDetailsService.loadUserByEmailAndRole(email, role))
                 .thenThrow(new UsernameNotFoundException("Usuário inativo"));
 
@@ -93,7 +98,7 @@ class JwtAuthFilterTest {
         String token = "invalid-token";
 
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
-        when(jwtUtil.validateToken(token)).thenReturn(false);
+        when(jwtUtil.extractAllClaims(token)).thenThrow(new JwtException("Assinatura inválida"));
 
         jwtAuthFilter.doFilterInternal(request, response, filterChain);
 

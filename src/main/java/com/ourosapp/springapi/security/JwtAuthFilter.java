@@ -1,6 +1,7 @@
 package com.ourosapp.springapi.security;
 
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,6 +17,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+/**
+ * Filtro HTTP executado uma vez por requisição para autenticar tokens JWT via cabeçalho Authorization Bearer.
+ */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
@@ -32,21 +36,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
 
-            if (jwtUtil.validateToken(token)) {
-                try {
-                    String email = jwtUtil.getEmailFromToken(token);
-                    String role = jwtUtil.getRoleFromToken(token);
-                    UserDetails userDetails = userDetailsService.loadUserByEmailAndRole(email, role);
+            try {
+                Claims claims = jwtUtil.extractAllClaims(token);
+                String email = claims.getSubject();
+                String role = claims.get("role", String.class);
 
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                } catch (UsernameNotFoundException ex) {
-                    SecurityContextHolder.clearContext();
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Usuário não encontrado ou inativo.");
-                    return;
-                }
+                UserDetails userDetails = userDetailsService.loadUserByEmailAndRole(email, role);
+
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            } catch (UsernameNotFoundException ex) {
+                SecurityContextHolder.clearContext();
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Usuário não encontrado ou inativo.");
+                return;
+            } catch (Exception ex) {
+                // Token inválido, malformado ou expirado: limpa contexto e segue a cadeia para tratamento de segurança
+                SecurityContextHolder.clearContext();
             }
         }
         filterChain.doFilter(request, response);

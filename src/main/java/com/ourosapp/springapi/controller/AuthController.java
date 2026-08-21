@@ -16,16 +16,34 @@ public class AuthController {
 
     private final AuthService authService;
 
+    /**
+     * Endpoint de autenticação para Administradores.
+     *
+     * @param request corpo da requisição contendo e-mail e senha
+     * @return token JWT encapsulado em LoginResponseDTO
+     */
     @PostMapping("/adms/login")
     public ResponseEntity<LoginResponseDTO> loginAdm(@RequestBody @Valid LoginRequestDTO request) {
         return ResponseEntity.ok(authService.loginAdm(request));
     }
 
+    /**
+     * Endpoint de autenticação para Funcionários da Empresa.
+     *
+     * @param request corpo da requisição contendo e-mail e senha
+     * @return token JWT encapsulado em LoginResponseDTO
+     */
     @PostMapping("/company-employees/login")
     public ResponseEntity<LoginResponseDTO> loginEmployee(@RequestBody @Valid LoginRequestDTO request) {
         return ResponseEntity.ok(authService.loginEmployee(request));
     }
 
+    /**
+     * Endpoint de autenticação para Proprietários Rurais / Fazendeiros.
+     *
+     * @param request corpo da requisição contendo e-mail e senha
+     * @return token JWT encapsulado em LoginResponseDTO
+     */
     @PostMapping("/farm-owners/login")
     public ResponseEntity<LoginResponseDTO> loginFarmOwner(@RequestBody @Valid LoginRequestDTO request) {
         return ResponseEntity.ok(authService.loginFarmOwner(request));

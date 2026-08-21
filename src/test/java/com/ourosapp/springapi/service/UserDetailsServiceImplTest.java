@@ -137,13 +137,34 @@ class UserDetailsServiceImplTest {
     }
 
     @Test
-    void testLoadUserByEmailAndRoleNullRoleFallback() {
-        Adm adm = Adm.builder().id(1L).email("adm@ouros.com").password("pass").build();
-        when(admRepository.findByEmail("adm@ouros.com")).thenReturn(Optional.of(adm));
+    void testLoadUserByEmailAndRoleNullRoleThrowsException() {
+        assertThrows(UsernameNotFoundException.class,
+                () -> userDetailsService.loadUserByEmailAndRole("adm@ouros.com", null));
+    }
 
-        UserDetails userDetails = userDetailsService.loadUserByEmailAndRole("adm@ouros.com", null);
+    @Test
+    void testLoadUserByEmailAndRoleInvalidRoleThrowsException() {
+        assertThrows(UsernameNotFoundException.class,
+                () -> userDetailsService.loadUserByEmailAndRole("adm@ouros.com", "INVALID_ROLE"));
+    }
 
-        assertNotNull(userDetails);
-        assertEquals("adm@ouros.com", userDetails.getUsername());
+    @Test
+    void testLoadUserByEmailAndRoleIsolatesAccountsWithSameEmailAcrossDifferentRoles() {
+        String sharedEmail = "shared@ouros.com";
+        Adm adm = Adm.builder().id(1L).email(sharedEmail).password("pass1").build();
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).email(sharedEmail).password("pass2").build();
+        FarmOwner owner = FarmOwner.builder().id(3L).email(sharedEmail).password("pass3").build();
+
+        when(admRepository.findByEmail(sharedEmail)).thenReturn(Optional.of(adm));
+        when(companyEmployeeRepository.findByEmail(sharedEmail)).thenReturn(Optional.of(employee));
+        when(farmOwnerRepository.findByEmail(sharedEmail)).thenReturn(Optional.of(owner));
+
+        UserDetails admDetails = userDetailsService.loadUserByEmailAndRole(sharedEmail, "ADM");
+        UserDetails empDetails = userDetailsService.loadUserByEmailAndRole(sharedEmail, "COMPANY_EMPLOYEE");
+        UserDetails farmDetails = userDetailsService.loadUserByEmailAndRole(sharedEmail, "FARM_OWNER");
+
+        assertTrue(admDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADM")));
+        assertTrue(empDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_COMPANY_EMPLOYEE")));
+        assertTrue(farmDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_FARM_OWNER")));
     }
 }

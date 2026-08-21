@@ -25,18 +25,39 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
+    /**
+     * Realiza a autenticação de administradores do sistema.
+     *
+     * @param request payload com e-mail e senha
+     * @return DTO com o token JWT gerado
+     * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
+     */
     public LoginResponseDTO loginAdm(LoginRequestDTO request) {
         Adm adm = admRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
         return authenticate(adm.getId(), adm.getEmail(), request.password(), adm.getPassword(), "ADM");
     }
 
+    /**
+     * Realiza a autenticação de funcionários da empresa parceira.
+     *
+     * @param request payload com e-mail e senha
+     * @return DTO com o token JWT gerado
+     * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
+     */
     public LoginResponseDTO loginEmployee(LoginRequestDTO request) {
         CompanyEmployee employee = companyEmployeeRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
         return authenticate(employee.getId(), employee.getEmail(), request.password(), employee.getPassword(), "COMPANY_EMPLOYEE");
     }
 
+    /**
+     * Realiza a autenticação de produtores rurais e proprietários de fazendas.
+     *
+     * @param request payload com e-mail e senha
+     * @return DTO com o token JWT gerado
+     * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
+     */
     public LoginResponseDTO loginFarmOwner(LoginRequestDTO request) {
         FarmOwner owner = farmOwnerRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
