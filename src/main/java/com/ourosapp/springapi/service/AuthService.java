@@ -9,6 +9,7 @@ import com.ourosapp.springapi.repository.AdmRepository;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.FarmOwnerRepository;
 import com.ourosapp.springapi.security.JwtUtil;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,13 +23,26 @@ import java.util.Optional;
 public class AuthService {
 
     private static final String INVALID_CREDENTIALS_MSG = "Credenciais inválidas.";
-    private static final String DUMMY_HASH = "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5V2I/VbJ/tH6f.Xl9t2DqqV1tQW6e";
 
     private final AdmRepository admRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final FarmOwnerRepository farmOwnerRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+
+    private String dummyHash;
+
+    @PostConstruct
+    public void init() {
+        this.dummyHash = passwordEncoder.encode("ouros-dummy-timing-protection");
+    }
+
+    private String getDummyHash() {
+        if (dummyHash == null) {
+            dummyHash = passwordEncoder.encode("ouros-dummy-timing-protection");
+        }
+        return dummyHash;
+    }
 
     /**
      * Realiza a autenticação de administradores do sistema.
@@ -40,7 +54,7 @@ public class AuthService {
     public LoginResponseDTO loginAdm(LoginRequestDTO request) {
         Optional<Adm> admOpt = admRepository.findByEmail(request.email());
         if (admOpt.isEmpty()) {
-            passwordEncoder.matches(request.password(), DUMMY_HASH);
+            passwordEncoder.matches(request.password(), getDummyHash());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
         }
         Adm adm = admOpt.get();
@@ -57,7 +71,7 @@ public class AuthService {
     public LoginResponseDTO loginEmployee(LoginRequestDTO request) {
         Optional<CompanyEmployee> employeeOpt = companyEmployeeRepository.findByEmail(request.email());
         if (employeeOpt.isEmpty()) {
-            passwordEncoder.matches(request.password(), DUMMY_HASH);
+            passwordEncoder.matches(request.password(), getDummyHash());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
         }
         CompanyEmployee employee = employeeOpt.get();
@@ -74,7 +88,7 @@ public class AuthService {
     public LoginResponseDTO loginFarmOwner(LoginRequestDTO request) {
         Optional<FarmOwner> ownerOpt = farmOwnerRepository.findByEmail(request.email());
         if (ownerOpt.isEmpty()) {
-            passwordEncoder.matches(request.password(), DUMMY_HASH);
+            passwordEncoder.matches(request.password(), getDummyHash());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
         }
         FarmOwner owner = ownerOpt.get();

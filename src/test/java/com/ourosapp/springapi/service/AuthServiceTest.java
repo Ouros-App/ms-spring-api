@@ -9,6 +9,7 @@ import com.ourosapp.springapi.repository.AdmRepository;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.FarmOwnerRepository;
 import com.ourosapp.springapi.security.JwtUtil;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -43,6 +44,11 @@ class AuthServiceTest {
     @InjectMocks
     private AuthService authService;
 
+    @BeforeEach
+    void setUp() {
+        lenient().when(passwordEncoder.encode(anyString())).thenReturn("dummy-encoded-hash");
+    }
+
     @Test
     void testLoginAdmSuccess() {
         LoginRequestDTO request = new LoginRequestDTO("adm@ouros.com", "senha123");
@@ -66,7 +72,7 @@ class AuthServiceTest {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginAdm(request));
         assertEquals(401, ex.getStatusCode().value());
         assertEquals("Credenciais inválidas.", ex.getReason());
-        verify(passwordEncoder).matches(eq("senha123"), eq("$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5V2I/VbJ/tH6f.Xl9t2DqqV1tQW6e"));
+        verify(passwordEncoder).matches(eq("senha123"), eq("dummy-encoded-hash"));
     }
 
     @Test
@@ -105,7 +111,7 @@ class AuthServiceTest {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginEmployee(request));
         assertEquals(401, ex.getStatusCode().value());
         assertEquals("Credenciais inválidas.", ex.getReason());
-        verify(passwordEncoder).matches(eq("senha123"), eq("$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5V2I/VbJ/tH6f.Xl9t2DqqV1tQW6e"));
+        verify(passwordEncoder).matches(eq("senha123"), eq("dummy-encoded-hash"));
     }
 
     @Test
@@ -144,7 +150,7 @@ class AuthServiceTest {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginFarmOwner(request));
         assertEquals(401, ex.getStatusCode().value());
         assertEquals("Credenciais inválidas.", ex.getReason());
-        verify(passwordEncoder).matches(eq("senha123"), eq("$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5V2I/VbJ/tH6f.Xl9t2DqqV1tQW6e"));
+        verify(passwordEncoder).matches(eq("senha123"), eq("dummy-encoded-hash"));
     }
 
     @Test
