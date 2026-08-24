@@ -7,6 +7,7 @@ import lombok.*;
 @Table(name = "adms")
 @Getter
 @Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -19,6 +20,7 @@ public class Adm {
     @Column(name = "email", length = 255, nullable = false, unique = true)
     private String email;
 
+    @ToString.Exclude
     @Column(name = "password", nullable = false)
     private String password;
 }

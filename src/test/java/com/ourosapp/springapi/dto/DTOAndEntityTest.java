@@ -40,6 +40,8 @@ class DTOAndEntityTest {
 
         Adm built = Adm.builder().id(2L).email("adm2@ouros.com").password("pass2").build();
         assertEquals(2L, built.getId());
+        assertTrue(built.toString().contains("adm2@ouros.com"));
+        assertFalse(built.toString().contains("pass2"));
     }
 
     @Test
@@ -71,6 +73,8 @@ class DTOAndEntityTest {
                 .idEnterprise(20L)
                 .build();
         assertEquals("Maria", built.getName());
+        assertTrue(built.toString().contains("Maria"));
+        assertFalse(built.toString().contains("pass2"));
     }
 
     @Test
@@ -102,6 +106,8 @@ class DTOAndEntityTest {
                 .idFarm(15L)
                 .build();
         assertEquals("Ana", built.getName());
+        assertTrue(built.toString().contains("Ana"));
+        assertFalse(built.toString().contains("pass2"));
     }
 
     @Test

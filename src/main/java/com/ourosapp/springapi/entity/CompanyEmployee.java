@@ -7,6 +7,7 @@ import lombok.*;
 @Table(name = "company_employees")
 @Getter
 @Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -28,6 +29,7 @@ public class CompanyEmployee {
     @Column(name = "telephone", length = 20, nullable = false)
     private String telephone;
 
+    @ToString.Exclude
     @Column(name = "password", nullable = false)
     private String password;
 
