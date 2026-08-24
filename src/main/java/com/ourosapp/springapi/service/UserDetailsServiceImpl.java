@@ -23,6 +23,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final FarmOwnerRepository farmOwnerRepository;
 
+    private String normalizeEmail(String email) {
+        return email != null ? email.trim().toLowerCase() : "";
+    }
+
     /**
      * Carrega o usuário a partir do e-mail e da role específica validada no token JWT,
      * impedindo ambiguidades e riscos de escalação de privilégios entre tabelas.
@@ -37,34 +41,47 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throw new UsernameNotFoundException("Token JWT não contém a claim de role necessária.");
         }
 
+        String normalizedEmail = normalizeEmail(email);
+
         return switch (role) {
-            case "ADM" -> admRepository.findByEmail(email)
+            case "ADM" -> admRepository.findByEmailIgnoreCase(normalizedEmail)
                     .map(UserPrincipal::create)
                     .orElseThrow(() -> new UsernameNotFoundException("Administrador não encontrado: " + email));
-            case "COMPANY_EMPLOYEE" -> companyEmployeeRepository.findByEmail(email)
+            case "COMPANY_EMPLOYEE" -> companyEmployeeRepository.findByEmailIgnoreCase(normalizedEmail)
                     .map(UserPrincipal::create)
                     .orElseThrow(() -> new UsernameNotFoundException("Funcionário da empresa não encontrado: " + email));
-            case "FARM_OWNER" -> farmOwnerRepository.findByEmail(email)
+            case "FARM_OWNER" -> farmOwnerRepository.findByEmailIgnoreCase(normalizedEmail)
                     .map(UserPrincipal::create)
                     .orElseThrow(() -> new UsernameNotFoundException("Produtor rural não encontrado: " + email));
             default -> throw new UsernameNotFoundException("Role desconhecida ou inválida: " + role);
         };
     }
 
+    /**
+     * ATENÇÃO: Em cenários onde o mesmo e-mail existe em múltiplas tabelas,
+     * a ordem de consulta sequencial prioriza Adm > CompanyEmployee > FarmOwner.
+     * Para autenticação segura e sem ambiguidades no contexto de tokens JWT,
+     * utilize {@link #loadUserByEmailAndRole(String, String)}.
+     *
+     * @param email o e-mail do usuário
+     * @return UserDetails autenticado
+     * @throws UsernameNotFoundException se o usuário não for encontrado em nenhuma das tabelas
+     */
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        String normalizedEmail = normalizeEmail(email);
 
-        Optional<Adm> adm = admRepository.findByEmail(email);
+        Optional<Adm> adm = admRepository.findByEmailIgnoreCase(normalizedEmail);
         if (adm.isPresent()) {
             return UserPrincipal.create(adm.get());
         }
 
-        Optional<CompanyEmployee> employee = companyEmployeeRepository.findByEmail(email);
+        Optional<CompanyEmployee> employee = companyEmployeeRepository.findByEmailIgnoreCase(normalizedEmail);
         if (employee.isPresent()) {
             return UserPrincipal.create(employee.get());
         }
 
-        Optional<FarmOwner> owner = farmOwnerRepository.findByEmail(email);
+        Optional<FarmOwner> owner = farmOwnerRepository.findByEmailIgnoreCase(normalizedEmail);
         if (owner.isPresent()) {
             return UserPrincipal.create(owner.get());
         }

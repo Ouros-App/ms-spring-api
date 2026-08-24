@@ -51,10 +51,10 @@ class AuthServiceTest {
 
     @Test
     void testLoginAdmSuccess() {
-        LoginRequestDTO request = new LoginRequestDTO("adm@ouros.com", "senha123");
+        LoginRequestDTO request = new LoginRequestDTO("ADM@OUROS.COM", "senha123");
         Adm adm = Adm.builder().id(1L).email("adm@ouros.com").password("hashedSenha").build();
 
-        when(admRepository.findByEmail("adm@ouros.com")).thenReturn(Optional.of(adm));
+        when(admRepository.findByEmailIgnoreCase("adm@ouros.com")).thenReturn(Optional.of(adm));
         when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
         when(jwtUtil.generateToken(1L, "adm@ouros.com", "ADM")).thenReturn("fake-jwt-token");
 
@@ -67,7 +67,7 @@ class AuthServiceTest {
     @Test
     void testLoginAdmUserNotFound() {
         LoginRequestDTO request = new LoginRequestDTO("notfound@ouros.com", "senha123");
-        when(admRepository.findByEmail("notfound@ouros.com")).thenReturn(Optional.empty());
+        when(admRepository.findByEmailIgnoreCase("notfound@ouros.com")).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginAdm(request));
         assertEquals(401, ex.getStatusCode().value());
@@ -80,7 +80,7 @@ class AuthServiceTest {
         LoginRequestDTO request = new LoginRequestDTO("adm@ouros.com", "errada");
         Adm adm = Adm.builder().id(1L).email("adm@ouros.com").password("hashedSenha").build();
 
-        when(admRepository.findByEmail("adm@ouros.com")).thenReturn(Optional.of(adm));
+        when(admRepository.findByEmailIgnoreCase("adm@ouros.com")).thenReturn(Optional.of(adm));
         when(passwordEncoder.matches("errada", "hashedSenha")).thenReturn(false);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginAdm(request));
@@ -90,10 +90,10 @@ class AuthServiceTest {
 
     @Test
     void testLoginEmployeeSuccess() {
-        LoginRequestDTO request = new LoginRequestDTO("emp@ouros.com", "senha123");
+        LoginRequestDTO request = new LoginRequestDTO("Employee@Ouros.Com", "senha123");
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).email("emp@ouros.com").password("hashedSenha").build();
 
-        when(companyEmployeeRepository.findByEmail("emp@ouros.com")).thenReturn(Optional.of(employee));
+        when(companyEmployeeRepository.findByEmailIgnoreCase("employee@ouros.com")).thenReturn(Optional.of(employee));
         when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
         when(jwtUtil.generateToken(2L, "emp@ouros.com", "COMPANY_EMPLOYEE")).thenReturn("emp-token");
 
@@ -106,7 +106,7 @@ class AuthServiceTest {
     @Test
     void testLoginEmployeeNotFound() {
         LoginRequestDTO request = new LoginRequestDTO("emp@ouros.com", "senha123");
-        when(companyEmployeeRepository.findByEmail("emp@ouros.com")).thenReturn(Optional.empty());
+        when(companyEmployeeRepository.findByEmailIgnoreCase("emp@ouros.com")).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginEmployee(request));
         assertEquals(401, ex.getStatusCode().value());
@@ -119,7 +119,7 @@ class AuthServiceTest {
         LoginRequestDTO request = new LoginRequestDTO("emp@ouros.com", "errada");
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).email("emp@ouros.com").password("hashedSenha").build();
 
-        when(companyEmployeeRepository.findByEmail("emp@ouros.com")).thenReturn(Optional.of(employee));
+        when(companyEmployeeRepository.findByEmailIgnoreCase("emp@ouros.com")).thenReturn(Optional.of(employee));
         when(passwordEncoder.matches("errada", "hashedSenha")).thenReturn(false);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginEmployee(request));
@@ -129,10 +129,10 @@ class AuthServiceTest {
 
     @Test
     void testLoginFarmOwnerSuccess() {
-        LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "senha123");
+        LoginRequestDTO request = new LoginRequestDTO("Farmer@Ouros.COM", "senha123");
         FarmOwner owner = FarmOwner.builder().id(3L).email("farmer@ouros.com").password("hashedSenha").build();
 
-        when(farmOwnerRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.of(owner));
+        when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.of(owner));
         when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
         when(jwtUtil.generateToken(3L, "farmer@ouros.com", "FARM_OWNER")).thenReturn("farmer-token");
 
@@ -145,7 +145,7 @@ class AuthServiceTest {
     @Test
     void testLoginFarmOwnerNotFound() {
         LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "senha123");
-        when(farmOwnerRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.empty());
+        when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginFarmOwner(request));
         assertEquals(401, ex.getStatusCode().value());
@@ -158,7 +158,7 @@ class AuthServiceTest {
         LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "errada");
         FarmOwner owner = FarmOwner.builder().id(3L).email("farmer@ouros.com").password("hashedSenha").build();
 
-        when(farmOwnerRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.of(owner));
+        when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.of(owner));
         when(passwordEncoder.matches("errada", "hashedSenha")).thenReturn(false);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginFarmOwner(request));

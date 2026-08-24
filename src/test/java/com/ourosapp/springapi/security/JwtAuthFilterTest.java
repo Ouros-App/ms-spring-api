@@ -127,4 +127,22 @@ class JwtAuthFilterTest {
         verifyNoInteractions(userDetailsService);
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
+
+    @Test
+    void testDoFilterInternalWhenAlreadyAuthenticatedSkipsProcessing() throws ServletException, IOException {
+        String token = "valid-token";
+        UserDetails existingUser = new User("existing@ouros.com", "pass", Collections.emptyList());
+        org.springframework.security.authentication.UsernamePasswordAuthenticationToken existingAuth =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(existingUser, null, existingUser.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(existingAuth);
+
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        verifyNoInteractions(jwtUtil);
+        verifyNoInteractions(userDetailsService);
+        assertEquals("existing@ouros.com", SecurityContextHolder.getContext().getAuthentication().getName());
+    }
 }

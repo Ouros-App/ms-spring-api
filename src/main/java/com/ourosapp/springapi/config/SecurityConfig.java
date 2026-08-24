@@ -35,7 +35,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
-    @Value("${app.cors.allowed-origins:*}")
+    @Value("${app.cors.allowed-origins:}")
     private List<String> allowedOrigins;
 
     /**
@@ -78,7 +78,15 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(allowedOrigins != null && !allowedOrigins.isEmpty() ? allowedOrigins : List.of("*"));
+        List<String> origins = (allowedOrigins != null && !allowedOrigins.isEmpty())
+                ? allowedOrigins.stream().map(String::trim).filter(o -> !o.isEmpty()).toList()
+                : List.of();
+
+        if (!origins.isEmpty()) {
+            config.setAllowedOriginPatterns(origins);
+        } else {
+            config.setAllowedOrigins(List.of());
+        }
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(false);

@@ -44,6 +44,10 @@ public class AuthService {
         return dummyHash;
     }
 
+    private String normalizeEmail(String email) {
+        return email != null ? email.trim().toLowerCase() : "";
+    }
+
     /**
      * Realiza a autenticação de administradores do sistema.
      *
@@ -52,7 +56,8 @@ public class AuthService {
      * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
      */
     public LoginResponseDTO loginAdm(LoginRequestDTO request) {
-        Optional<Adm> admOpt = admRepository.findByEmail(request.email());
+        String normalizedEmail = normalizeEmail(request.email());
+        Optional<Adm> admOpt = admRepository.findByEmailIgnoreCase(normalizedEmail);
         if (admOpt.isEmpty()) {
             passwordEncoder.matches(request.password(), getDummyHash());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
@@ -69,7 +74,8 @@ public class AuthService {
      * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
      */
     public LoginResponseDTO loginEmployee(LoginRequestDTO request) {
-        Optional<CompanyEmployee> employeeOpt = companyEmployeeRepository.findByEmail(request.email());
+        String normalizedEmail = normalizeEmail(request.email());
+        Optional<CompanyEmployee> employeeOpt = companyEmployeeRepository.findByEmailIgnoreCase(normalizedEmail);
         if (employeeOpt.isEmpty()) {
             passwordEncoder.matches(request.password(), getDummyHash());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
@@ -86,7 +92,8 @@ public class AuthService {
      * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
      */
     public LoginResponseDTO loginFarmOwner(LoginRequestDTO request) {
-        Optional<FarmOwner> ownerOpt = farmOwnerRepository.findByEmail(request.email());
+        String normalizedEmail = normalizeEmail(request.email());
+        Optional<FarmOwner> ownerOpt = farmOwnerRepository.findByEmailIgnoreCase(normalizedEmail);
         if (ownerOpt.isEmpty()) {
             passwordEncoder.matches(request.password(), getDummyHash());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);

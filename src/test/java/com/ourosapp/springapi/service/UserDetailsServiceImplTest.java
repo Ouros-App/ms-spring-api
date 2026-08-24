@@ -37,7 +37,7 @@ class UserDetailsServiceImplTest {
     @Test
     void testLoadUserByUsernameAdm() {
         Adm adm = Adm.builder().id(1L).email("adm@ouros.com").password("pass").build();
-        when(admRepository.findByEmail("adm@ouros.com")).thenReturn(Optional.of(adm));
+        when(admRepository.findByEmailIgnoreCase("adm@ouros.com")).thenReturn(Optional.of(adm));
 
         UserDetails userDetails = userDetailsService.loadUserByUsername("adm@ouros.com");
 
@@ -48,8 +48,8 @@ class UserDetailsServiceImplTest {
     @Test
     void testLoadUserByUsernameCompanyEmployee() {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).email("emp@ouros.com").password("pass").build();
-        when(admRepository.findByEmail("emp@ouros.com")).thenReturn(Optional.empty());
-        when(companyEmployeeRepository.findByEmail("emp@ouros.com")).thenReturn(Optional.of(employee));
+        when(admRepository.findByEmailIgnoreCase("emp@ouros.com")).thenReturn(Optional.empty());
+        when(companyEmployeeRepository.findByEmailIgnoreCase("emp@ouros.com")).thenReturn(Optional.of(employee));
 
         UserDetails userDetails = userDetailsService.loadUserByUsername("emp@ouros.com");
 
@@ -60,9 +60,9 @@ class UserDetailsServiceImplTest {
     @Test
     void testLoadUserByUsernameFarmOwner() {
         FarmOwner owner = FarmOwner.builder().id(3L).email("farmer@ouros.com").password("pass").build();
-        when(admRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.empty());
-        when(companyEmployeeRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.empty());
-        when(farmOwnerRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.of(owner));
+        when(admRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.empty());
+        when(companyEmployeeRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.empty());
+        when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.of(owner));
 
         UserDetails userDetails = userDetailsService.loadUserByUsername("farmer@ouros.com");
 
@@ -72,9 +72,9 @@ class UserDetailsServiceImplTest {
 
     @Test
     void testLoadUserByUsernameNotFound() {
-        when(admRepository.findByEmail("notfound@ouros.com")).thenReturn(Optional.empty());
-        when(companyEmployeeRepository.findByEmail("notfound@ouros.com")).thenReturn(Optional.empty());
-        when(farmOwnerRepository.findByEmail("notfound@ouros.com")).thenReturn(Optional.empty());
+        when(admRepository.findByEmailIgnoreCase("notfound@ouros.com")).thenReturn(Optional.empty());
+        when(companyEmployeeRepository.findByEmailIgnoreCase("notfound@ouros.com")).thenReturn(Optional.empty());
+        when(farmOwnerRepository.findByEmailIgnoreCase("notfound@ouros.com")).thenReturn(Optional.empty());
 
         assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByUsername("notfound@ouros.com"));
     }
@@ -82,9 +82,9 @@ class UserDetailsServiceImplTest {
     @Test
     void testLoadUserByEmailAndRoleAdm() {
         Adm adm = Adm.builder().id(1L).email("adm@ouros.com").password("pass").build();
-        when(admRepository.findByEmail("adm@ouros.com")).thenReturn(Optional.of(adm));
+        when(admRepository.findByEmailIgnoreCase("adm@ouros.com")).thenReturn(Optional.of(adm));
 
-        UserDetails userDetails = userDetailsService.loadUserByEmailAndRole("adm@ouros.com", "ADM");
+        UserDetails userDetails = userDetailsService.loadUserByEmailAndRole("ADM@OUROS.COM", "ADM");
 
         assertNotNull(userDetails);
         assertEquals("adm@ouros.com", userDetails.getUsername());
@@ -93,7 +93,7 @@ class UserDetailsServiceImplTest {
 
     @Test
     void testLoadUserByEmailAndRoleAdmNotFound() {
-        when(admRepository.findByEmail("adm@ouros.com")).thenReturn(Optional.empty());
+        when(admRepository.findByEmailIgnoreCase("adm@ouros.com")).thenReturn(Optional.empty());
 
         assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByEmailAndRole("adm@ouros.com", "ADM"));
     }
@@ -101,9 +101,9 @@ class UserDetailsServiceImplTest {
     @Test
     void testLoadUserByEmailAndRoleEmployee() {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).email("emp@ouros.com").password("pass").build();
-        when(companyEmployeeRepository.findByEmail("emp@ouros.com")).thenReturn(Optional.of(employee));
+        when(companyEmployeeRepository.findByEmailIgnoreCase("emp@ouros.com")).thenReturn(Optional.of(employee));
 
-        UserDetails userDetails = userDetailsService.loadUserByEmailAndRole("emp@ouros.com", "COMPANY_EMPLOYEE");
+        UserDetails userDetails = userDetailsService.loadUserByEmailAndRole("Emp@Ouros.Com", "COMPANY_EMPLOYEE");
 
         assertNotNull(userDetails);
         assertEquals("emp@ouros.com", userDetails.getUsername());
@@ -112,7 +112,7 @@ class UserDetailsServiceImplTest {
 
     @Test
     void testLoadUserByEmailAndRoleEmployeeNotFound() {
-        when(companyEmployeeRepository.findByEmail("emp@ouros.com")).thenReturn(Optional.empty());
+        when(companyEmployeeRepository.findByEmailIgnoreCase("emp@ouros.com")).thenReturn(Optional.empty());
 
         assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByEmailAndRole("emp@ouros.com", "COMPANY_EMPLOYEE"));
     }
@@ -120,9 +120,9 @@ class UserDetailsServiceImplTest {
     @Test
     void testLoadUserByEmailAndRoleFarmOwner() {
         FarmOwner owner = FarmOwner.builder().id(3L).email("farmer@ouros.com").password("pass").build();
-        when(farmOwnerRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.of(owner));
+        when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.of(owner));
 
-        UserDetails userDetails = userDetailsService.loadUserByEmailAndRole("farmer@ouros.com", "FARM_OWNER");
+        UserDetails userDetails = userDetailsService.loadUserByEmailAndRole("Farmer@Ouros.COM", "FARM_OWNER");
 
         assertNotNull(userDetails);
         assertEquals("farmer@ouros.com", userDetails.getUsername());
@@ -131,7 +131,7 @@ class UserDetailsServiceImplTest {
 
     @Test
     void testLoadUserByEmailAndRoleFarmOwnerNotFound() {
-        when(farmOwnerRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.empty());
+        when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.empty());
 
         assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByEmailAndRole("farmer@ouros.com", "FARM_OWNER"));
     }
@@ -155,9 +155,9 @@ class UserDetailsServiceImplTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).email(sharedEmail).password("pass2").build();
         FarmOwner owner = FarmOwner.builder().id(3L).email(sharedEmail).password("pass3").build();
 
-        when(admRepository.findByEmail(sharedEmail)).thenReturn(Optional.of(adm));
-        when(companyEmployeeRepository.findByEmail(sharedEmail)).thenReturn(Optional.of(employee));
-        when(farmOwnerRepository.findByEmail(sharedEmail)).thenReturn(Optional.of(owner));
+        when(admRepository.findByEmailIgnoreCase(sharedEmail)).thenReturn(Optional.of(adm));
+        when(companyEmployeeRepository.findByEmailIgnoreCase(sharedEmail)).thenReturn(Optional.of(employee));
+        when(farmOwnerRepository.findByEmailIgnoreCase(sharedEmail)).thenReturn(Optional.of(owner));
 
         UserDetails admDetails = userDetailsService.loadUserByEmailAndRole(sharedEmail, "ADM");
         UserDetails empDetails = userDetailsService.loadUserByEmailAndRole(sharedEmail, "COMPANY_EMPLOYEE");

@@ -9,5 +9,7 @@ import java.util.Optional;
 @Repository
 public interface FarmOwnerRepository extends JpaRepository<FarmOwner, Long> {
     Optional<FarmOwner> findByEmail(String email);
+    Optional<FarmOwner> findByEmailIgnoreCase(String email);
     boolean existsByEmail(String email);
+    boolean existsByEmailIgnoreCase(String email);
 }
