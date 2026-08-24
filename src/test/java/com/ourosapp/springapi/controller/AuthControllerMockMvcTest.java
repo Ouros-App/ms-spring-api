@@ -11,10 +11,12 @@ import com.ourosapp.springapi.service.UserDetailsServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -94,5 +96,41 @@ class AuthControllerMockMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testLoginAdmWithInvalidCredentialsReturnsUnauthorized() throws Exception {
+        LoginRequestDTO request = new LoginRequestDTO("adm@ouros.com", "senhaIncorreta");
+        when(authService.loginAdm(any(LoginRequestDTO.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
+
+        mockMvc.perform(post("/adms/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void testLoginEmployeeWithInvalidCredentialsReturnsUnauthorized() throws Exception {
+        LoginRequestDTO request = new LoginRequestDTO("employee@ouros.com", "senhaIncorreta");
+        when(authService.loginEmployee(any(LoginRequestDTO.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
+
+        mockMvc.perform(post("/company-employees/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void testLoginFarmOwnerWithInvalidCredentialsReturnsUnauthorized() throws Exception {
+        LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "senhaIncorreta");
+        when(authService.loginFarmOwner(any(LoginRequestDTO.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
+
+        mockMvc.perform(post("/farm-owners/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
     }
 }

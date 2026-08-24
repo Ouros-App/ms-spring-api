@@ -63,7 +63,10 @@ class AuthServiceTest {
         LoginRequestDTO request = new LoginRequestDTO("notfound@ouros.com", "senha123");
         when(admRepository.findByEmail("notfound@ouros.com")).thenReturn(Optional.empty());
 
-        assertThrows(ResponseStatusException.class, () -> authService.loginAdm(request));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginAdm(request));
+        assertEquals(401, ex.getStatusCode().value());
+        assertEquals("Credenciais inválidas.", ex.getReason());
+        verify(passwordEncoder).matches(eq("senha123"), eq("$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5V2I/VbJ/tH6f.Xl9t2DqqV1tQW6e"));
     }
 
     @Test
@@ -74,7 +77,9 @@ class AuthServiceTest {
         when(admRepository.findByEmail("adm@ouros.com")).thenReturn(Optional.of(adm));
         when(passwordEncoder.matches("errada", "hashedSenha")).thenReturn(false);
 
-        assertThrows(ResponseStatusException.class, () -> authService.loginAdm(request));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginAdm(request));
+        assertEquals(401, ex.getStatusCode().value());
+        assertEquals("Credenciais inválidas.", ex.getReason());
     }
 
     @Test
@@ -97,7 +102,10 @@ class AuthServiceTest {
         LoginRequestDTO request = new LoginRequestDTO("emp@ouros.com", "senha123");
         when(companyEmployeeRepository.findByEmail("emp@ouros.com")).thenReturn(Optional.empty());
 
-        assertThrows(ResponseStatusException.class, () -> authService.loginEmployee(request));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginEmployee(request));
+        assertEquals(401, ex.getStatusCode().value());
+        assertEquals("Credenciais inválidas.", ex.getReason());
+        verify(passwordEncoder).matches(eq("senha123"), eq("$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5V2I/VbJ/tH6f.Xl9t2DqqV1tQW6e"));
     }
 
     @Test
@@ -108,7 +116,9 @@ class AuthServiceTest {
         when(companyEmployeeRepository.findByEmail("emp@ouros.com")).thenReturn(Optional.of(employee));
         when(passwordEncoder.matches("errada", "hashedSenha")).thenReturn(false);
 
-        assertThrows(ResponseStatusException.class, () -> authService.loginEmployee(request));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginEmployee(request));
+        assertEquals(401, ex.getStatusCode().value());
+        assertEquals("Credenciais inválidas.", ex.getReason());
     }
 
     @Test
@@ -131,7 +141,10 @@ class AuthServiceTest {
         LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "senha123");
         when(farmOwnerRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.empty());
 
-        assertThrows(ResponseStatusException.class, () -> authService.loginFarmOwner(request));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginFarmOwner(request));
+        assertEquals(401, ex.getStatusCode().value());
+        assertEquals("Credenciais inválidas.", ex.getReason());
+        verify(passwordEncoder).matches(eq("senha123"), eq("$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5V2I/VbJ/tH6f.Xl9t2DqqV1tQW6e"));
     }
 
     @Test
@@ -142,6 +155,8 @@ class AuthServiceTest {
         when(farmOwnerRepository.findByEmail("farmer@ouros.com")).thenReturn(Optional.of(owner));
         when(passwordEncoder.matches("errada", "hashedSenha")).thenReturn(false);
 
-        assertThrows(ResponseStatusException.class, () -> authService.loginFarmOwner(request));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginFarmOwner(request));
+        assertEquals(401, ex.getStatusCode().value());
+        assertEquals("Credenciais inválidas.", ex.getReason());
     }
 }

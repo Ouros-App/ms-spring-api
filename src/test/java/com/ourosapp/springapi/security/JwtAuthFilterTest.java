@@ -115,4 +115,16 @@ class JwtAuthFilterTest {
         verify(filterChain).doFilter(request, response);
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
+
+    @Test
+    void testDoFilterInternalBlankBearerToken() throws ServletException, IOException {
+        when(request.getHeader("Authorization")).thenReturn("Bearer   ");
+
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        verifyNoInteractions(jwtUtil);
+        verifyNoInteractions(userDetailsService);
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
 }

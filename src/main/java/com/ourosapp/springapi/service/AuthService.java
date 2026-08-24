@@ -15,9 +15,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
+    private static final String INVALID_CREDENTIALS_MSG = "Credenciais inválidas.";
+    private static final String DUMMY_HASH = "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5V2I/VbJ/tH6f.Xl9t2DqqV1tQW6e";
 
     private final AdmRepository admRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
@@ -33,8 +38,12 @@ public class AuthService {
      * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
      */
     public LoginResponseDTO loginAdm(LoginRequestDTO request) {
-        Adm adm = admRepository.findByEmail(request.email())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
+        Optional<Adm> admOpt = admRepository.findByEmail(request.email());
+        if (admOpt.isEmpty()) {
+            passwordEncoder.matches(request.password(), DUMMY_HASH);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
+        }
+        Adm adm = admOpt.get();
         return authenticate(adm.getId(), adm.getEmail(), request.password(), adm.getPassword(), "ADM");
     }
 
@@ -46,8 +55,12 @@ public class AuthService {
      * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
      */
     public LoginResponseDTO loginEmployee(LoginRequestDTO request) {
-        CompanyEmployee employee = companyEmployeeRepository.findByEmail(request.email())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
+        Optional<CompanyEmployee> employeeOpt = companyEmployeeRepository.findByEmail(request.email());
+        if (employeeOpt.isEmpty()) {
+            passwordEncoder.matches(request.password(), DUMMY_HASH);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
+        }
+        CompanyEmployee employee = employeeOpt.get();
         return authenticate(employee.getId(), employee.getEmail(), request.password(), employee.getPassword(), "COMPANY_EMPLOYEE");
     }
 
@@ -59,14 +72,18 @@ public class AuthService {
      * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
      */
     public LoginResponseDTO loginFarmOwner(LoginRequestDTO request) {
-        FarmOwner owner = farmOwnerRepository.findByEmail(request.email())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas."));
+        Optional<FarmOwner> ownerOpt = farmOwnerRepository.findByEmail(request.email());
+        if (ownerOpt.isEmpty()) {
+            passwordEncoder.matches(request.password(), DUMMY_HASH);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
+        }
+        FarmOwner owner = ownerOpt.get();
         return authenticate(owner.getId(), owner.getEmail(), request.password(), owner.getPassword(), "FARM_OWNER");
     }
 
     private LoginResponseDTO authenticate(Long id, String email, String rawPassword, String encodedPassword, String role) {
         if (!passwordEncoder.matches(rawPassword, encodedPassword)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas.");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
         }
         String token = jwtUtil.generateToken(id, email, role);
         return new LoginResponseDTO(token);

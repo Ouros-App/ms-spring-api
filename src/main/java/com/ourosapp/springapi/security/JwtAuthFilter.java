@@ -34,26 +34,28 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
+            String token = authHeader.substring(7).trim();
 
-            try {
-                Claims claims = jwtUtil.extractAllClaims(token);
-                String email = claims.getSubject();
-                String role = claims.get("role", String.class);
+            if (!token.isEmpty()) {
+                try {
+                    Claims claims = jwtUtil.extractAllClaims(token);
+                    String email = claims.getSubject();
+                    String role = claims.get("role", String.class);
 
-                UserDetails userDetails = userDetailsService.loadUserByEmailAndRole(email, role);
+                    UserDetails userDetails = userDetailsService.loadUserByEmailAndRole(email, role);
 
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            } catch (UsernameNotFoundException ex) {
-                SecurityContextHolder.clearContext();
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Usuário não encontrado ou inativo.");
-                return;
-            } catch (Exception ex) {
-                // Token inválido, malformado ou expirado: limpa contexto e segue a cadeia para tratamento de segurança
-                SecurityContextHolder.clearContext();
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                } catch (UsernameNotFoundException ex) {
+                    SecurityContextHolder.clearContext();
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Usuário não encontrado ou inativo.");
+                    return;
+                } catch (Exception ex) {
+                    // Token inválido, malformado ou expirado: limpa contexto e segue a cadeia para tratamento de segurança
+                    SecurityContextHolder.clearContext();
+                }
             }
         }
         filterChain.doFilter(request, response);
