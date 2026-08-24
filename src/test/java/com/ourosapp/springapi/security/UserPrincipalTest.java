@@ -17,7 +17,7 @@ class UserPrincipalTest {
         assertEquals(1L, principal.getId());
         assertEquals("adm@ouros.com", principal.getEmail());
         assertEquals("adm@ouros.com", principal.getUsername());
-        assertEquals("pass", principal.getPassword());
+        assertNull(principal.getPassword());
         assertEquals("ADM", principal.getRole());
         assertTrue(principal.isAccountNonExpired());
         assertTrue(principal.isAccountNonLocked());
@@ -34,6 +34,7 @@ class UserPrincipalTest {
 
         assertEquals(2L, principal.getId());
         assertEquals("emp@ouros.com", principal.getEmail());
+        assertNull(principal.getPassword());
         assertEquals("COMPANY_EMPLOYEE", principal.getRole());
         assertTrue(principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_COMPANY_EMPLOYEE")));
     }
@@ -45,6 +46,7 @@ class UserPrincipalTest {
 
         assertEquals(3L, principal.getId());
         assertEquals("owner@ouros.com", principal.getEmail());
+        assertNull(principal.getPassword());
         assertEquals("FARM_OWNER", principal.getRole());
         assertTrue(principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_FARM_OWNER")));
     }

@@ -32,7 +32,7 @@ public class UserPrincipal implements UserDetails {
         return new UserPrincipal(
                 adm.getId(),
                 adm.getEmail(),
-                adm.getPassword(),
+                null,
                 "ADM",
                 List.of(new SimpleGrantedAuthority("ROLE_ADM"))
         );
@@ -48,7 +48,7 @@ public class UserPrincipal implements UserDetails {
         return new UserPrincipal(
                 employee.getId(),
                 employee.getEmail(),
-                employee.getPassword(),
+                null,
                 "COMPANY_EMPLOYEE",
                 List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE"))
         );
@@ -64,7 +64,7 @@ public class UserPrincipal implements UserDetails {
         return new UserPrincipal(
                 farmOwner.getId(),
                 farmOwner.getEmail(),
-                farmOwner.getPassword(),
+                null,
                 "FARM_OWNER",
                 List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
         );

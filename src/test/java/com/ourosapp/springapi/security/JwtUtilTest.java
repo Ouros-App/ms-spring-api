@@ -17,6 +17,7 @@ class JwtUtilTest {
         jwtUtil = new JwtUtil();
         ReflectionTestUtils.setField(jwtUtil, "secret", secret);
         ReflectionTestUtils.setField(jwtUtil, "expirationMs", expirationMs);
+        jwtUtil.validateAndInitSecret();
     }
 
     @Test
@@ -53,6 +54,7 @@ class JwtUtilTest {
         JwtUtil expiredJwtUtil = new JwtUtil();
         ReflectionTestUtils.setField(expiredJwtUtil, "secret", secret);
         ReflectionTestUtils.setField(expiredJwtUtil, "expirationMs", -1000L);
+        expiredJwtUtil.validateAndInitSecret();
 
         String expiredToken = expiredJwtUtil.generateToken(2L, "expired@test.com", "FARM_OWNER");
         assertFalse(jwtUtil.validateToken(expiredToken));
@@ -60,16 +62,16 @@ class JwtUtilTest {
 
     @Test
     void testValidateSecretValid() {
-        assertDoesNotThrow(() -> jwtUtil.validateSecret());
+        assertDoesNotThrow(() -> jwtUtil.validateAndInitSecret());
     }
 
     @Test
     void testValidateSecretInvalid() {
         JwtUtil invalidJwt = new JwtUtil();
         ReflectionTestUtils.setField(invalidJwt, "secret", "curta");
-        assertThrows(IllegalStateException.class, invalidJwt::validateSecret);
+        assertThrows(IllegalStateException.class, invalidJwt::validateAndInitSecret);
 
         ReflectionTestUtils.setField(invalidJwt, "secret", null);
-        assertThrows(IllegalStateException.class, invalidJwt::validateSecret);
+        assertThrows(IllegalStateException.class, invalidJwt::validateAndInitSecret);
     }
 }

@@ -8,6 +8,9 @@ plugins {
 
 group = 'com.ourosapp'
 version = '0.0.1-SNAPSHOT'
+if (System.getProperty("customBuildDir") != null) {
+    layout.buildDirectory = file(System.getProperty("customBuildDir"))
+}
 
 repositories {
     mavenCentral()

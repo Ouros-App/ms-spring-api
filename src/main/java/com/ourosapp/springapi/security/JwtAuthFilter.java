@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -49,12 +48,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                 new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
-                    } catch (UsernameNotFoundException ex) {
-                        SecurityContextHolder.clearContext();
-                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Usuário não encontrado ou inativo.");
-                        return;
                     } catch (Exception ex) {
-                        // Token inválido, malformado ou expirado: limpa contexto e segue a cadeia para tratamento de segurança
+                        // Token inválido, malformado, expirado ou usuário não encontrado:
+                        // limpa o contexto e segue a cadeia para que o Spring Security avalie o acesso à rota
                         SecurityContextHolder.clearContext();
                     }
                 }

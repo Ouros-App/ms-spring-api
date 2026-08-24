@@ -21,15 +21,18 @@ public class JwtUtil {
     @Value("${app.jwt.expiration-ms:86400000}")
     private long expirationMs;
 
+    private SecretKey signingKey;
+
     @PostConstruct
-    public void validateSecret() {
+    public void validateAndInitSecret() {
         if (secret == null || secret.trim().length() < 32) {
             throw new IllegalStateException("A chave secreta 'app.jwt.secret' deve conter no mínimo 32 caracteres (256 bits).");
         }
+        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        return this.signingKey;
     }
 
     /**

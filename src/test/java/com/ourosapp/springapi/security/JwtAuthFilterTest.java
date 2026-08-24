@@ -88,8 +88,8 @@ class JwtAuthFilterTest {
 
         jwtAuthFilter.doFilterInternal(request, response, filterChain);
 
-        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Usuário não encontrado ou inativo.");
-        verify(filterChain, never()).doFilter(request, response);
+        verify(filterChain).doFilter(request, response);
+        verify(response, never()).sendError(anyInt(), anyString());
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
