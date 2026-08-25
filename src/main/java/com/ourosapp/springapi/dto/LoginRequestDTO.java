@@ -18,7 +18,7 @@ public record LoginRequestDTO(
     @Email(message = "O e-mail informado é inválido.")
     String email,
 
-    @Schema(description = "Senha de acesso do usuário", example = "123456")
+    @Schema(description = "Senha de acesso do usuário", example = "123456", format = "password")
     @NotBlank(message = "A senha é obrigatória.")
     String password
 ) {}
