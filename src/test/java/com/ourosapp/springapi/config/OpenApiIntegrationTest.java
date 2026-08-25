@@ -27,6 +27,12 @@ class OpenApiIntegrationTest {
     }
 
     @Test
+    void testOpenApiDocsYamlEndpointAvailable() throws Exception {
+        mockMvc.perform(get("/v3/api-docs.yaml"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void testSwaggerUiEndpointAvailable() throws Exception {
         mockMvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().isOk());

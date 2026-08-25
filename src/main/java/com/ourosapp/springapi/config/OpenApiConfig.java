@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.info.Contact;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.info.License;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import org.springframework.context.annotation.Configuration;
 
@@ -28,10 +27,7 @@ import org.springframework.context.annotation.Configuration;
                         name = "MIT License",
                         url = "https://github.com/Ouros-App/ms-spring-api/blob/main/LICENSE"
                 )
-        ),
-        security = {
-                @SecurityRequirement(name = "BearerAuth")
-        }
+        )
 )
 @SecurityScheme(
         name = "BearerAuth",
@@ -42,3 +38,4 @@ import org.springframework.context.annotation.Configuration;
 )
 public class OpenApiConfig {
 }
+

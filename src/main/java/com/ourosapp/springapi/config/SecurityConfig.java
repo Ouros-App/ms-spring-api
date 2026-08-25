@@ -60,7 +60,9 @@ public class SecurityConfig {
                                 "/health",
                                 "/",
                                 "/error",
+                                "/v3/api-docs",
                                 "/v3/api-docs/**",
+                                "/v3/api-docs.yaml",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
