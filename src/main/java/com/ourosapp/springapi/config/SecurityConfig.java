@@ -56,7 +56,16 @@ public class SecurityConfig {
                                 "/company-employees/login",
                                 "/farm-owners/login"
                         ).permitAll()
-                        .requestMatchers("/health", "/", "/error").permitAll()
+                        .requestMatchers(
+                                "/health",
+                                "/",
+                                "/error",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
