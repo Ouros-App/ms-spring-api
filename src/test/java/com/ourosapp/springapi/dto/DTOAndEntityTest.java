@@ -1,6 +1,7 @@
 package com.ourosapp.springapi.dto;
 
 import com.ourosapp.springapi.config.SecurityConfig;
+import com.ourosapp.springapi.entity.Address;
 import com.ourosapp.springapi.entity.Adm;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.FarmOwner;
@@ -108,6 +109,67 @@ class DTOAndEntityTest {
         assertEquals("Ana", built.getName());
         assertTrue(built.toString().contains("Ana"));
         assertFalse(built.toString().contains("pass2"));
+    }
+
+    @Test
+    void testAddressEntity() {
+        Address address = new Address();
+        address.setId(1L);
+        address.setZipCode("01310-100");
+        address.setState("SP");
+        address.setCity("São Paulo");
+        address.setNumber("1000");
+        address.setCountry("BR");
+
+        assertEquals(1L, address.getId());
+        assertEquals("01310-100", address.getZipCode());
+        assertEquals("SP", address.getState());
+        assertEquals("São Paulo", address.getCity());
+        assertEquals("1000", address.getNumber());
+        assertEquals("BR", address.getCountry());
+
+        Address built = Address.builder()
+                .id(2L)
+                .zipCode("13010-001")
+                .state("SP")
+                .city("Campinas")
+                .number("555")
+                .country("BR")
+                .build();
+
+        assertEquals(2L, built.getId());
+        assertEquals("Campinas", built.getCity());
+        assertTrue(built.toString().contains("Campinas"));
+    }
+
+    @Test
+    void testAddressDTOs() {
+        AddressRequestDTO request = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR");
+        assertEquals("01310-100", request.zipCode());
+        assertEquals("SP", request.state());
+        assertEquals("São Paulo", request.city());
+        assertEquals("1000", request.number());
+        assertEquals("BR", request.country());
+
+        Address entity = Address.builder()
+                .id(10L)
+                .zipCode("01310-100")
+                .state("SP")
+                .city("São Paulo")
+                .number("1000")
+                .country("BR")
+                .build();
+
+        AddressResponseDTO response = AddressResponseDTO.fromEntity(entity);
+        assertNotNull(response);
+        assertEquals(10L, response.id());
+        assertEquals("01310-100", response.zipCode());
+        assertEquals("SP", response.state());
+        assertEquals("São Paulo", response.city());
+        assertEquals("1000", response.number());
+        assertEquals("BR", response.country());
+
+        assertNull(AddressResponseDTO.fromEntity(null));
     }
 
     @Test
