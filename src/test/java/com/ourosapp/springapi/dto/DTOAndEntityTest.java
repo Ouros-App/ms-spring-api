@@ -169,7 +169,7 @@ class DTOAndEntityTest {
         assertEquals("1000", response.number());
         assertEquals("BR", response.country());
 
-        assertNull(AddressResponseDTO.fromEntity(null));
+        assertThrows(NullPointerException.class, () -> AddressResponseDTO.fromEntity(null));
     }
 
     @Test

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ourosapp.springapi.entity.Address;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.Objects;
+
 /**
  * DTO de resposta contendo as informações completas de um endereço cadastrado.
  *
@@ -39,13 +41,12 @@ public record AddressResponseDTO(
     /**
      * Converte uma entidade {@link Address} em sua representação {@link AddressResponseDTO}.
      *
-     * @param address entidade a ser convertida
-     * @return DTO correspondente ou null se a entidade for nula
+     * @param address entidade a ser convertida (não deve ser nula)
+     * @return DTO correspondente
+     * @throws NullPointerException se address for nulo
      */
     public static AddressResponseDTO fromEntity(Address address) {
-        if (address == null) {
-            return null;
-        }
+        Objects.requireNonNull(address, "Address must not be null");
         return new AddressResponseDTO(
                 address.getId(),
                 address.getZipCode(),
