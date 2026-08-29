@@ -151,6 +151,20 @@ class DTOAndEntityTest {
         assertEquals("1000", request.number());
         assertEquals("BR", request.country());
 
+        AddressRequestDTO normalizedRequest = new AddressRequestDTO("  01310-100  ", " sp ", "  São Paulo  ", " 1000 ", " br ");
+        assertEquals("01310-100", normalizedRequest.zipCode());
+        assertEquals("SP", normalizedRequest.state());
+        assertEquals("São Paulo", normalizedRequest.city());
+        assertEquals("1000", normalizedRequest.number());
+        assertEquals("BR", normalizedRequest.country());
+
+        AddressRequestDTO nullRequest = new AddressRequestDTO(null, null, null, null, null);
+        assertNull(nullRequest.zipCode());
+        assertNull(nullRequest.state());
+        assertNull(nullRequest.city());
+        assertNull(nullRequest.number());
+        assertNull(nullRequest.country());
+
         Address entity = Address.builder()
                 .id(10L)
                 .zipCode("01310-100")

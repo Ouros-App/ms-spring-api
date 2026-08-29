@@ -47,5 +47,17 @@ public record AddressRequestDTO(
         @Size(min = 2, max = 2, message = "O país deve ter 2 caracteres")
         @Pattern(regexp = "^[A-Za-z]{2}$", message = "O país deve conter código ISO de 2 letras")
         String country
-) { }
+) {
+    /**
+     * Construtor compacto para normalização e sanitização automática dos dados do endereço.
+     * Converte state e country para caixa alta (uppercase) e remove espaços sobressalentes (trim).
+     */
+    public AddressRequestDTO {
+        zipCode = zipCode != null ? zipCode.trim() : null;
+        state = state != null ? state.trim().toUpperCase() : null;
+        city = city != null ? city.trim() : null;
+        number = number != null ? number.trim() : null;
+        country = country != null ? country.trim().toUpperCase() : null;
+    }
+}
 

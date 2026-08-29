@@ -68,6 +68,33 @@ class AddressControllerMockMvcTest {
     }
 
     @Test
+    @WithMockUser
+    @DisplayName("POST /addresses - Deve normalizar espaços e converter UF e país em minúsculas para maiúsculas")
+    void testCreateAddressNormalizedValues() throws Exception {
+        AddressResponseDTO response = new AddressResponseDTO(1L, "01310-100", "SP", "São Paulo", "1000", "BR");
+        when(addressService.createAddress(eq(new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"))))
+                .thenReturn(response);
+
+        String jsonPayload = """
+                {
+                    "zip_code": "  01310-100  ",
+                    "state": " sp ",
+                    "city": "  São Paulo  ",
+                    "number": " 1000 ",
+                    "country": " br "
+                }
+                """;
+
+        mockMvc.perform(post("/addresses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonPayload))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/addresses/1")))
+                .andExpect(jsonPath("$.state").value("SP"))
+                .andExpect(jsonPath("$.country").value("BR"));
+    }
+
+    @Test
     @DisplayName("POST /addresses - Deve retornar 401 Unauthorized quando não autenticado")
     void testCreateAddressUnauthorized() throws Exception {
         AddressRequestDTO request = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR");
