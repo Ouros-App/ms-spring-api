@@ -10,9 +10,11 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.net.URI;
 
 /**
  * Controlador REST responsável por expor as rotas de gerenciamento de endereços.
@@ -31,7 +33,7 @@ public class AddressController {
      * Endpoint para cadastrar um novo endereço.
      *
      * @param request corpo da requisição contendo os dados do novo endereço
-     * @return resposta HTTP com status 201 (Created) e o DTO do endereço cadastrado
+     * @return resposta HTTP com status 201 (Created), cabeçalho Location e o DTO do endereço cadastrado
      */
     @Operation(summary = "Cadastrar endereço", description = "Cadastra um novo endereço no sistema.")
     @ApiResponses(value = {
@@ -42,7 +44,12 @@ public class AddressController {
     @PostMapping
     public ResponseEntity<AddressResponseDTO> createAddress(@RequestBody @Valid AddressRequestDTO request) {
         AddressResponseDTO response = addressService.createAddress(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(response.id())
+                .toUri();
+        return ResponseEntity.created(location).body(response);
     }
 
     /**

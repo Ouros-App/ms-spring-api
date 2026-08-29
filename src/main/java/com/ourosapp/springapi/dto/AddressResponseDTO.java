@@ -36,6 +36,12 @@ public record AddressResponseDTO(
         @Schema(description = "País do endereço", example = "BR")
         String country
 ) {
+    /**
+     * Converte uma entidade {@link Address} em sua representação {@link AddressResponseDTO}.
+     *
+     * @param address entidade a ser convertida
+     * @return DTO correspondente ou null se a entidade for nula
+     */
     public static AddressResponseDTO fromEntity(Address address) {
         if (address == null) {
             return null;

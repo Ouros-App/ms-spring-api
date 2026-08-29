@@ -11,6 +11,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -25,20 +28,31 @@ class AddressControllerTest {
     private AddressController addressController;
 
     @Test
-    @DisplayName("Deve cadastrar endereço e retornar status 201 Created")
+    @DisplayName("Deve cadastrar endereço e retornar status 201 Created com cabeçalho Location")
     void testCreateAddress() {
-        AddressRequestDTO request = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR");
-        AddressResponseDTO expectedResponse = new AddressResponseDTO(1L, "01310-100", "SP", "São Paulo", "1000", "BR");
+        MockHttpServletRequest requestContext = new MockHttpServletRequest();
+        requestContext.setServerName("localhost");
+        requestContext.setRequestURI("/addresses");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(requestContext));
 
-        when(addressService.createAddress(request)).thenReturn(expectedResponse);
+        try {
+            AddressRequestDTO request = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR");
+            AddressResponseDTO expectedResponse = new AddressResponseDTO(1L, "01310-100", "SP", "São Paulo", "1000", "BR");
 
-        ResponseEntity<AddressResponseDTO> response = addressController.createAddress(request);
+            when(addressService.createAddress(request)).thenReturn(expectedResponse);
 
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1L, response.getBody().id());
-        assertEquals("01310-100", response.getBody().zipCode());
-        verify(addressService, times(1)).createAddress(request);
+            ResponseEntity<AddressResponseDTO> response = addressController.createAddress(request);
+
+            assertEquals(HttpStatus.CREATED, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals(1L, response.getBody().id());
+            assertEquals("01310-100", response.getBody().zipCode());
+            assertNotNull(response.getHeaders().getLocation());
+            assertTrue(response.getHeaders().getLocation().getPath().endsWith("/1"));
+            verify(addressService, times(1)).createAddress(request);
+        } finally {
+            RequestContextHolder.resetRequestAttributes();
+        }
     }
 
     @Test

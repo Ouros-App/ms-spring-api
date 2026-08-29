@@ -47,7 +47,7 @@ class AddressControllerMockMvcTest {
 
     @Test
     @WithMockUser
-    @DisplayName("POST /addresses - Deve criar endereço e retornar 201 Created quando autenticado e payload válido")
+    @DisplayName("POST /addresses - Deve criar endereço e retornar 201 Created com cabeçalho Location")
     void testCreateAddressSuccess() throws Exception {
         AddressRequestDTO request = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR");
         AddressResponseDTO response = new AddressResponseDTO(1L, "01310-100", "SP", "São Paulo", "1000", "BR");
@@ -58,6 +58,7 @@ class AddressControllerMockMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
+                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/addresses/1")))
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.zip_code").value("01310-100"))
                 .andExpect(jsonPath("$.state").value("SP"))
@@ -86,6 +87,23 @@ class AddressControllerMockMvcTest {
         mockMvc.perform(post("/addresses")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /addresses - Deve retornar 400 Bad Request quando formato de state ou country for inválido")
+    void testCreateAddressInvalidStateAndCountryFormat() throws Exception {
+        AddressRequestDTO invalidState = new AddressRequestDTO("01310-100", "12", "São Paulo", "1000", "BR");
+        mockMvc.perform(post("/addresses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidState)))
+                .andExpect(status().isBadRequest());
+
+        AddressRequestDTO invalidCountry = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "12");
+        mockMvc.perform(post("/addresses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidCountry)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -170,6 +188,23 @@ class AddressControllerMockMvcTest {
         mockMvc.perform(put("/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PUT /addresses/{id} - Deve retornar 400 Bad Request quando formato de state ou country for inválido")
+    void testUpdateAddressInvalidStateAndCountryFormat() throws Exception {
+        AddressRequestDTO invalidState = new AddressRequestDTO("13010-001", "12", "Campinas", "555", "BR");
+        mockMvc.perform(put("/addresses/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidState)))
+                .andExpect(status().isBadRequest());
+
+        AddressRequestDTO invalidCountry = new AddressRequestDTO("13010-001", "SP", "Campinas", "555", "12");
+        mockMvc.perform(put("/addresses/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidCountry)))
                 .andExpect(status().isBadRequest());
     }
 
