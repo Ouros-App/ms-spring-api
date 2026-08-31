@@ -25,17 +25,33 @@ public final class CnpjValidator {
         }
 
         // Rejeita sequências repetidas de 14 dígitos (ex: 00000000000000, 11111111111111, etc.)
-        if (cnpj.chars().distinct().count() == 1) {
+        if (isAllDigitsEqual(cnpj)) {
             return false;
         }
 
         int firstDigit = calculateDigit(cnpj, WEIGHTS_FIRST_DIGIT, 12);
-        if (firstDigit != Character.getNumericValue(cnpj.charAt(12))) {
+        if (firstDigit != (cnpj.charAt(12) - '0')) {
             return false;
         }
 
         int secondDigit = calculateDigit(cnpj, WEIGHTS_SECOND_DIGIT, 13);
-        return secondDigit == Character.getNumericValue(cnpj.charAt(13));
+        return secondDigit == (cnpj.charAt(13) - '0');
+    }
+
+    /**
+     * Verifica se todos os caracteres da string são idênticos.
+     *
+     * @param cnpj cadeia de caracteres do CNPJ
+     * @return {@code true} se todos os caracteres forem iguais, {@code false} caso contrário
+     */
+    private static boolean isAllDigitsEqual(String cnpj) {
+        char firstChar = cnpj.charAt(0);
+        for (int i = 1; i < cnpj.length(); i++) {
+            if (cnpj.charAt(i) != firstChar) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -49,7 +65,7 @@ public final class CnpjValidator {
     private static int calculateDigit(String cnpj, int[] weights, int length) {
         int sum = 0;
         for (int i = 0; i < length; i++) {
-            sum += Character.getNumericValue(cnpj.charAt(i)) * weights[i];
+            sum += (cnpj.charAt(i) - '0') * weights[i];
         }
         int remainder = sum % 11;
         return remainder < 2 ? 0 : 11 - remainder;

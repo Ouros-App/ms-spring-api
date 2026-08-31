@@ -83,6 +83,39 @@ class EnterpriseControllerMockMvcTest {
     }
 
     @Test
+    @WithMockUser
+    @DisplayName("POST /enterprises - Deve aceitar payload em formato camelCase (interoperabilidade)")
+    void testCreateEnterpriseCamelCasePayloadSuccess() throws Exception {
+        String camelCasePayload = """
+                {
+                    "name": "Agro Ouros S.A.",
+                    "email": "contato@agroouros.com.br",
+                    "documentNumber": "12345678000195",
+                    "telephone": "11999999999",
+                    "idAddress": 1
+                }
+                """;
+        EnterpriseResponseDTO response = new EnterpriseResponseDTO(
+                1L,
+                "Agro Ouros S.A.",
+                "contato@agroouros.com.br",
+                "12345678000195",
+                "11999999999",
+                1L
+        );
+
+        when(enterpriseService.createEnterprise(any(EnterpriseRequestDTO.class))).thenReturn(response);
+
+        mockMvc.perform(post("/enterprises")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(camelCasePayload))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/enterprises/1")))
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.name").value("Agro Ouros S.A."));
+    }
+
+    @Test
     @DisplayName("POST /enterprises - Deve retornar 401 Unauthorized quando não autenticado")
     void testCreateEnterpriseUnauthorized() throws Exception {
         EnterpriseRequestDTO request = new EnterpriseRequestDTO(

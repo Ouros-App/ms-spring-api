@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
@@ -27,6 +28,7 @@ public record EnterpriseRequestDTO(
 
         @Schema(description = "CNPJ / Documento da empresa (14 dígitos numéricos)", example = "12345678000195")
         @JsonProperty("document_number")
+        @JsonAlias("documentNumber")
         @NotBlank(message = "O CNPJ/documento não pode estar em branco")
         @Pattern(regexp = "^\\d{14}$", message = "O documento/CNPJ deve conter exatamente 14 dígitos numéricos")
         String documentNumber,
@@ -38,6 +40,7 @@ public record EnterpriseRequestDTO(
 
         @Schema(description = "Identificador do endereço cadastrado", example = "1")
         @JsonProperty("id_address")
+        @JsonAlias("idAddress")
         @NotNull(message = "O ID do endereço é obrigatório")
         Long idAddress
 ) {
