@@ -5,7 +5,9 @@ import com.ourosapp.springapi.dto.EnterpriseResponseDTO;
 import com.ourosapp.springapi.entity.Enterprise;
 import com.ourosapp.springapi.repository.AddressRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
+import com.ourosapp.springapi.util.CnpjValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,11 +31,34 @@ public class EnterpriseService {
      *
      * @param request dados da empresa a ser cadastrada
      * @return DTO com os dados da empresa cadastrada incluindo o ID gerado
+     * @throws ResponseStatusException HTTP 400 (Bad Request) se o CNPJ for matematicamente inválido
      * @throws ResponseStatusException HTTP 404 (Not Found) se o endereço informado não existir
+     * @throws ResponseStatusException HTTP 409 (Conflict) se o CNPJ ou e-mail já estiverem cadastrados
      */
     @Transactional
     public EnterpriseResponseDTO createEnterprise(EnterpriseRequestDTO request) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
+
+        if (!CnpjValidator.isValid(request.documentNumber())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "CNPJ informado é inválido"
+            );
+        }
+
+        if (enterpriseRepository.existsByDocumentNumber(request.documentNumber())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Já existe uma empresa cadastrada com este CNPJ"
+            );
+        }
+
+        if (enterpriseRepository.existsByEmailIgnoreCase(request.email())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Já existe uma empresa cadastrada com este e-mail"
+            );
+        }
 
         if (!addressRepository.existsById(request.idAddress())) {
             throw new ResponseStatusException(
@@ -50,8 +75,16 @@ public class EnterpriseService {
                 .idAddress(request.idAddress())
                 .build();
 
-        Enterprise savedEnterprise = enterpriseRepository.save(enterprise);
-        return EnterpriseResponseDTO.fromEntity(savedEnterprise);
+        try {
+            Enterprise savedEnterprise = enterpriseRepository.save(enterprise);
+            return EnterpriseResponseDTO.fromEntity(savedEnterprise);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Conflito de unicidade de dados ao cadastrar empresa",
+                    ex
+            );
+        }
     }
 
     /**
@@ -90,7 +123,9 @@ public class EnterpriseService {
      * @param id      identificador único da empresa a ser atualizada
      * @param request novos dados da empresa
      * @return DTO com os dados atualizados da empresa
+     * @throws ResponseStatusException HTTP 400 (Bad Request) se o CNPJ for matematicamente inválido
      * @throws ResponseStatusException HTTP 404 (Not Found) se a empresa ou o endereço não existirem
+     * @throws ResponseStatusException HTTP 409 (Conflict) se o CNPJ ou e-mail já pertencerem a outra empresa
      */
     @Transactional
     public EnterpriseResponseDTO updateEnterprise(Long id, EnterpriseRequestDTO request) {
@@ -101,6 +136,31 @@ public class EnterpriseService {
                         HttpStatus.NOT_FOUND,
                         "Empresa não encontrada para o ID: " + id
                 ));
+
+        if (!CnpjValidator.isValid(request.documentNumber())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "CNPJ informado é inválido"
+            );
+        }
+
+        enterpriseRepository.findByDocumentNumber(request.documentNumber())
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new ResponseStatusException(
+                            HttpStatus.CONFLICT,
+                            "Já existe outra empresa cadastrada com este CNPJ"
+                    );
+                });
+
+        enterpriseRepository.findByEmailIgnoreCase(request.email())
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new ResponseStatusException(
+                            HttpStatus.CONFLICT,
+                            "Já existe outra empresa cadastrada com este e-mail"
+                    );
+                });
 
         if (!addressRepository.existsById(request.idAddress())) {
             throw new ResponseStatusException(
@@ -115,8 +175,16 @@ public class EnterpriseService {
         enterprise.setTelephone(request.telephone());
         enterprise.setIdAddress(request.idAddress());
 
-        Enterprise updatedEnterprise = enterpriseRepository.save(enterprise);
-        return EnterpriseResponseDTO.fromEntity(updatedEnterprise);
+        try {
+            Enterprise updatedEnterprise = enterpriseRepository.save(enterprise);
+            return EnterpriseResponseDTO.fromEntity(updatedEnterprise);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Conflito de unicidade de dados ao atualizar empresa",
+                    ex
+            );
+        }
     }
 }
 

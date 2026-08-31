@@ -256,6 +256,48 @@ class EnterpriseControllerMockMvcTest {
     }
 
     @Test
+    @WithMockUser
+    @DisplayName("POST /enterprises - Deve retornar 409 Conflict quando empresa com mesmo CNPJ ou e-mail já existir")
+    void testCreateEnterpriseConflict() throws Exception {
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
+                "Agro Ouros S.A.",
+                "contato@agroouros.com.br",
+                "12345678000195",
+                "11999999999",
+                1L
+        );
+
+        when(enterpriseService.createEnterprise(any(EnterpriseRequestDTO.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Já existe uma empresa cadastrada com este CNPJ"));
+
+        mockMvc.perform(post("/enterprises")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PUT /enterprises/{id} - Deve retornar 409 Conflict quando CNPJ ou e-mail pertencer a outra empresa")
+    void testUpdateEnterpriseConflict() throws Exception {
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
+                "Agro Ouros Renovada S.A.",
+                "novo@agroouros.com.br",
+                "12345678000195",
+                "11988887777",
+                1L
+        );
+
+        when(enterpriseService.updateEnterprise(eq(1L), any(EnterpriseRequestDTO.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Já existe outra empresa cadastrada com este CNPJ"));
+
+        mockMvc.perform(put("/enterprises/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     @DisplayName("PUT /enterprises/{id} - Deve retornar 401 Unauthorized quando não autenticado")
     void testUpdateEnterpriseUnauthorized() throws Exception {
         EnterpriseRequestDTO request = new EnterpriseRequestDTO(

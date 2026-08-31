@@ -24,10 +24,10 @@ public class Enterprise {
     @Column(name = "name", length = 100, nullable = false)
     private String name;
 
-    @Column(name = "email", length = 50, nullable = false)
+    @Column(name = "email", length = 50, nullable = false, unique = true)
     private String email;
 
-    @Column(name = "document_number", length = 14, nullable = false)
+    @Column(name = "document_number", length = 14, nullable = false, unique = true)
     private String documentNumber;
 
     @Column(name = "telephone", length = 13, nullable = false)

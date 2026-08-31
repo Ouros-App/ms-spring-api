@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -58,8 +59,10 @@ class EnterpriseServiceTest {
     }
 
     @Test
-    @DisplayName("Deve cadastrar uma nova empresa com sucesso quando o endereço existir")
+    @DisplayName("Deve cadastrar uma nova empresa com sucesso quando os dados forem válidos")
     void testCreateEnterpriseSuccess() {
+        when(enterpriseRepository.existsByDocumentNumber("12345678000195")).thenReturn(false);
+        when(enterpriseRepository.existsByEmailIgnoreCase("contato@agroouros.com.br")).thenReturn(false);
         when(addressRepository.existsById(10L)).thenReturn(true);
         when(enterpriseRepository.save(any(Enterprise.class))).thenReturn(sampleEnterprise);
 
@@ -78,8 +81,100 @@ class EnterpriseServiceTest {
     }
 
     @Test
+    @DisplayName("Deve lançar ResponseStatusException 400 ao tentar cadastrar empresa com CNPJ com dígitos repetidos")
+    void testCreateEnterpriseInvalidCnpjRepeatedDigits() {
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
+                "Agro Ouros S.A.",
+                "contato@agroouros.com.br",
+                "00000000000000",
+                "11999999999",
+                10L
+        );
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.createEnterprise(request)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("CNPJ"));
+        verify(enterpriseRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 400 ao tentar cadastrar empresa com CNPJ de checksum inválido")
+    void testCreateEnterpriseInvalidCnpjChecksum() {
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
+                "Agro Ouros S.A.",
+                "contato@agroouros.com.br",
+                "12345678000100",
+                "11999999999",
+                10L
+        );
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.createEnterprise(request)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("CNPJ"));
+        verify(enterpriseRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 409 ao tentar cadastrar empresa com CNPJ já existente")
+    void testCreateEnterpriseDuplicateDocumentNumber() {
+        when(enterpriseRepository.existsByDocumentNumber("12345678000195")).thenReturn(true);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.createEnterprise(sampleRequest)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("CNPJ"));
+        verify(enterpriseRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 409 ao tentar cadastrar empresa com e-mail já existente")
+    void testCreateEnterpriseDuplicateEmail() {
+        when(enterpriseRepository.existsByDocumentNumber("12345678000195")).thenReturn(false);
+        when(enterpriseRepository.existsByEmailIgnoreCase("contato@agroouros.com.br")).thenReturn(true);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.createEnterprise(sampleRequest)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("e-mail"));
+        verify(enterpriseRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 409 quando ocorrer DataIntegrityViolationException no cadastro")
+    void testCreateEnterpriseDataIntegrityViolation() {
+        when(enterpriseRepository.existsByDocumentNumber("12345678000195")).thenReturn(false);
+        when(enterpriseRepository.existsByEmailIgnoreCase("contato@agroouros.com.br")).thenReturn(false);
+        when(addressRepository.existsById(10L)).thenReturn(true);
+        when(enterpriseRepository.save(any(Enterprise.class))).thenThrow(new DataIntegrityViolationException("Unique constraint violation"));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.createEnterprise(sampleRequest)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("unicidade"));
+    }
+
+    @Test
     @DisplayName("Deve lançar ResponseStatusException 404 ao tentar cadastrar empresa com endereço inexistente")
     void testCreateEnterpriseAddressNotFound() {
+        when(enterpriseRepository.existsByDocumentNumber("12345678000195")).thenReturn(false);
+        when(enterpriseRepository.existsByEmailIgnoreCase("contato@agroouros.com.br")).thenReturn(false);
         when(addressRepository.existsById(10L)).thenReturn(false);
 
         ResponseStatusException exception = assertThrows(
@@ -145,7 +240,7 @@ class EnterpriseServiceTest {
                 .id(2L)
                 .name("Ouros Sul")
                 .email("sul@agroouros.com.br")
-                .documentNumber("98765432000100")
+                .documentNumber("98765432000198")
                 .telephone("41988887777")
                 .idAddress(20L)
                 .build();
@@ -175,12 +270,12 @@ class EnterpriseServiceTest {
     }
 
     @Test
-    @DisplayName("Deve atualizar uma empresa existente com sucesso quando o endereço existir")
+    @DisplayName("Deve atualizar uma empresa existente com sucesso quando os dados forem válidos")
     void testUpdateEnterpriseSuccess() {
         EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO(
                 "Agro Ouros Renovada S.A.",
                 "novo-contato@agroouros.com.br",
-                "12345678000195",
+                "11222333000181",
                 "11988887777",
                 15L
         );
@@ -189,12 +284,14 @@ class EnterpriseServiceTest {
                 .id(1L)
                 .name("Agro Ouros Renovada S.A.")
                 .email("novo-contato@agroouros.com.br")
-                .documentNumber("12345678000195")
+                .documentNumber("11222333000181")
                 .telephone("11988887777")
                 .idAddress(15L)
                 .build();
 
         when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(enterpriseRepository.findByDocumentNumber("11222333000181")).thenReturn(Optional.empty());
+        when(enterpriseRepository.findByEmailIgnoreCase("novo-contato@agroouros.com.br")).thenReturn(Optional.empty());
         when(addressRepository.existsById(15L)).thenReturn(true);
         when(enterpriseRepository.save(any(Enterprise.class))).thenReturn(updatedEnterprise);
 
@@ -210,6 +307,146 @@ class EnterpriseServiceTest {
         verify(enterpriseRepository, times(1)).findById(1L);
         verify(addressRepository, times(1)).existsById(15L);
         verify(enterpriseRepository, times(1)).save(sampleEnterprise);
+    }
+
+    @Test
+    @DisplayName("Deve atualizar uma empresa existente mantendo o mesmo CNPJ e e-mail da própria empresa")
+    void testUpdateEnterpriseKeepingSameCredentials() {
+        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO(
+                "Agro Ouros S.A. Alterada",
+                "contato@agroouros.com.br",
+                "12345678000195",
+                "11999999999",
+                10L
+        );
+
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(enterpriseRepository.findByDocumentNumber("12345678000195")).thenReturn(Optional.of(sampleEnterprise));
+        when(enterpriseRepository.findByEmailIgnoreCase("contato@agroouros.com.br")).thenReturn(Optional.of(sampleEnterprise));
+        when(addressRepository.existsById(10L)).thenReturn(true);
+        when(enterpriseRepository.save(any(Enterprise.class))).thenReturn(sampleEnterprise);
+
+        EnterpriseResponseDTO response = enterpriseService.updateEnterprise(1L, updateRequest);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        verify(enterpriseRepository, times(1)).save(sampleEnterprise);
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 400 ao tentar atualizar empresa com CNPJ inválido")
+    void testUpdateEnterpriseInvalidCnpj() {
+        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO(
+                "Agro Ouros Renovada S.A.",
+                "novo-contato@agroouros.com.br",
+                "00000000000000",
+                "11988887777",
+                10L
+        );
+
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.updateEnterprise(1L, updateRequest)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("CNPJ"));
+        verify(enterpriseRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 409 ao tentar atualizar empresa com CNPJ de outra empresa")
+    void testUpdateEnterpriseDuplicateDocumentNumberOtherEnterprise() {
+        Enterprise anotherEnterprise = Enterprise.builder()
+                .id(2L)
+                .name("Outra Empresa")
+                .email("outra@agroouros.com.br")
+                .documentNumber("11222333000181")
+                .telephone("11988887777")
+                .idAddress(10L)
+                .build();
+
+        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO(
+                "Agro Ouros Renovada S.A.",
+                "novo-contato@agroouros.com.br",
+                "11222333000181",
+                "11988887777",
+                10L
+        );
+
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(enterpriseRepository.findByDocumentNumber("11222333000181")).thenReturn(Optional.of(anotherEnterprise));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.updateEnterprise(1L, updateRequest)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("CNPJ"));
+        verify(enterpriseRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 409 ao tentar atualizar empresa com e-mail de outra empresa")
+    void testUpdateEnterpriseDuplicateEmailOtherEnterprise() {
+        Enterprise anotherEnterprise = Enterprise.builder()
+                .id(2L)
+                .name("Outra Empresa")
+                .email("outra@agroouros.com.br")
+                .documentNumber("11222333000181")
+                .telephone("11988887777")
+                .idAddress(10L)
+                .build();
+
+        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO(
+                "Agro Ouros Renovada S.A.",
+                "outra@agroouros.com.br",
+                "12345678000195",
+                "11988887777",
+                10L
+        );
+
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(enterpriseRepository.findByDocumentNumber("12345678000195")).thenReturn(Optional.of(sampleEnterprise));
+        when(enterpriseRepository.findByEmailIgnoreCase("outra@agroouros.com.br")).thenReturn(Optional.of(anotherEnterprise));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.updateEnterprise(1L, updateRequest)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("e-mail"));
+        verify(enterpriseRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 409 quando ocorrer DataIntegrityViolationException na atualização")
+    void testUpdateEnterpriseDataIntegrityViolation() {
+        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO(
+                "Agro Ouros Renovada S.A.",
+                "novo-contato@agroouros.com.br",
+                "12345678000195",
+                "11988887777",
+                10L
+        );
+
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(enterpriseRepository.findByDocumentNumber("12345678000195")).thenReturn(Optional.of(sampleEnterprise));
+        when(enterpriseRepository.findByEmailIgnoreCase("novo-contato@agroouros.com.br")).thenReturn(Optional.empty());
+        when(addressRepository.existsById(10L)).thenReturn(true);
+        when(enterpriseRepository.save(any(Enterprise.class))).thenThrow(new DataIntegrityViolationException("Unique constraint violation"));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.updateEnterprise(1L, updateRequest)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("unicidade"));
     }
 
     @Test
@@ -248,6 +485,8 @@ class EnterpriseServiceTest {
         );
 
         when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(enterpriseRepository.findByDocumentNumber("12345678000195")).thenReturn(Optional.of(sampleEnterprise));
+        when(enterpriseRepository.findByEmailIgnoreCase("novo-contato@agroouros.com.br")).thenReturn(Optional.empty());
         when(addressRepository.existsById(999L)).thenReturn(false);
 
         ResponseStatusException exception = assertThrows(

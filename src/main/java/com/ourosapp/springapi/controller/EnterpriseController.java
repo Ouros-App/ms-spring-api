@@ -39,9 +39,10 @@ public class EnterpriseController {
     @Operation(summary = "Cadastrar empresa", description = "Cadastra uma nova Empresa Integradora no sistema.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Empresa cadastrada com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
+            @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos ou CNPJ inválido"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
-            @ApiResponse(responseCode = "404", description = "Endereço vinculado não encontrado")
+            @ApiResponse(responseCode = "404", description = "Endereço vinculado não encontrado"),
+            @ApiResponse(responseCode = "409", description = "CNPJ ou e-mail já cadastrados no sistema")
     })
     @PostMapping
     public ResponseEntity<EnterpriseResponseDTO> createEnterprise(@RequestBody @Valid EnterpriseRequestDTO request) {
@@ -96,9 +97,10 @@ public class EnterpriseController {
     @Operation(summary = "Atualizar empresa", description = "Substitui integralmente todas as informações de uma empresa existente.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empresa atualizada com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
+            @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos ou CNPJ inválido"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
-            @ApiResponse(responseCode = "404", description = "Empresa ou endereço não encontrados")
+            @ApiResponse(responseCode = "404", description = "Empresa ou endereço não encontrados"),
+            @ApiResponse(responseCode = "409", description = "CNPJ ou e-mail já pertencem a outra empresa")
     })
     @PutMapping("/{id}")
     public ResponseEntity<EnterpriseResponseDTO> updateEnterprise(
