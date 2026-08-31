@@ -28,7 +28,6 @@ public record AddressRequestDTO(
 
         @Schema(description = "Estado do endereço (UF com 2 caracteres)", example = "SP")
         @NotBlank(message = "O estado não pode estar em branco")
-        @Size(min = 2, max = 2, message = "O estado deve ter 2 caracteres")
         @Pattern(regexp = "^[A-Za-z]{2}$", message = "O estado deve conter exatamente 2 letras")
         String state,
 
@@ -44,7 +43,6 @@ public record AddressRequestDTO(
 
         @Schema(description = "País do endereço (código com 2 caracteres)", example = "BR")
         @NotBlank(message = "O país não pode estar em branco")
-        @Size(min = 2, max = 2, message = "O país deve ter 2 caracteres")
         @Pattern(regexp = "^[A-Za-z]{2}$", message = "O país deve conter código ISO de 2 letras")
         String country
 ) {

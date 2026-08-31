@@ -121,16 +121,28 @@ class AddressControllerMockMvcTest {
     @WithMockUser
     @DisplayName("POST /addresses - Deve retornar 400 Bad Request quando formato de state ou country for inválido")
     void testCreateAddressInvalidStateAndCountryFormat() throws Exception {
-        AddressRequestDTO invalidState = new AddressRequestDTO("01310-100", "12", "São Paulo", "1000", "BR");
+        AddressRequestDTO invalidStateDigits = new AddressRequestDTO("01310-100", "12", "São Paulo", "1000", "BR");
         mockMvc.perform(post("/addresses")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidState)))
+                        .content(objectMapper.writeValueAsString(invalidStateDigits)))
                 .andExpect(status().isBadRequest());
 
-        AddressRequestDTO invalidCountry = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "12");
+        AddressRequestDTO invalidStateLength = new AddressRequestDTO("01310-100", "SPA", "São Paulo", "1000", "BR");
         mockMvc.perform(post("/addresses")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidCountry)))
+                        .content(objectMapper.writeValueAsString(invalidStateLength)))
+                .andExpect(status().isBadRequest());
+
+        AddressRequestDTO invalidCountryDigits = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "12");
+        mockMvc.perform(post("/addresses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidCountryDigits)))
+                .andExpect(status().isBadRequest());
+
+        AddressRequestDTO invalidCountryLength = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BRA");
+        mockMvc.perform(post("/addresses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidCountryLength)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -222,16 +234,28 @@ class AddressControllerMockMvcTest {
     @WithMockUser
     @DisplayName("PUT /addresses/{id} - Deve retornar 400 Bad Request quando formato de state ou country for inválido")
     void testUpdateAddressInvalidStateAndCountryFormat() throws Exception {
-        AddressRequestDTO invalidState = new AddressRequestDTO("13010-001", "12", "Campinas", "555", "BR");
+        AddressRequestDTO invalidStateDigits = new AddressRequestDTO("13010-001", "12", "Campinas", "555", "BR");
         mockMvc.perform(put("/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidState)))
+                        .content(objectMapper.writeValueAsString(invalidStateDigits)))
                 .andExpect(status().isBadRequest());
 
-        AddressRequestDTO invalidCountry = new AddressRequestDTO("13010-001", "SP", "Campinas", "555", "12");
+        AddressRequestDTO invalidStateLength = new AddressRequestDTO("13010-001", "SPA", "Campinas", "555", "BR");
         mockMvc.perform(put("/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidCountry)))
+                        .content(objectMapper.writeValueAsString(invalidStateLength)))
+                .andExpect(status().isBadRequest());
+
+        AddressRequestDTO invalidCountryDigits = new AddressRequestDTO("13010-001", "SP", "Campinas", "555", "12");
+        mockMvc.perform(put("/addresses/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidCountryDigits)))
+                .andExpect(status().isBadRequest());
+
+        AddressRequestDTO invalidCountryLength = new AddressRequestDTO("13010-001", "SP", "Campinas", "555", "BRA");
+        mockMvc.perform(put("/addresses/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidCountryLength)))
                 .andExpect(status().isBadRequest());
     }
 

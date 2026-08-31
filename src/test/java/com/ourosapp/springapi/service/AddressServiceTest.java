@@ -163,4 +163,29 @@ class AddressServiceTest {
         verify(addressRepository, times(1)).findById(99L);
         verify(addressRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("Deve lançar NullPointerException ao tentar cadastrar endereço com payload nulo")
+    void testCreateAddressNullPayloadThrowsException() {
+        NullPointerException exception = assertThrows(
+                NullPointerException.class,
+                () -> addressService.createAddress(null)
+        );
+
+        assertEquals("O payload da requisição não pode ser nulo", exception.getMessage());
+        verify(addressRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar NullPointerException ao tentar atualizar endereço com payload nulo")
+    void testUpdateAddressNullPayloadThrowsException() {
+        NullPointerException exception = assertThrows(
+                NullPointerException.class,
+                () -> addressService.updateAddress(1L, null)
+        );
+
+        assertEquals("O payload da requisição não pode ser nulo", exception.getMessage());
+        verify(addressRepository, never()).findById(any());
+        verify(addressRepository, never()).save(any());
+    }
 }

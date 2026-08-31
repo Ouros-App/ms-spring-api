@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Objects;
+
 /**
  * Serviço responsável pela lógica de negócios e operações de persistência da entidade {@link Address}.
  */
@@ -27,6 +29,7 @@ public class AddressService {
      */
     @Transactional
     public AddressResponseDTO createAddress(AddressRequestDTO request) {
+        Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         Address address = Address.builder()
                 .zipCode(request.zipCode())
                 .state(request.state())
@@ -65,6 +68,7 @@ public class AddressService {
      */
     @Transactional
     public AddressResponseDTO updateAddress(Long id, AddressRequestDTO request) {
+        Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         Address address = addressRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
