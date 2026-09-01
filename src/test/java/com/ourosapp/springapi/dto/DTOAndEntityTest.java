@@ -9,16 +9,22 @@ import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Enterprise;
 import com.ourosapp.springapi.entity.FarmOwner;
 import com.ourosapp.springapi.security.JwtAuthFilter;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.cors.CorsConfigurationSource;
+
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class DTOAndEntityTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     @Test
     void testLoginRequestDTO() {
@@ -449,6 +455,71 @@ class DTOAndEntityTest {
         CompanyEmployeeRequestDTO camelDto = objectMapper.readValue(camelJson, CompanyEmployeeRequestDTO.class);
         assertEquals("12345678901", camelDto.documentNumber());
         assertEquals(5L, camelDto.idEnterprise());
+    }
+
+    @Test
+    void testCompanyEmployeeRequestDTOPasswordValidation() {
+        // Senha válida com 8 caracteres, maiúscula, minúscula, número e caractere especial
+        CompanyEmployeeRequestDTO validDto = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha@12", 1L
+        );
+        Set<ConstraintViolation<CompanyEmployeeRequestDTO>> violations = validator.validate(validDto);
+        assertTrue(violations.isEmpty());
+
+        // Senha curta (< 8)
+        CompanyEmployeeRequestDTO shortPass = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Sen@12", 1L
+        );
+        assertFalse(validator.validate(shortPass).isEmpty());
+
+        // Senha longa (> 20)
+        CompanyEmployeeRequestDTO longPass = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "SenhaMuitoLongaComMaisDe20@1", 1L
+        );
+        assertFalse(validator.validate(longPass).isEmpty());
+
+        // Sem maiúscula
+        CompanyEmployeeRequestDTO noUpper = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "senha@123", 1L
+        );
+        assertFalse(validator.validate(noUpper).isEmpty());
+
+        // Sem minúscula
+        CompanyEmployeeRequestDTO noLower = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "SENHA@123", 1L
+        );
+        assertFalse(validator.validate(noLower).isEmpty());
+
+        // Sem número
+        CompanyEmployeeRequestDTO noDigit = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha@abc", 1L
+        );
+        assertFalse(validator.validate(noDigit).isEmpty());
+
+        // Sem caractere especial
+        CompanyEmployeeRequestDTO noSpecial = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha1234", 1L
+        );
+        assertFalse(validator.validate(noSpecial).isEmpty());
+    }
+
+    @Test
+    void testCompanyEmployeeUpdateDTOPasswordValidation() {
+        // Senha válida
+        CompanyEmployeeUpdateDTO validDto = new CompanyEmployeeUpdateDTO(null, null, "NovaSenha@123");
+        assertTrue(validator.validate(validDto).isEmpty());
+
+        // Senha nula (válido na atualização parcial)
+        CompanyEmployeeUpdateDTO nullPass = new CompanyEmployeeUpdateDTO(null, null, null);
+        assertTrue(validator.validate(nullPass).isEmpty());
+
+        // Senha vazia (válido na atualização parcial)
+        CompanyEmployeeUpdateDTO emptyPass = new CompanyEmployeeUpdateDTO(null, null, "");
+        assertTrue(validator.validate(emptyPass).isEmpty());
+
+        // Senha inválida (sem requisitos)
+        CompanyEmployeeUpdateDTO invalidPass = new CompanyEmployeeUpdateDTO(null, null, "senha123");
+        assertFalse(validator.validate(invalidPass).isEmpty());
     }
 }
 

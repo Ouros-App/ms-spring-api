@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Size;
  *
  * @param email     Novo e-mail corporativo (opcional)
  * @param telephone Novo telefone de contato (opcional, entre 10 e 13 dígitos)
- * @param password  Nova senha de acesso (opcional, mínimo 6 caracteres)
+ * @param password  Nova senha de acesso (opcional, entre 8 e 20 caracteres com requisitos de complexidade)
  */
 @Schema(description = "Dados para atualização parcial do funcionário da empresa integradora")
 public record CompanyEmployeeUpdateDTO(
@@ -26,7 +26,10 @@ public record CompanyEmployeeUpdateDTO(
         String telephone,
 
         @Schema(description = "Nova senha de acesso", example = "NovaSenha@123")
-        @Size(min = 6, max = 100, message = "A senha deve ter entre 6 e 100 caracteres")
+        @Pattern(
+                regexp = "^$|^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).{8,20}$",
+                message = "A senha deve ter entre 8 e 20 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial"
+        )
         String password
 ) {
 

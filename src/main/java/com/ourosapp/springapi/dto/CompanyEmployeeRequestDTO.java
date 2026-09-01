@@ -40,7 +40,10 @@ public record CompanyEmployeeRequestDTO(
 
         @Schema(description = "Senha de acesso do funcionário", example = "SenhaSegura@123")
         @NotBlank(message = "A senha não pode estar em branco")
-        @Size(min = 6, max = 100, message = "A senha deve ter entre 6 e 100 caracteres")
+        @Pattern(
+                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).{8,20}$",
+                message = "A senha deve ter entre 8 e 20 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial"
+        )
         String password,
 
         @Schema(description = "Identificador da empresa integradora vinculada", example = "1")

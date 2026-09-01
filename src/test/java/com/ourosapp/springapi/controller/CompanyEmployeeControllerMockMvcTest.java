@@ -264,6 +264,22 @@ class CompanyEmployeeControllerMockMvcTest {
 
     @Test
     @WithMockUser
+    @DisplayName("PATCH /company-employees/{id} - Deve retornar 400 Bad Request quando senha não cumprir requisitos de complexidade")
+    void testUpdateCompanyEmployeeInvalidPassword() throws Exception {
+        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                null,
+                null,
+                "senha123"
+        );
+
+        mockMvc.perform(patch("/company-employees/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDTO)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
     @DisplayName("DELETE /company-employees/{id} - Deve remover funcionário e retornar 204 No Content")
     void testDeleteCompanyEmployeeSuccess() throws Exception {
         doNothing().when(companyEmployeeService).deleteCompanyEmployee(1L);
