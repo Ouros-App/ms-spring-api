@@ -9,17 +9,29 @@ import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Enterprise;
 import com.ourosapp.springapi.entity.FarmOwner;
 import com.ourosapp.springapi.security.JwtAuthFilter;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Testes unitários para validação, serialização/desserialização JSON e comportamento de DTOs e entidades.
+ */
 class DTOAndEntityTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
+    /**
+     * Testa instanciação e acessores do DTO de requisição de login.
+     */
     @Test
     void testLoginRequestDTO() {
         LoginRequestDTO dto = new LoginRequestDTO("teste@ouros.com", "senha123");
@@ -27,12 +39,18 @@ class DTOAndEntityTest {
         assertEquals("senha123", dto.password());
     }
 
+    /**
+     * Testa instanciação e acessores do DTO de resposta de login contendo o token JWT.
+     */
     @Test
     void testLoginResponseDTO() {
         LoginResponseDTO dto = new LoginResponseDTO("token123");
         assertEquals("token123", dto.token());
     }
 
+    /**
+     * Testa getters, setters, builder e toString da entidade {@link Adm}.
+     */
     @Test
     void testAdmEntity() {
         Adm adm = new Adm();
@@ -50,6 +68,9 @@ class DTOAndEntityTest {
         assertFalse(built.toString().contains("pass2"));
     }
 
+    /**
+     * Testa getters, setters, builder e toString da entidade {@link CompanyEmployee}.
+     */
     @Test
     void testCompanyEmployeeEntity() {
         CompanyEmployee emp = new CompanyEmployee();
@@ -83,6 +104,9 @@ class DTOAndEntityTest {
         assertFalse(built.toString().contains("pass2"));
     }
 
+    /**
+     * Testa getters, setters, builder e toString da entidade {@link FarmOwner}.
+     */
     @Test
     void testFarmOwnerEntity() {
         FarmOwner owner = new FarmOwner();
@@ -116,6 +140,9 @@ class DTOAndEntityTest {
         assertFalse(built.toString().contains("pass2"));
     }
 
+    /**
+     * Testa getters, setters e builder da entidade {@link Address}.
+     */
     @Test
     void testAddressEntity() {
         Address address = new Address();
@@ -147,6 +174,9 @@ class DTOAndEntityTest {
         assertTrue(built.toString().contains("Campinas"));
     }
 
+    /**
+     * Testa criação, normalização e conversão a partir de entidade para os DTOs de endereço.
+     */
     @Test
     void testAddressDTOs() {
         AddressRequestDTO request = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR");
@@ -191,6 +221,9 @@ class DTOAndEntityTest {
         assertThrows(NullPointerException.class, () -> AddressResponseDTO.fromEntity(null));
     }
 
+    /**
+     * Testa criação dos beans de segurança PasswordEncoder e CorsConfigurationSource.
+     */
     @Test
     void testSecurityConfigBeans() {
         JwtAuthFilter filter = Mockito.mock(JwtAuthFilter.class);
@@ -204,6 +237,9 @@ class DTOAndEntityTest {
         assertNotNull(cors);
     }
 
+    /**
+     * Testa getters, setters e builder da entidade {@link Enterprise}.
+     */
     @Test
     void testEnterpriseEntity() {
         Enterprise enterprise = new Enterprise();
@@ -235,6 +271,9 @@ class DTOAndEntityTest {
         assertTrue(built.toString().contains("Ouros Filial"));
     }
 
+    /**
+     * Testa instanciação, normalização e conversão a partir de entidade dos DTOs de empresa integradora.
+     */
     @Test
     void testEnterpriseDTOs() {
         EnterpriseRequestDTO request = new EnterpriseRequestDTO(
@@ -290,6 +329,11 @@ class DTOAndEntityTest {
         assertThrows(NullPointerException.class, () -> EnterpriseResponseDTO.fromEntity(null));
     }
 
+    /**
+     * Testa a desserialização JSON em snake_case e camelCase para {@link EnterpriseRequestDTO}.
+     *
+     * @throws JsonProcessingException se houver falha de processamento JSON
+     */
     @Test
     void testEnterpriseRequestDTOJsonDeserialization() throws JsonProcessingException {
         // Formato snake_case
@@ -326,4 +370,211 @@ class DTOAndEntityTest {
         assertEquals("11999999999", dtoFromCamel.telephone());
         assertEquals(10L, dtoFromCamel.idAddress());
     }
+
+    /**
+     * Testa instanciação, normalização e conversão de entidade dos DTOs de funcionário da empresa.
+     */
+    @Test
+    void testCompanyEmployeeDTOs() {
+        CompanyEmployeeRequestDTO request = new CompanyEmployeeRequestDTO(
+                "Carlos Pereira",
+                "12345678901",
+                "carlos@empresa.com.br",
+                "11987654321",
+                "Senha@123",
+                5L
+        );
+        assertEquals("Carlos Pereira", request.name());
+        assertEquals("12345678901", request.documentNumber());
+        assertEquals("carlos@empresa.com.br", request.email());
+        assertEquals("11987654321", request.telephone());
+        assertEquals("Senha@123", request.password());
+        assertEquals(5L, request.idEnterprise());
+
+        CompanyEmployeeRequestDTO normalizedRequest = new CompanyEmployeeRequestDTO(
+                "  Carlos Pereira  ",
+                "  12345678901  ",
+                "  CARLOS@EMPRESA.COM.BR  ",
+                "  11987654321  ",
+                "  Senha@123  ",
+                5L
+        );
+        assertEquals("Carlos Pereira", normalizedRequest.name());
+        assertEquals("12345678901", normalizedRequest.documentNumber());
+        assertEquals("carlos@empresa.com.br", normalizedRequest.email());
+        assertEquals("11987654321", normalizedRequest.telephone());
+        assertEquals("  Senha@123  ", normalizedRequest.password());
+
+        CompanyEmployeeRequestDTO nullRequest = new CompanyEmployeeRequestDTO(null, null, null, null, null, null);
+        assertNull(nullRequest.name());
+        assertNull(nullRequest.documentNumber());
+        assertNull(nullRequest.email());
+        assertNull(nullRequest.telephone());
+        assertNull(nullRequest.password());
+        assertNull(nullRequest.idEnterprise());
+
+        CompanyEmployee entity = CompanyEmployee.builder()
+                .id(1L)
+                .name("Carlos Pereira")
+                .documentNumber("12345678901")
+                .email("carlos@empresa.com.br")
+                .telephone("11987654321")
+                .password("encoded_pass")
+                .idEnterprise(5L)
+                .build();
+
+        CompanyEmployeeResponseDTO response = CompanyEmployeeResponseDTO.fromEntity(entity);
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        assertEquals("Carlos Pereira", response.name());
+        assertEquals("12345678901", response.documentNumber());
+        assertEquals("carlos@empresa.com.br", response.email());
+        assertEquals("11987654321", response.telephone());
+        assertEquals(5L, response.idEnterprise());
+
+        assertThrows(NullPointerException.class, () -> CompanyEmployeeResponseDTO.fromEntity(null));
+    }
+
+    /**
+     * Testa normalização e método hasUpdates do {@link CompanyEmployeeUpdateDTO}.
+     */
+    @Test
+    void testCompanyEmployeeUpdateDTO() {
+        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                "novo@empresa.com.br",
+                "11999998888",
+                "NovaSenha@123"
+        );
+        assertEquals("novo@empresa.com.br", updateDTO.email());
+        assertEquals("11999998888", updateDTO.telephone());
+        assertEquals("NovaSenha@123", updateDTO.password());
+        assertTrue(updateDTO.hasUpdates());
+
+        CompanyEmployeeUpdateDTO normalizedUpdate = new CompanyEmployeeUpdateDTO(
+                "  NOVO@EMPRESA.COM.BR  ",
+                "  11999998888  ",
+                "  NovaSenha@123  "
+        );
+        assertEquals("novo@empresa.com.br", normalizedUpdate.email());
+        assertEquals("11999998888", normalizedUpdate.telephone());
+        assertEquals("  NovaSenha@123  ", normalizedUpdate.password());
+
+        CompanyEmployeeUpdateDTO emptyUpdate = new CompanyEmployeeUpdateDTO(null, null, null);
+        assertFalse(emptyUpdate.hasUpdates());
+
+        CompanyEmployeeUpdateDTO blankUpdate = new CompanyEmployeeUpdateDTO("  ", "  ", "  ");
+        assertFalse(blankUpdate.hasUpdates());
+    }
+
+    /**
+     * Testa desserialização JSON em snake_case e camelCase para {@link CompanyEmployeeRequestDTO}.
+     *
+     * @throws JsonProcessingException se houver falha de processamento JSON
+     */
+    @Test
+    void testCompanyEmployeeRequestDTOJsonDeserialization() throws JsonProcessingException {
+        String json = """
+                {
+                    "name": "Carlos Pereira",
+                    "document_number": "12345678901",
+                    "email": "carlos@empresa.com.br",
+                    "telephone": "11987654321",
+                    "password": "SenhaForte@123",
+                    "id_enterprise": 5
+                }
+                """;
+        CompanyEmployeeRequestDTO dto = objectMapper.readValue(json, CompanyEmployeeRequestDTO.class);
+        assertEquals("Carlos Pereira", dto.name());
+        assertEquals("12345678901", dto.documentNumber());
+        assertEquals("carlos@empresa.com.br", dto.email());
+        assertEquals("11987654321", dto.telephone());
+        assertEquals("SenhaForte@123", dto.password());
+        assertEquals(5L, dto.idEnterprise());
+
+        String camelJson = """
+                {
+                    "name": "Carlos Pereira",
+                    "documentNumber": "12345678901",
+                    "email": "carlos@empresa.com.br",
+                    "telephone": "11987654321",
+                    "password": "SenhaForte@123",
+                    "idEnterprise": 5
+                }
+                """;
+        CompanyEmployeeRequestDTO camelDto = objectMapper.readValue(camelJson, CompanyEmployeeRequestDTO.class);
+        assertEquals("12345678901", camelDto.documentNumber());
+        assertEquals(5L, camelDto.idEnterprise());
+    }
+
+    /**
+     * Testa as validações de restrição e política de complexidade de senha no cadastro de funcionário.
+     */
+    @Test
+    void testCompanyEmployeeRequestDTOPasswordValidation() {
+        // Senha válida com 8 caracteres, maiúscula, minúscula, número e caractere especial
+        CompanyEmployeeRequestDTO validDto = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha@12", 1L
+        );
+        Set<ConstraintViolation<CompanyEmployeeRequestDTO>> violations = validator.validate(validDto);
+        assertTrue(violations.isEmpty());
+
+        // Senha curta (< 8)
+        CompanyEmployeeRequestDTO shortPass = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Sen@12", 1L
+        );
+        assertFalse(validator.validate(shortPass).isEmpty());
+
+        // Senha longa (> 20)
+        CompanyEmployeeRequestDTO longPass = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "SenhaMuitoLongaComMaisDe20@1", 1L
+        );
+        assertFalse(validator.validate(longPass).isEmpty());
+
+        // Sem maiúscula
+        CompanyEmployeeRequestDTO noUpper = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "senha@123", 1L
+        );
+        assertFalse(validator.validate(noUpper).isEmpty());
+
+        // Sem minúscula
+        CompanyEmployeeRequestDTO noLower = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "SENHA@123", 1L
+        );
+        assertFalse(validator.validate(noLower).isEmpty());
+
+        // Sem número
+        CompanyEmployeeRequestDTO noDigit = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha@abc", 1L
+        );
+        assertFalse(validator.validate(noDigit).isEmpty());
+
+        // Sem caractere especial
+        CompanyEmployeeRequestDTO noSpecial = new CompanyEmployeeRequestDTO(
+                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha1234", 1L
+        );
+        assertFalse(validator.validate(noSpecial).isEmpty());
+    }
+
+    /**
+     * Testa as validações de senha para o cenário de atualização parcial de funcionário.
+     */
+    @Test
+    void testCompanyEmployeeUpdateDTOPasswordValidation() {
+        // Senha válida
+        CompanyEmployeeUpdateDTO validDto = new CompanyEmployeeUpdateDTO(null, null, "NovaSenha@123");
+        assertTrue(validator.validate(validDto).isEmpty());
+
+        // Senha nula (válido na atualização parcial)
+        CompanyEmployeeUpdateDTO nullPass = new CompanyEmployeeUpdateDTO(null, null, null);
+        assertTrue(validator.validate(nullPass).isEmpty());
+
+        // Senha vazia (válido na atualização parcial)
+        CompanyEmployeeUpdateDTO emptyPass = new CompanyEmployeeUpdateDTO(null, null, "");
+        assertTrue(validator.validate(emptyPass).isEmpty());
+
+        // Senha inválida (sem requisitos)
+        CompanyEmployeeUpdateDTO invalidPass = new CompanyEmployeeUpdateDTO(null, null, "senha123");
+        assertFalse(validator.validate(invalidPass).isEmpty());
+    }
 }
+
