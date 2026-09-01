@@ -111,27 +111,17 @@ public class FarmService {
      */
     @Transactional(readOnly = true)
     public List<FarmResponseDTO> getFarmsForUser(UserPrincipal principal) {
-        if (principal == null || principal.getId() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
-        }
+        ensureAuthenticated(principal);
 
         String role = principal.getRole();
         if ("COMPANY_EMPLOYEE".equals(role)) {
-            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Funcionário logado não encontrado para o ID: " + principal.getId()
-                    ));
+            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
             return farmRepository.findAllByIdEnterprise(employee.getIdEnterprise())
                     .stream()
                     .map(FarmResponseDTO::fromEntity)
                     .toList();
         } else if ("FARM_OWNER".equals(role)) {
-            FarmOwner owner = farmOwnerRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Produtor rural logado não encontrado para o ID: " + principal.getId()
-                    ));
+            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
             if (owner.getIdFarm() == null) {
                 return List.of();
             }
@@ -197,7 +187,7 @@ public class FarmService {
                         "Fazenda não encontrada para o ID: " + id
                 ));
 
-        validateFarmUpdatePermission(farm, principal);
+        validateFarmMutationPermission(farm, principal, "alterar");
 
         if (!request.hasUpdates()) {
             return FarmResponseDTO.fromEntity(farm);
@@ -241,7 +231,7 @@ public class FarmService {
                         "Fazenda não encontrada para o ID: " + id
                 ));
 
-        validateFarmDeletePermission(farm, principal);
+        validateFarmMutationPermission(farm, principal, "remover");
         try {
             farmRepository.delete(farm);
             farmRepository.flush();
@@ -264,9 +254,7 @@ public class FarmService {
      * @throws ResponseStatusException HTTP 404 se o funcionário não for encontrado
      */
     private void validateFarmCreationPermission(Long idEnterprise, UserPrincipal principal) {
-        if (principal == null || principal.getId() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
-        }
+        ensureAuthenticated(principal);
 
         String role = principal.getRole();
         if ("ADM".equals(role)) {
@@ -274,11 +262,7 @@ public class FarmService {
         }
 
         if ("COMPANY_EMPLOYEE".equals(role)) {
-            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Funcionário logado não encontrado para o ID: " + principal.getId()
-                    ));
+            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
             if (!Objects.equals(idEnterprise, employee.getIdEnterprise())) {
                 throw new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
@@ -295,7 +279,7 @@ public class FarmService {
     }
 
     /**
-     * Valida se o usuário autenticado possui permissão de leitura ou alteração na fazenda especificada.
+     * Valida se o usuário autenticado possui permissão de leitura na fazenda especificada.
      *
      * @param farm      entidade da fazenda a ser acessada
      * @param principal dados do usuário logado
@@ -304,9 +288,7 @@ public class FarmService {
      * @throws ResponseStatusException HTTP 404 se o usuário vinculado não for encontrado
      */
     private void validateFarmAccessPermission(Farm farm, UserPrincipal principal) {
-        if (principal == null || principal.getId() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
-        }
+        ensureAuthenticated(principal);
 
         String role = principal.getRole();
         if ("ADM".equals(role)) {
@@ -314,11 +296,7 @@ public class FarmService {
         }
 
         if ("COMPANY_EMPLOYEE".equals(role)) {
-            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Funcionário logado não encontrado para o ID: " + principal.getId()
-                    ));
+            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
             if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
                 throw new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
@@ -329,11 +307,7 @@ public class FarmService {
         }
 
         if ("FARM_OWNER".equals(role)) {
-            FarmOwner owner = farmOwnerRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Produtor rural logado não encontrado para o ID: " + principal.getId()
-                    ));
+            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
             if (!Objects.equals(farm.getId(), owner.getIdFarm())) {
                 throw new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
@@ -350,19 +324,18 @@ public class FarmService {
     }
 
     /**
-     * Valida se o usuário autenticado possui permissão para atualizar a fazenda especificada.
-     * Somente ADM e COMPANY_EMPLOYEE da mesma empresa podem atualizar fazendas.
+     * Valida se o usuário autenticado possui permissão para operações de mutação (alteração ou exclusão) na fazenda especificada.
+     * Somente ADM e COMPANY_EMPLOYEE da mesma empresa podem alterar ou remover fazendas.
      *
-     * @param farm      entidade da fazenda a ser atualizada
+     * @param farm      entidade da fazenda a ser manipulada
      * @param principal dados do usuário logado
+     * @param action    descrição textual da ação ("alterar" ou "remover")
      * @throws ResponseStatusException HTTP 401 se não autenticado
      * @throws ResponseStatusException HTTP 403 se o perfil não tiver permissão ou pertencer a outra empresa
      * @throws ResponseStatusException HTTP 404 se o funcionário vinculado não for encontrado
      */
-    private void validateFarmUpdatePermission(Farm farm, UserPrincipal principal) {
-        if (principal == null || principal.getId() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
-        }
+    private void validateFarmMutationPermission(Farm farm, UserPrincipal principal, String action) {
+        ensureAuthenticated(principal);
 
         String role = principal.getRole();
         if ("ADM".equals(role)) {
@@ -370,15 +343,11 @@ public class FarmService {
         }
 
         if ("COMPANY_EMPLOYEE".equals(role)) {
-            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Funcionário logado não encontrado para o ID: " + principal.getId()
-                    ));
+            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
             if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
                 throw new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
-                        "Acesso negado para alterar esta fazenda"
+                        "Acesso negado para " + action + " esta fazenda"
                 );
             }
             return;
@@ -387,61 +356,55 @@ public class FarmService {
         if ("FARM_OWNER".equals(role)) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "Produtor rural não possui permissão para alterar fazendas"
+                    "Produtor rural não possui permissão para " + action + " fazendas"
             );
         }
 
         throw new ResponseStatusException(
                 HttpStatus.FORBIDDEN,
-                "Perfil de usuário sem permissão para alterar fazendas"
+                "Perfil de usuário sem permissão para " + action + " fazendas"
         );
     }
 
     /**
-     * Valida se o usuário autenticado possui permissão para remover a fazenda especificada.
-     * Somente ADM e COMPANY_EMPLOYEE da mesma empresa podem remover fazendas.
+     * Garante que os dados do usuário autenticado estejam presentes.
      *
-     * @param farm      entidade da fazenda a ser removida
      * @param principal dados do usuário logado
-     * @throws ResponseStatusException HTTP 401 se não autenticado
-     * @throws ResponseStatusException HTTP 403 se o perfil não tiver permissão ou pertencer a outra empresa
-     * @throws ResponseStatusException HTTP 404 se o funcionário vinculado não for encontrado
+     * @throws ResponseStatusException HTTP 401 se principal ou seu ID forem nulos
      */
-    private void validateFarmDeletePermission(Farm farm, UserPrincipal principal) {
+    private void ensureAuthenticated(UserPrincipal principal) {
         if (principal == null || principal.getId() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
         }
+    }
 
-        String role = principal.getRole();
-        if ("ADM".equals(role)) {
-            return;
-        }
+    /**
+     * Busca o funcionário da integradora pelo ID ou lança HTTP 404 Not Found.
+     *
+     * @param id identificador do funcionário
+     * @return entidade do funcionário encontrada
+     * @throws ResponseStatusException HTTP 404 se não encontrado
+     */
+    private CompanyEmployee getCompanyEmployeeOrThrow(Long id) {
+        return companyEmployeeRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Funcionário logado não encontrado para o ID: " + id
+                ));
+    }
 
-        if ("COMPANY_EMPLOYEE".equals(role)) {
-            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Funcionário logado não encontrado para o ID: " + principal.getId()
-                    ));
-            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Acesso negado para remover esta fazenda"
-                );
-            }
-            return;
-        }
-
-        if ("FARM_OWNER".equals(role)) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Produtor rural não possui permissão para remover fazendas"
-            );
-        }
-
-        throw new ResponseStatusException(
-                HttpStatus.FORBIDDEN,
-                "Perfil de usuário sem permissão para remover fazendas"
-        );
+    /**
+     * Busca o produtor rural pelo ID ou lança HTTP 404 Not Found.
+     *
+     * @param id identificador do produtor rural
+     * @return entidade do produtor rural encontrada
+     * @throws ResponseStatusException HTTP 404 se não encontrado
+     */
+    private FarmOwner getFarmOwnerOrThrow(Long id) {
+        return farmOwnerRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Produtor rural logado não encontrado para o ID: " + id
+                ));
     }
 }
