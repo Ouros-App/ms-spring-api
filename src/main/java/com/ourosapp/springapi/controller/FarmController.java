@@ -73,7 +73,8 @@ public class FarmController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista de fazendas retornada com sucesso"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
-            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário")
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
+            @ApiResponse(responseCode = "404", description = "Usuário autenticado não encontrado no banco de dados")
     })
     @GetMapping
     public ResponseEntity<List<FarmResponseDTO>> getFarmsForUser(@AuthenticationPrincipal UserPrincipal principal) {

@@ -55,7 +55,7 @@ public class FarmService {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         validateFarmCreationPermission(request.idEnterprise(), principal);
 
-        if (!enterpriseRepository.existsById(request.idEnterprise())) {
+        if (request.idEnterprise() == null || !enterpriseRepository.existsById(request.idEnterprise())) {
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
                     "Empresa integradora não encontrada para o ID: " + request.idEnterprise()
@@ -63,7 +63,12 @@ public class FarmService {
         }
 
         Long resolvedAddressId;
-        if (request.address() != null) {
+        if (request.address() != null && request.idAddress() != null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Não é permitido informar simultaneamente 'id_address' e o objeto 'address'"
+            );
+        } else if (request.address() != null) {
             AddressResponseDTO createdAddress = addressService.createAddress(request.address());
             resolvedAddressId = createdAddress.id();
         } else if (request.idAddress() != null) {
@@ -71,7 +76,7 @@ public class FarmService {
                 throw new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Endereço não encontrado para o ID: " + request.idAddress()
-                    );
+                );
             }
             resolvedAddressId = request.idAddress();
         } else {

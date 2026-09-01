@@ -298,6 +298,60 @@ class FarmServiceTest {
     }
 
     /**
+     * Testa lançamento de 404 quando idEnterprise for nulo na requisição.
+     */
+    @Test
+    @DisplayName("Deve lançar 404 quando idEnterprise for nulo na requisição como ADM")
+    void testCreateFarmNullIdEnterpriseNotFound() {
+        FarmRequestDTO requestWithNullEnterprise = new FarmRequestDTO(
+                "Fazenda Ouro Verde",
+                new BigDecimal("150.50"),
+                "Sudeste",
+                50000,
+                "Gleba 4 - Setor Sul",
+                10L,
+                null,
+                null
+        );
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.createFarm(requestWithNullEnterprise, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Empresa integradora não encontrada"));
+        verify(enterpriseRepository, never()).existsById(any());
+        verify(farmRepository, never()).save(any());
+    }
+
+    /**
+     * Testa lançamento de 400 quando ambos id_address e objeto address forem informados na requisição.
+     */
+    @Test
+    @DisplayName("Deve lançar 400 quando id_address e objeto address forem informados simultaneamente")
+    void testCreateFarmBothAddressAndIdAddressBadRequest() {
+        when(enterpriseRepository.existsById(20L)).thenReturn(true);
+        FarmRequestDTO requestWithBoth = new FarmRequestDTO(
+                "Fazenda Ouro Verde",
+                new BigDecimal("150.50"),
+                "Sudeste",
+                50000,
+                "Gleba 4 - Setor Sul",
+                10L,
+                sampleAddressRequest,
+                20L
+        );
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.createFarm(requestWithBoth, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Não é permitido informar simultaneamente 'id_address' e o objeto 'address'"));
+        verify(farmRepository, never()).save(any());
+    }
+
+    /**
      * Testa listagem de fazendas para funcionário da empresa integradora filtrando pelo id da empresa.
      */
     @Test

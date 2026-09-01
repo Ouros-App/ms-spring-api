@@ -18,7 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
@@ -29,6 +29,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -54,13 +55,20 @@ class FarmControllerMockMvcTest {
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;
 
+    private final UserPrincipal mockPrincipal = new UserPrincipal(
+            1L,
+            "admin@ouros.com",
+            "password123",
+            "ADM",
+            List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+    );
+
     /**
      * Testa POST /farms cadastrando com id_address existente esperando 201 Created e Location.
      *
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("POST /farms - Deve cadastrar fazenda com id_address e retornar 201 Created com cabeçalho Location")
     void testCreateFarmWithIdAddressSuccess() throws Exception {
         FarmRequestDTO request = new FarmRequestDTO(
@@ -84,9 +92,10 @@ class FarmControllerMockMvcTest {
                 2L
         );
 
-        when(farmService.createFarm(any(FarmRequestDTO.class), any())).thenReturn(response);
+        when(farmService.createFarm(any(FarmRequestDTO.class), eq(mockPrincipal))).thenReturn(response);
 
         mockMvc.perform(post("/farms")
+                        .with(user(mockPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -107,7 +116,6 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("POST /farms - Deve cadastrar fazenda com objeto address embutido (nested) e retornar 201 Created")
     void testCreateFarmWithNestedAddressSuccess() throws Exception {
         AddressRequestDTO address = new AddressRequestDTO("12345678", "SP", "Campinas", "100", "BR");
@@ -132,9 +140,10 @@ class FarmControllerMockMvcTest {
                 2L
         );
 
-        when(farmService.createFarm(any(FarmRequestDTO.class), any())).thenReturn(response);
+        when(farmService.createFarm(any(FarmRequestDTO.class), eq(mockPrincipal))).thenReturn(response);
 
         mockMvc.perform(post("/farms")
+                        .with(user(mockPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -148,7 +157,6 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("POST /farms - Deve aceitar payload em camelCase (interoperabilidade)")
     void testCreateFarmCamelCasePayloadSuccess() throws Exception {
         String camelCasePayload = """
@@ -166,9 +174,10 @@ class FarmControllerMockMvcTest {
                 1L, "Fazenda Camel", new BigDecimal("120.00"), "Sul", 30000, "Setor A", 1L, 2L
         );
 
-        when(farmService.createFarm(any(FarmRequestDTO.class), any())).thenReturn(response);
+        when(farmService.createFarm(any(FarmRequestDTO.class), eq(mockPrincipal))).thenReturn(response);
 
         mockMvc.perform(post("/farms")
+                        .with(user(mockPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(camelCasePayload))
                 .andExpect(status().isCreated())
@@ -181,7 +190,6 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("POST /farms - Deve retornar 400 Bad Request quando payload for inválido")
     void testCreateFarmInvalidPayload() throws Exception {
         String invalidPayload = """
@@ -196,6 +204,7 @@ class FarmControllerMockMvcTest {
                 """;
 
         mockMvc.perform(post("/farms")
+                        .with(user(mockPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidPayload))
                 .andExpect(status().isBadRequest());
@@ -225,15 +234,15 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("GET /farms - Deve retornar lista de fazendas com status 200 OK")
     void testGetFarmsForUserSuccess() throws Exception {
         FarmResponseDTO farm1 = new FarmResponseDTO(
                 1L, "Fazenda 1", new BigDecimal("100.00"), "Sul", 10000, "Local 1", 1L, 2L
         );
-        when(farmService.getFarmsForUser(any())).thenReturn(List.of(farm1));
+        when(farmService.getFarmsForUser(eq(mockPrincipal))).thenReturn(List.of(farm1));
 
-        mockMvc.perform(get("/farms"))
+        mockMvc.perform(get("/farms")
+                        .with(user(mockPrincipal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1L))
                 .andExpect(jsonPath("$[0].name").value("Fazenda 1"));
@@ -257,15 +266,15 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("GET /farms/{id} - Deve retornar fazenda com status 200 OK")
     void testGetFarmByIdSuccess() throws Exception {
         FarmResponseDTO farm = new FarmResponseDTO(
                 1L, "Fazenda 1", new BigDecimal("100.00"), "Sul", 10000, "Local 1", 1L, 2L
         );
-        when(farmService.getFarmById(eq(1L), any())).thenReturn(farm);
+        when(farmService.getFarmById(eq(1L), eq(mockPrincipal))).thenReturn(farm);
 
-        mockMvc.perform(get("/farms/1"))
+        mockMvc.perform(get("/farms/1")
+                        .with(user(mockPrincipal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.name").value("Fazenda 1"));
@@ -277,12 +286,12 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("GET /farms/{id} - Deve retornar 404 Not Found quando fazenda não existir")
     void testGetFarmByIdNotFound() throws Exception {
-        when(farmService.getFarmById(eq(99L), any())).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Fazenda não encontrada"));
+        when(farmService.getFarmById(eq(99L), eq(mockPrincipal))).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Fazenda não encontrada"));
 
-        mockMvc.perform(get("/farms/99"))
+        mockMvc.perform(get("/farms/99")
+                        .with(user(mockPrincipal)))
                 .andExpect(status().isNotFound());
     }
 
@@ -292,7 +301,6 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("PATCH /farms/{id} - Deve atualizar parcialmente a fazenda com status 200 OK")
     void testUpdateFarmSuccess() throws Exception {
         FarmUpdateDTO request = new FarmUpdateDTO("Novo Nome", new BigDecimal("200.00"), null, null, null);
@@ -300,9 +308,10 @@ class FarmControllerMockMvcTest {
                 1L, "Novo Nome", new BigDecimal("200.00"), "Sul", 10000, "Local 1", 1L, 2L
         );
 
-        when(farmService.updateFarm(eq(1L), any(FarmUpdateDTO.class), any())).thenReturn(response);
+        when(farmService.updateFarm(eq(1L), any(FarmUpdateDTO.class), eq(mockPrincipal))).thenReturn(response);
 
         mockMvc.perform(patch("/farms/1")
+                        .with(user(mockPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -316,7 +325,6 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("PATCH /farms/{id} - Deve retornar 400 Bad Request quando campos do PATCH forem inválidos")
     void testUpdateFarmInvalidPayload() throws Exception {
         String invalidPayload = """
@@ -327,6 +335,7 @@ class FarmControllerMockMvcTest {
                 """;
 
         mockMvc.perform(patch("/farms/1")
+                        .with(user(mockPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidPayload))
                 .andExpect(status().isBadRequest());
@@ -338,12 +347,12 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("DELETE /farms/{id} - Deve remover fazenda e retornar status 204 No Content")
     void testDeleteFarmSuccess() throws Exception {
-        doNothing().when(farmService).deleteFarm(eq(1L), any());
+        doNothing().when(farmService).deleteFarm(eq(1L), eq(mockPrincipal));
 
-        mockMvc.perform(delete("/farms/1"))
+        mockMvc.perform(delete("/farms/1")
+                        .with(user(mockPrincipal)))
                 .andExpect(status().isNoContent());
     }
 
@@ -353,13 +362,13 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("DELETE /farms/{id} - Deve retornar 404 Not Found quando fazenda a ser removida não existir")
     void testDeleteFarmNotFound() throws Exception {
         doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Fazenda não encontrada"))
-                .when(farmService).deleteFarm(eq(99L), any());
+                .when(farmService).deleteFarm(eq(99L), eq(mockPrincipal));
 
-        mockMvc.perform(delete("/farms/99"))
+        mockMvc.perform(delete("/farms/99")
+                        .with(user(mockPrincipal)))
                 .andExpect(status().isNotFound());
     }
 
@@ -369,13 +378,13 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("DELETE /farms/{id} - Deve retornar 403 Forbidden quando usuário não tiver permissão para remover")
     void testDeleteFarmForbidden() throws Exception {
         doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para remover esta fazenda"))
-                .when(farmService).deleteFarm(eq(1L), any());
+                .when(farmService).deleteFarm(eq(1L), eq(mockPrincipal));
 
-        mockMvc.perform(delete("/farms/1"))
+        mockMvc.perform(delete("/farms/1")
+                        .with(user(mockPrincipal)))
                 .andExpect(status().isForbidden());
     }
 
@@ -385,13 +394,13 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("DELETE /farms/{id} - Deve retornar 409 Conflict quando existirem registros vinculados")
     void testDeleteFarmConflict() throws Exception {
         doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Não é possível remover a fazenda pois existem registros vinculados a ela"))
-                .when(farmService).deleteFarm(eq(1L), any());
+                .when(farmService).deleteFarm(eq(1L), eq(mockPrincipal));
 
-        mockMvc.perform(delete("/farms/1"))
+        mockMvc.perform(delete("/farms/1")
+                        .with(user(mockPrincipal)))
                 .andExpect(status().isConflict());
     }
 
@@ -401,13 +410,13 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("GET /farms/{id} - Deve retornar 403 Forbidden quando usuário não tiver permissão de acesso")
     void testGetFarmByIdForbidden() throws Exception {
-        when(farmService.getFarmById(eq(1L), any()))
+        when(farmService.getFarmById(eq(1L), eq(mockPrincipal)))
                 .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado a esta fazenda"));
 
-        mockMvc.perform(get("/farms/1"))
+        mockMvc.perform(get("/farms/1")
+                        .with(user(mockPrincipal)))
                 .andExpect(status().isForbidden());
     }
 
@@ -417,16 +426,16 @@ class FarmControllerMockMvcTest {
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @WithMockUser
     @DisplayName("POST /farms - Deve retornar 403 Forbidden quando usuário não puder criar fazenda na empresa")
     void testCreateFarmForbidden() throws Exception {
         FarmRequestDTO request = new FarmRequestDTO(
                 "Fazenda", new BigDecimal("100"), "Sul", 1000, "Local", 1L, null, 2L
         );
-        when(farmService.createFarm(any(FarmRequestDTO.class), any()))
+        when(farmService.createFarm(any(FarmRequestDTO.class), eq(mockPrincipal)))
                 .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado"));
 
         mockMvc.perform(post("/farms")
+                        .with(user(mockPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());

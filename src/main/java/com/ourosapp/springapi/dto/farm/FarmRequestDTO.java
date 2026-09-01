@@ -10,7 +10,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -63,7 +62,7 @@ public record FarmRequestDTO(
         @Schema(description = "Identificador de um endereço pré-existente (opcional se o objeto 'address' for informado)", example = "1")
         @JsonProperty("id_address")
         @JsonAlias("idAddress")
-        @PositiveOrZero(message = "O ID do endereço deve ser maior ou igual a zero")
+        @Positive(message = "O ID do endereço deve ser maior que zero")
         Long idAddress,
 
         @Schema(description = "Dados para cadastro de novo endereço embutido na mesma requisição (opcional se 'id_address' for informado)")
@@ -75,7 +74,7 @@ public record FarmRequestDTO(
         @JsonProperty("id_enterprise")
         @JsonAlias("idEnterprise")
         @NotNull(message = "O ID da empresa integradora é obrigatório")
-        @PositiveOrZero(message = "O ID da empresa integradora deve ser maior ou igual a zero")
+        @Positive(message = "O ID da empresa integradora deve ser maior que zero")
         Long idEnterprise
 ) {
     /**
