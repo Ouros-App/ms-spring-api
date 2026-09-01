@@ -148,6 +148,10 @@ public class CompanyEmployeeService {
                         "Funcionário não encontrado para o ID: " + id
                 ));
 
+        if (!request.hasUpdates()) {
+            return CompanyEmployeeResponseDTO.fromEntity(employee);
+        }
+
         if (request.email() != null && !request.email().isBlank()) {
             companyEmployeeRepository.findByEmailIgnoreCase(request.email())
                     .filter(existing -> !existing.getId().equals(id))

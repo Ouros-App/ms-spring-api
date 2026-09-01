@@ -91,7 +91,7 @@ public class CompanyEmployeeController {
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
             @ApiResponse(responseCode = "404", description = "Funcionário não encontrado")
     })
-    @GetMapping("/{id:\\d+}")
+    @GetMapping("/{id}")
     public ResponseEntity<CompanyEmployeeResponseDTO> getCompanyEmployeeById(@PathVariable Long id) {
         return ResponseEntity.ok(companyEmployeeService.getCompanyEmployeeById(id));
     }
@@ -111,7 +111,7 @@ public class CompanyEmployeeController {
             @ApiResponse(responseCode = "404", description = "Funcionário não encontrado"),
             @ApiResponse(responseCode = "409", description = "E-mail já pertence a outro funcionário")
     })
-    @PatchMapping("/{id:\\d+}")
+    @PatchMapping("/{id}")
     public ResponseEntity<CompanyEmployeeResponseDTO> updateCompanyEmployee(
             @PathVariable Long id,
             @RequestBody @Valid CompanyEmployeeUpdateDTO request
@@ -131,7 +131,7 @@ public class CompanyEmployeeController {
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
             @ApiResponse(responseCode = "404", description = "Funcionário não encontrado")
     })
-    @DeleteMapping("/{id:\\d+}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCompanyEmployee(@PathVariable Long id) {
         companyEmployeeService.deleteCompanyEmployee(id);
         return ResponseEntity.noContent().build();

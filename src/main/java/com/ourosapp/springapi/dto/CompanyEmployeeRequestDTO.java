@@ -57,6 +57,5 @@ public record CompanyEmployeeRequestDTO(
         documentNumber = documentNumber != null ? documentNumber.trim() : null;
         email = email != null ? email.trim().toLowerCase() : null;
         telephone = telephone != null ? telephone.trim() : null;
-        password = password != null ? password.trim() : null;
     }
 }

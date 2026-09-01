@@ -321,6 +321,21 @@ class CompanyEmployeeServiceTest {
     }
 
     @Test
+    @DisplayName("Deve retornar dados do funcionário sem chamar save quando payload não tiver alterações")
+    void testUpdateCompanyEmployeeWithoutUpdates() {
+        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(null, null, null);
+
+        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO);
+
+        assertNotNull(response);
+        assertEquals(sampleEmployee.getId(), response.id());
+        assertEquals(sampleEmployee.getName(), response.name());
+        verify(companyEmployeeRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Deve lançar ResponseStatusException 409 ao tentar atualizar para e-mail de outro funcionário")
     void testUpdateCompanyEmployeeDuplicateEmailOtherUser() {
         CompanyEmployee otherEmployee = CompanyEmployee.builder()

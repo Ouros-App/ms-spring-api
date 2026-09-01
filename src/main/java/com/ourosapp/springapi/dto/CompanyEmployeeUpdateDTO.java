@@ -36,7 +36,6 @@ public record CompanyEmployeeUpdateDTO(
     public CompanyEmployeeUpdateDTO {
         email = email != null ? email.trim().toLowerCase() : null;
         telephone = telephone != null ? telephone.trim() : null;
-        password = password != null ? password.trim() : null;
     }
 
     /**

@@ -356,7 +356,7 @@ class DTOAndEntityTest {
         assertEquals("12345678901", normalizedRequest.documentNumber());
         assertEquals("carlos@empresa.com.br", normalizedRequest.email());
         assertEquals("11987654321", normalizedRequest.telephone());
-        assertEquals("Senha@123", normalizedRequest.password());
+        assertEquals("  Senha@123  ", normalizedRequest.password());
 
         CompanyEmployeeRequestDTO nullRequest = new CompanyEmployeeRequestDTO(null, null, null, null, null, null);
         assertNull(nullRequest.name());
@@ -407,7 +407,7 @@ class DTOAndEntityTest {
         );
         assertEquals("novo@empresa.com.br", normalizedUpdate.email());
         assertEquals("11999998888", normalizedUpdate.telephone());
-        assertEquals("NovaSenha@123", normalizedUpdate.password());
+        assertEquals("  NovaSenha@123  ", normalizedUpdate.password());
 
         CompanyEmployeeUpdateDTO emptyUpdate = new CompanyEmployeeUpdateDTO(null, null, null);
         assertFalse(emptyUpdate.hasUpdates());
