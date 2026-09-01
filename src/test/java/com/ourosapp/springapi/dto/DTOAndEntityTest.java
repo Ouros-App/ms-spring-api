@@ -326,4 +326,129 @@ class DTOAndEntityTest {
         assertEquals("11999999999", dtoFromCamel.telephone());
         assertEquals(10L, dtoFromCamel.idAddress());
     }
+
+    @Test
+    void testCompanyEmployeeDTOs() {
+        CompanyEmployeeRequestDTO request = new CompanyEmployeeRequestDTO(
+                "Carlos Pereira",
+                "12345678901",
+                "carlos@empresa.com.br",
+                "11987654321",
+                "Senha@123",
+                5L
+        );
+        assertEquals("Carlos Pereira", request.name());
+        assertEquals("12345678901", request.documentNumber());
+        assertEquals("carlos@empresa.com.br", request.email());
+        assertEquals("11987654321", request.telephone());
+        assertEquals("Senha@123", request.password());
+        assertEquals(5L, request.idEnterprise());
+
+        CompanyEmployeeRequestDTO normalizedRequest = new CompanyEmployeeRequestDTO(
+                "  Carlos Pereira  ",
+                "  12345678901  ",
+                "  CARLOS@EMPRESA.COM.BR  ",
+                "  11987654321  ",
+                "  Senha@123  ",
+                5L
+        );
+        assertEquals("Carlos Pereira", normalizedRequest.name());
+        assertEquals("12345678901", normalizedRequest.documentNumber());
+        assertEquals("carlos@empresa.com.br", normalizedRequest.email());
+        assertEquals("11987654321", normalizedRequest.telephone());
+        assertEquals("Senha@123", normalizedRequest.password());
+
+        CompanyEmployeeRequestDTO nullRequest = new CompanyEmployeeRequestDTO(null, null, null, null, null, null);
+        assertNull(nullRequest.name());
+        assertNull(nullRequest.documentNumber());
+        assertNull(nullRequest.email());
+        assertNull(nullRequest.telephone());
+        assertNull(nullRequest.password());
+        assertNull(nullRequest.idEnterprise());
+
+        CompanyEmployee entity = CompanyEmployee.builder()
+                .id(1L)
+                .name("Carlos Pereira")
+                .documentNumber("12345678901")
+                .email("carlos@empresa.com.br")
+                .telephone("11987654321")
+                .password("encoded_pass")
+                .idEnterprise(5L)
+                .build();
+
+        CompanyEmployeeResponseDTO response = CompanyEmployeeResponseDTO.fromEntity(entity);
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        assertEquals("Carlos Pereira", response.name());
+        assertEquals("12345678901", response.documentNumber());
+        assertEquals("carlos@empresa.com.br", response.email());
+        assertEquals("11987654321", response.telephone());
+        assertEquals(5L, response.idEnterprise());
+
+        assertThrows(NullPointerException.class, () -> CompanyEmployeeResponseDTO.fromEntity(null));
+    }
+
+    @Test
+    void testCompanyEmployeeUpdateDTO() {
+        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                "novo@empresa.com.br",
+                "11999998888",
+                "NovaSenha@123"
+        );
+        assertEquals("novo@empresa.com.br", updateDTO.email());
+        assertEquals("11999998888", updateDTO.telephone());
+        assertEquals("NovaSenha@123", updateDTO.password());
+        assertTrue(updateDTO.hasUpdates());
+
+        CompanyEmployeeUpdateDTO normalizedUpdate = new CompanyEmployeeUpdateDTO(
+                "  NOVO@EMPRESA.COM.BR  ",
+                "  11999998888  ",
+                "  NovaSenha@123  "
+        );
+        assertEquals("novo@empresa.com.br", normalizedUpdate.email());
+        assertEquals("11999998888", normalizedUpdate.telephone());
+        assertEquals("NovaSenha@123", normalizedUpdate.password());
+
+        CompanyEmployeeUpdateDTO emptyUpdate = new CompanyEmployeeUpdateDTO(null, null, null);
+        assertFalse(emptyUpdate.hasUpdates());
+
+        CompanyEmployeeUpdateDTO blankUpdate = new CompanyEmployeeUpdateDTO("  ", "  ", "  ");
+        assertFalse(blankUpdate.hasUpdates());
+    }
+
+    @Test
+    void testCompanyEmployeeRequestDTOJsonDeserialization() throws JsonProcessingException {
+        String json = """
+                {
+                    "name": "Carlos Pereira",
+                    "document_number": "12345678901",
+                    "email": "carlos@empresa.com.br",
+                    "telephone": "11987654321",
+                    "password": "SenhaForte@123",
+                    "id_enterprise": 5
+                }
+                """;
+        CompanyEmployeeRequestDTO dto = objectMapper.readValue(json, CompanyEmployeeRequestDTO.class);
+        assertEquals("Carlos Pereira", dto.name());
+        assertEquals("12345678901", dto.documentNumber());
+        assertEquals("carlos@empresa.com.br", dto.email());
+        assertEquals("11987654321", dto.telephone());
+        assertEquals("SenhaForte@123", dto.password());
+        assertEquals(5L, dto.idEnterprise());
+
+        String camelJson = """
+                {
+                    "name": "Carlos Pereira",
+                    "documentNumber": "12345678901",
+                    "email": "carlos@empresa.com.br",
+                    "telephone": "11987654321",
+                    "password": "SenhaForte@123",
+                    "idEnterprise": 5
+                }
+                """;
+        CompanyEmployeeRequestDTO camelDto = objectMapper.readValue(camelJson, CompanyEmployeeRequestDTO.class);
+        assertEquals("12345678901", camelDto.documentNumber());
+        assertEquals(5L, camelDto.idEnterprise());
+    }
 }
+

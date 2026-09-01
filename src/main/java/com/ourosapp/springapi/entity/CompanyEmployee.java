@@ -20,13 +20,13 @@ public class CompanyEmployee {
     @Column(name = "name", length = 100, nullable = false)
     private String name;
 
-    @Column(name = "document_number", unique = true, nullable = false)
+    @Column(name = "document_number", length = 11, unique = true, nullable = false)
     private String documentNumber;
 
-    @Column(name = "email", length = 255, nullable = false, unique = true)
+    @Column(name = "email", length = 50, nullable = false, unique = true)
     private String email;
 
-    @Column(name = "telephone", length = 20, nullable = false)
+    @Column(name = "telephone", length = 13, nullable = false)
     private String telephone;
 
     @ToString.Exclude

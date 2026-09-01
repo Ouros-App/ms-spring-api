@@ -12,4 +12,6 @@ public interface CompanyEmployeeRepository extends JpaRepository<CompanyEmployee
     Optional<CompanyEmployee> findByEmailIgnoreCase(String email);
     boolean existsByEmail(String email);
     boolean existsByEmailIgnoreCase(String email);
+    Optional<CompanyEmployee> findByDocumentNumber(String documentNumber);
+    boolean existsByDocumentNumber(String documentNumber);
 }
