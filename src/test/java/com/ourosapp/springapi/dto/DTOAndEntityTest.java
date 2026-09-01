@@ -21,11 +21,17 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Testes unitários para validação, serialização/desserialização JSON e comportamento de DTOs e entidades.
+ */
 class DTOAndEntityTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
+    /**
+     * Testa instanciação e acessores do DTO de requisição de login.
+     */
     @Test
     void testLoginRequestDTO() {
         LoginRequestDTO dto = new LoginRequestDTO("teste@ouros.com", "senha123");
@@ -33,12 +39,18 @@ class DTOAndEntityTest {
         assertEquals("senha123", dto.password());
     }
 
+    /**
+     * Testa instanciação e acessores do DTO de resposta de login contendo o token JWT.
+     */
     @Test
     void testLoginResponseDTO() {
         LoginResponseDTO dto = new LoginResponseDTO("token123");
         assertEquals("token123", dto.token());
     }
 
+    /**
+     * Testa getters, setters, builder e toString da entidade {@link Adm}.
+     */
     @Test
     void testAdmEntity() {
         Adm adm = new Adm();
@@ -56,6 +68,9 @@ class DTOAndEntityTest {
         assertFalse(built.toString().contains("pass2"));
     }
 
+    /**
+     * Testa getters, setters, builder e toString da entidade {@link CompanyEmployee}.
+     */
     @Test
     void testCompanyEmployeeEntity() {
         CompanyEmployee emp = new CompanyEmployee();
@@ -89,6 +104,9 @@ class DTOAndEntityTest {
         assertFalse(built.toString().contains("pass2"));
     }
 
+    /**
+     * Testa getters, setters, builder e toString da entidade {@link FarmOwner}.
+     */
     @Test
     void testFarmOwnerEntity() {
         FarmOwner owner = new FarmOwner();
@@ -122,6 +140,9 @@ class DTOAndEntityTest {
         assertFalse(built.toString().contains("pass2"));
     }
 
+    /**
+     * Testa getters, setters e builder da entidade {@link Address}.
+     */
     @Test
     void testAddressEntity() {
         Address address = new Address();
@@ -153,6 +174,9 @@ class DTOAndEntityTest {
         assertTrue(built.toString().contains("Campinas"));
     }
 
+    /**
+     * Testa criação, normalização e conversão a partir de entidade para os DTOs de endereço.
+     */
     @Test
     void testAddressDTOs() {
         AddressRequestDTO request = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR");
@@ -197,6 +221,9 @@ class DTOAndEntityTest {
         assertThrows(NullPointerException.class, () -> AddressResponseDTO.fromEntity(null));
     }
 
+    /**
+     * Testa criação dos beans de segurança PasswordEncoder e CorsConfigurationSource.
+     */
     @Test
     void testSecurityConfigBeans() {
         JwtAuthFilter filter = Mockito.mock(JwtAuthFilter.class);
@@ -210,6 +237,9 @@ class DTOAndEntityTest {
         assertNotNull(cors);
     }
 
+    /**
+     * Testa getters, setters e builder da entidade {@link Enterprise}.
+     */
     @Test
     void testEnterpriseEntity() {
         Enterprise enterprise = new Enterprise();
@@ -241,6 +271,9 @@ class DTOAndEntityTest {
         assertTrue(built.toString().contains("Ouros Filial"));
     }
 
+    /**
+     * Testa instanciação, normalização e conversão a partir de entidade dos DTOs de empresa integradora.
+     */
     @Test
     void testEnterpriseDTOs() {
         EnterpriseRequestDTO request = new EnterpriseRequestDTO(
@@ -296,6 +329,11 @@ class DTOAndEntityTest {
         assertThrows(NullPointerException.class, () -> EnterpriseResponseDTO.fromEntity(null));
     }
 
+    /**
+     * Testa a desserialização JSON em snake_case e camelCase para {@link EnterpriseRequestDTO}.
+     *
+     * @throws JsonProcessingException se houver falha de processamento JSON
+     */
     @Test
     void testEnterpriseRequestDTOJsonDeserialization() throws JsonProcessingException {
         // Formato snake_case
@@ -333,6 +371,9 @@ class DTOAndEntityTest {
         assertEquals(10L, dtoFromCamel.idAddress());
     }
 
+    /**
+     * Testa instanciação, normalização e conversão de entidade dos DTOs de funcionário da empresa.
+     */
     @Test
     void testCompanyEmployeeDTOs() {
         CompanyEmployeeRequestDTO request = new CompanyEmployeeRequestDTO(
@@ -394,6 +435,9 @@ class DTOAndEntityTest {
         assertThrows(NullPointerException.class, () -> CompanyEmployeeResponseDTO.fromEntity(null));
     }
 
+    /**
+     * Testa normalização e método hasUpdates do {@link CompanyEmployeeUpdateDTO}.
+     */
     @Test
     void testCompanyEmployeeUpdateDTO() {
         CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
@@ -422,6 +466,11 @@ class DTOAndEntityTest {
         assertFalse(blankUpdate.hasUpdates());
     }
 
+    /**
+     * Testa desserialização JSON em snake_case e camelCase para {@link CompanyEmployeeRequestDTO}.
+     *
+     * @throws JsonProcessingException se houver falha de processamento JSON
+     */
     @Test
     void testCompanyEmployeeRequestDTOJsonDeserialization() throws JsonProcessingException {
         String json = """
@@ -457,6 +506,9 @@ class DTOAndEntityTest {
         assertEquals(5L, camelDto.idEnterprise());
     }
 
+    /**
+     * Testa as validações de restrição e política de complexidade de senha no cadastro de funcionário.
+     */
     @Test
     void testCompanyEmployeeRequestDTOPasswordValidation() {
         // Senha válida com 8 caracteres, maiúscula, minúscula, número e caractere especial
@@ -503,6 +555,9 @@ class DTOAndEntityTest {
         assertFalse(validator.validate(noSpecial).isEmpty());
     }
 
+    /**
+     * Testa as validações de senha para o cenário de atualização parcial de funcionário.
+     */
     @Test
     void testCompanyEmployeeUpdateDTOPasswordValidation() {
         // Senha válida

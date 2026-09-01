@@ -23,6 +23,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Testes unitários para o controlador {@link CompanyEmployeeController}.
+ */
 @ExtendWith(MockitoExtension.class)
 class CompanyEmployeeControllerTest {
 
@@ -32,6 +35,9 @@ class CompanyEmployeeControllerTest {
     @InjectMocks
     private CompanyEmployeeController companyEmployeeController;
 
+    /**
+     * Testa o cadastro bem-sucedido de funcionário, verificando o status 201 Created e o header Location.
+     */
     @Test
     @DisplayName("Deve cadastrar funcionário e retornar status 201 Created com cabeçalho Location")
     void testCreateCompanyEmployee() {
@@ -74,6 +80,9 @@ class CompanyEmployeeControllerTest {
         }
     }
 
+    /**
+     * Testa a recuperação dos dados do funcionário logado a partir do UserPrincipal com status 200 OK.
+     */
     @Test
     @DisplayName("Deve retornar dados do funcionário logado com status 200 OK")
     void testGetLoggedInEmployee() {
@@ -104,6 +113,9 @@ class CompanyEmployeeControllerTest {
         verify(companyEmployeeService, times(1)).getLoggedInEmployee(principal);
     }
 
+    /**
+     * Testa a busca de funcionário por ID com status 200 OK.
+     */
     @Test
     @DisplayName("Deve retornar funcionário por ID com status 200 OK")
     void testGetCompanyEmployeeById() {
@@ -126,6 +138,9 @@ class CompanyEmployeeControllerTest {
         verify(companyEmployeeService, times(1)).getCompanyEmployeeById(1L);
     }
 
+    /**
+     * Testa a atualização parcial de funcionário com status 200 OK.
+     */
     @Test
     @DisplayName("Deve atualizar funcionário por ID e retornar status 200 OK")
     void testUpdateCompanyEmployee() {
@@ -154,6 +169,9 @@ class CompanyEmployeeControllerTest {
         verify(companyEmployeeService, times(1)).updateCompanyEmployee(1L, request);
     }
 
+    /**
+     * Testa a remoção de funcionário por ID com status 204 No Content.
+     */
     @Test
     @DisplayName("Deve excluir funcionário por ID e retornar status 204 No Content")
     void testDeleteCompanyEmployee() {

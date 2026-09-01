@@ -11,6 +11,13 @@ import jakarta.validation.constraints.Size;
 
 /**
  * DTO de requisição para cadastro de Funcionário da Empresa Integradora.
+ *
+ * @param name           Nome completo do funcionário
+ * @param documentNumber Documento/CPF do funcionário (exatamente 11 dígitos numéricos)
+ * @param email          E-mail corporativo do funcionário
+ * @param telephone      Telefone de contato (entre 10 e 13 dígitos numéricos)
+ * @param password       Senha de acesso do funcionário (8 a 20 caracteres com requisitos de complexidade)
+ * @param idEnterprise   Identificador da empresa integradora vinculada
  */
 @Schema(description = "Dados para cadastro do funcionário da empresa integradora")
 public record CompanyEmployeeRequestDTO(

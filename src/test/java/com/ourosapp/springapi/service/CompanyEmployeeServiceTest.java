@@ -27,6 +27,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * Testes unitários para a camada de serviço {@link CompanyEmployeeService}.
+ */
 @ExtendWith(MockitoExtension.class)
 class CompanyEmployeeServiceTest {
 
@@ -45,6 +48,9 @@ class CompanyEmployeeServiceTest {
     private CompanyEmployee sampleEmployee;
     private CompanyEmployeeRequestDTO sampleRequest;
 
+    /**
+     * Inicializa os dados de teste antes de cada execução.
+     */
     @BeforeEach
     void setUp() {
         sampleEmployee = CompanyEmployee.builder()
@@ -67,6 +73,9 @@ class CompanyEmployeeServiceTest {
         );
     }
 
+    /**
+     * Testa o cadastro bem-sucedido de funcionário com criptografia de senha e integridade de dados.
+     */
     @Test
     @DisplayName("Deve cadastrar um novo funcionário com sucesso quando os dados forem válidos")
     void testCreateCompanyEmployeeSuccess() {
@@ -93,6 +102,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, times(1)).save(any(CompanyEmployee.class));
     }
 
+    /**
+     * Testa lançamento de erro 404 ao cadastrar com ID de empresa inexistente.
+     */
     @Test
     @DisplayName("Deve lançar ResponseStatusException 404 ao tentar cadastrar funcionário com empresa inexistente")
     void testCreateCompanyEmployeeEnterpriseNotFound() {
@@ -108,6 +120,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, never()).save(any());
     }
 
+    /**
+     * Testa lançamento de erro 409 ao cadastrar com documento/CPF já existente.
+     */
     @Test
     @DisplayName("Deve lançar ResponseStatusException 409 ao tentar cadastrar funcionário com documento duplicado")
     void testCreateCompanyEmployeeDuplicateDocumentNumber() {
@@ -124,6 +139,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, never()).save(any());
     }
 
+    /**
+     * Testa lançamento de erro 409 ao cadastrar com e-mail já existente.
+     */
     @Test
     @DisplayName("Deve lançar ResponseStatusException 409 ao tentar cadastrar funcionário com e-mail duplicado")
     void testCreateCompanyEmployeeDuplicateEmail() {
@@ -141,6 +159,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, never()).save(any());
     }
 
+    /**
+     * Testa lançamento de erro 409 quando o repositório lança DataIntegrityViolationException.
+     */
     @Test
     @DisplayName("Deve lançar ResponseStatusException 409 quando ocorrer DataIntegrityViolationException no cadastro")
     void testCreateCompanyEmployeeDataIntegrityViolation() {
@@ -159,6 +180,9 @@ class CompanyEmployeeServiceTest {
         assertTrue(exception.getReason().contains("integridade"));
     }
 
+    /**
+     * Testa lançamento de NullPointerException ao passar payload nulo no cadastro.
+     */
     @Test
     @DisplayName("Deve lançar NullPointerException ao tentar cadastrar com payload nulo")
     void testCreateCompanyEmployeeNullPayload() {
@@ -171,6 +195,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, never()).save(any());
     }
 
+    /**
+     * Testa busca bem-sucedida de funcionário por ID.
+     */
     @Test
     @DisplayName("Deve buscar funcionário por ID com sucesso")
     void testGetCompanyEmployeeByIdSuccess() {
@@ -186,6 +213,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, times(1)).findById(1L);
     }
 
+    /**
+     * Testa lançamento de erro 404 ao buscar funcionário por ID inexistente.
+     */
     @Test
     @DisplayName("Deve lançar ResponseStatusException 404 ao buscar funcionário por ID inexistente")
     void testGetCompanyEmployeeByIdNotFound() {
@@ -201,6 +231,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, times(1)).findById(99L);
     }
 
+    /**
+     * Testa retorno com sucesso dos dados do funcionário atualmente logado.
+     */
     @Test
     @DisplayName("Deve retornar dados do funcionário logado com sucesso")
     void testGetLoggedInEmployeeSuccess() {
@@ -223,6 +256,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, times(1)).findById(1L);
     }
 
+    /**
+     * Testa lançamento de erro 401 quando o UserPrincipal for nulo na rota /me.
+     */
     @Test
     @DisplayName("Deve lançar ResponseStatusException 401 quando o principal for nulo")
     void testGetLoggedInEmployeeNullPrincipal() {
@@ -234,6 +270,9 @@ class CompanyEmployeeServiceTest {
         assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
     }
 
+    /**
+     * Testa lançamento de erro 403 quando o perfil do usuário logado não for COMPANY_EMPLOYEE.
+     */
     @Test
     @DisplayName("Deve lançar ResponseStatusException 403 quando o perfil não for COMPANY_EMPLOYEE")
     void testGetLoggedInEmployeeInvalidRole() {
@@ -254,6 +293,9 @@ class CompanyEmployeeServiceTest {
         assertTrue(exception.getReason().contains("restrito"));
     }
 
+    /**
+     * Testa lançamento de erro 404 quando o ID do funcionário logado não for encontrado no banco.
+     */
     @Test
     @DisplayName("Deve lançar ResponseStatusException 404 quando funcionário autenticado não for achado no banco")
     void testGetLoggedInEmployeeNotFoundInDb() {
@@ -276,6 +318,9 @@ class CompanyEmployeeServiceTest {
         assertTrue(exception.getReason().contains("99"));
     }
 
+    /**
+     * Testa atualização completa de e-mail, telefone e senha de funcionário com sucesso.
+     */
     @Test
     @DisplayName("Deve atualizar e-mail, telefone e senha do funcionário com sucesso")
     void testUpdateCompanyEmployeeFullUpdateSuccess() {
@@ -299,6 +344,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, times(1)).save(sampleEmployee);
     }
 
+    /**
+     * Testa atualização de funcionário mantendo o mesmo e-mail já pertencente a ele próprio.
+     */
     @Test
     @DisplayName("Deve atualizar funcionário mantendo o mesmo e-mail do próprio funcionário")
     void testUpdateCompanyEmployeeKeepingSameEmail() {
@@ -320,6 +368,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, times(1)).save(sampleEmployee);
     }
 
+    /**
+     * Testa atualização parcial sem campos modificados, retornando o funcionário existente sem chamar save.
+     */
     @Test
     @DisplayName("Deve retornar dados do funcionário sem chamar save quando payload não tiver alterações")
     void testUpdateCompanyEmployeeWithoutUpdates() {
@@ -335,6 +386,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, never()).save(any());
     }
 
+    /**
+     * Testa lançamento de erro 409 ao tentar atualizar para e-mail pertencente a outro funcionário.
+     */
     @Test
     @DisplayName("Deve lançar ResponseStatusException 409 ao tentar atualizar para e-mail de outro funcionário")
     void testUpdateCompanyEmployeeDuplicateEmailOtherUser() {
@@ -362,6 +416,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, never()).save(any());
     }
 
+    /**
+     * Testa lançamento de erro 404 ao tentar atualizar funcionário inexistente.
+     */
     @Test
     @DisplayName("Deve lançar ResponseStatusException 404 ao tentar atualizar funcionário inexistente")
     void testUpdateCompanyEmployeeNotFound() {
@@ -382,6 +439,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, never()).save(any());
     }
 
+    /**
+     * Testa lançamento de NullPointerException ao tentar atualizar com payload nulo.
+     */
     @Test
     @DisplayName("Deve lançar NullPointerException ao tentar atualizar com payload nulo")
     void testUpdateCompanyEmployeeNullPayload() {
@@ -393,6 +453,9 @@ class CompanyEmployeeServiceTest {
         assertEquals("O payload da requisição não pode ser nulo", exception.getMessage());
     }
 
+    /**
+     * Testa exclusão bem-sucedida de funcionário por ID.
+     */
     @Test
     @DisplayName("Deve excluir funcionário com sucesso quando o ID existir")
     void testDeleteCompanyEmployeeSuccess() {
@@ -404,6 +467,9 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, times(1)).deleteById(1L);
     }
 
+    /**
+     * Testa lançamento de erro 404 ao tentar excluir funcionário inexistente.
+     */
     @Test
     @DisplayName("Deve lançar ResponseStatusException 404 ao tentar excluir funcionário inexistente")
     void testDeleteCompanyEmployeeNotFound() {

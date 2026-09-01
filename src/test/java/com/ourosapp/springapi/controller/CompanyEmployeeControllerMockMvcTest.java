@@ -33,6 +33,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * Testes de integração e contrato HTTP para {@link CompanyEmployeeController} utilizando MockMvc.
+ */
 @WebMvcTest(CompanyEmployeeController.class)
 @Import({SecurityConfig.class, JwtAuthFilter.class})
 class CompanyEmployeeControllerMockMvcTest {
@@ -52,6 +55,11 @@ class CompanyEmployeeControllerMockMvcTest {
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;
 
+    /**
+     * Testa POST /company-employees esperando status 201 Created e cabeçalho Location.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @WithMockUser
     @DisplayName("POST /company-employees - Deve cadastrar funcionário e retornar 201 Created com cabeçalho Location")
@@ -88,6 +96,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(jsonPath("$.id_enterprise").value(10L));
     }
 
+    /**
+     * Testa POST /company-employees sem autenticação esperando status 401 Unauthorized.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @DisplayName("POST /company-employees - Deve retornar 401 Unauthorized quando não autenticado")
     void testCreateCompanyEmployeeUnauthorized() throws Exception {
@@ -106,6 +119,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    /**
+     * Testa POST /company-employees com payload inválido esperando status 400 Bad Request.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @WithMockUser
     @DisplayName("POST /company-employees - Deve retornar 400 Bad Request quando payload for inválido")
@@ -125,6 +143,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * Testa GET /company-employees/me com usuário autenticado esperando status 200 OK.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @DisplayName("GET /company-employees/me - Deve retornar 200 OK com dados do usuário autenticado")
     void testGetLoggedInEmployeeSuccess() throws Exception {
@@ -155,6 +178,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(jsonPath("$.email").value("carlos.pereira@empresa.com.br"));
     }
 
+    /**
+     * Testa GET /company-employees/me sem autenticação esperando status 401 Unauthorized.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @DisplayName("GET /company-employees/me - Deve retornar 401 Unauthorized quando não autenticado")
     void testGetLoggedInEmployeeUnauthorized() throws Exception {
@@ -162,6 +190,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    /**
+     * Testa GET /company-employees/{id} quando o funcionário existe esperando status 200 OK.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @WithMockUser
     @DisplayName("GET /company-employees/{id} - Deve retornar 200 OK quando funcionário existir")
@@ -184,6 +217,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(jsonPath("$.document_number").value("12345678901"));
     }
 
+    /**
+     * Testa GET /company-employees/{id} quando o funcionário não existe esperando status 404 Not Found.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @WithMockUser
     @DisplayName("GET /company-employees/{id} - Deve retornar 404 Not Found quando funcionário não existir")
@@ -195,6 +233,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * Testa PATCH /company-employees/{id} com dados válidos esperando status 200 OK.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @WithMockUser
     @DisplayName("PATCH /company-employees/{id} - Deve atualizar parcialmente e retornar 200 OK")
@@ -224,6 +267,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(jsonPath("$.telephone").value("11999998888"));
     }
 
+    /**
+     * Testa PATCH /company-employees/{id} para funcionário inexistente esperando status 404 Not Found.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @WithMockUser
     @DisplayName("PATCH /company-employees/{id} - Deve retornar 404 Not Found quando funcionário não existir")
@@ -243,6 +291,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * Testa PATCH /company-employees/{id} com e-mail duplicado de outro funcionário esperando status 409 Conflict.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @WithMockUser
     @DisplayName("PATCH /company-employees/{id} - Deve retornar 409 Conflict quando e-mail já pertencer a outro funcionário")
@@ -262,6 +315,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isConflict());
     }
 
+    /**
+     * Testa PATCH /company-employees/{id} com senha fora do padrão de complexidade esperando status 400 Bad Request.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @WithMockUser
     @DisplayName("PATCH /company-employees/{id} - Deve retornar 400 Bad Request quando senha não cumprir requisitos de complexidade")
@@ -278,6 +336,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * Testa DELETE /company-employees/{id} para remoção bem-sucedida esperando status 204 No Content.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @WithMockUser
     @DisplayName("DELETE /company-employees/{id} - Deve remover funcionário e retornar 204 No Content")
@@ -288,6 +351,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isNoContent());
     }
 
+    /**
+     * Testa DELETE /company-employees/{id} quando funcionário não existe esperando status 404 Not Found.
+     *
+     * @throws Exception se ocorrer erro na requisição MockMvc
+     */
     @Test
     @WithMockUser
     @DisplayName("DELETE /company-employees/{id} - Deve retornar 404 Not Found quando funcionário não existir")

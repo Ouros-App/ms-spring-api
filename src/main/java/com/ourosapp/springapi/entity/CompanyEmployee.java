@@ -3,6 +3,10 @@ package com.ourosapp.springapi.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+/**
+ * Entidade JPA que representa um Funcionário de Empresa Integradora no sistema Ouros App.
+ * Mapeada para a tabela "company_employees" no banco de dados relacional.
+ */
 @Entity
 @Table(name = "company_employees")
 @Getter
