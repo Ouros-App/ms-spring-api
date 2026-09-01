@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.dto.farm;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
@@ -27,6 +28,7 @@ public record FarmUpdateDTO(
 
         @Schema(description = "Nova área da propriedade", example = "200.00")
         @JsonProperty("area_property")
+        @JsonAlias("areaProperty")
         @Positive(message = "A área da propriedade deve ser maior que zero")
         BigDecimal areaProperty,
 
@@ -36,6 +38,7 @@ public record FarmUpdateDTO(
 
         @Schema(description = "Nova capacidade de alojamento de aves", example = "60000")
         @JsonProperty("poultry_capacity")
+        @JsonAlias("poultryCapacity")
         @Min(value = 0, message = "A capacidade de aves não pode ser negativa")
         Integer poultryCapacity,
 

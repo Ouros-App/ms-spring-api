@@ -14,6 +14,7 @@ import com.ourosapp.springapi.repository.FarmOwnerRepository;
 import com.ourosapp.springapi.repository.FarmRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -131,6 +132,9 @@ public class FarmService {
                             HttpStatus.NOT_FOUND,
                             "Produtor rural logado não encontrado para o ID: " + principal.getId()
                     ));
+            if (owner.getIdFarm() == null) {
+                return List.of();
+            }
             return farmRepository.findById(owner.getIdFarm())
                     .map(FarmResponseDTO::fromEntity)
                     .map(List::of)
@@ -238,7 +242,15 @@ public class FarmService {
                 ));
 
         validateFarmDeletePermission(farm, principal);
-        farmRepository.delete(farm);
+        try {
+            farmRepository.delete(farm);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Não é possível remover a fazenda pois existem registros vinculados a ela",
+                    ex
+            );
+        }
     }
 
     /**

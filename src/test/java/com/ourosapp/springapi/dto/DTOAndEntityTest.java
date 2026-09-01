@@ -781,6 +781,17 @@ class DTOAndEntityTest {
         // Validação de valores negativos
         FarmUpdateDTO invalidDto = new FarmUpdateDTO(null, new BigDecimal("-10.00"), null, -5, null);
         assertFalse(validator.validate(invalidDto).isEmpty());
+
+        // Desserialização Jackson em snake_case e camelCase (@JsonAlias)
+        String snakeJson = "{\"area_property\": 200.00, \"poultry_capacity\": 60000}";
+        FarmUpdateDTO fromSnake = assertDoesNotThrow(() -> objectMapper.readValue(snakeJson, FarmUpdateDTO.class));
+        assertEquals(new BigDecimal("200.00"), fromSnake.areaProperty());
+        assertEquals(60000, fromSnake.poultryCapacity());
+
+        String camelJson = "{\"areaProperty\": 300.00, \"poultryCapacity\": 75000}";
+        FarmUpdateDTO fromCamel = assertDoesNotThrow(() -> objectMapper.readValue(camelJson, FarmUpdateDTO.class));
+        assertEquals(new BigDecimal("300.00"), fromCamel.areaProperty());
+        assertEquals(75000, fromCamel.poultryCapacity());
     }
 }
 

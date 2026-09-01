@@ -21,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.server.ResponseStatusException;
@@ -390,6 +391,29 @@ class FarmServiceTest {
     }
 
     /**
+     * Testa listagem de fazendas para produtor rural com idFarm nulo.
+     */
+    @Test
+    @DisplayName("Deve retornar lista vazia quando produtor rural não possuir fazenda vinculada (idFarm nulo)")
+    void testGetFarmsForFarmOwnerNullIdFarm() {
+        UserPrincipal principal = new UserPrincipal(
+                200L, "produtor@fazenda.com", "pass", "FARM_OWNER", List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
+        );
+        FarmOwner owner = FarmOwner.builder()
+                .id(200L)
+                .idFarm(null)
+                .build();
+
+        when(farmOwnerRepository.findById(200L)).thenReturn(Optional.of(owner));
+
+        List<FarmResponseDTO> farms = farmService.getFarmsForUser(principal);
+
+        assertNotNull(farms);
+        assertTrue(farms.isEmpty());
+        verify(farmRepository, never()).findById(any());
+    }
+
+    /**
      * Testa lançamento de 404 quando produtor rural não for localizado no banco.
      */
     @Test
@@ -601,6 +625,26 @@ class FarmServiceTest {
     }
 
     /**
+     * Testa restrição de segurança impedindo funcionário de atualizar fazenda de outra empresa integradora.
+     */
+    @Test
+    @DisplayName("Deve lançar 403 ao atualizar fazenda como COMPANY_EMPLOYEE de outra empresa")
+    void testUpdateFarmAsCompanyEmployeeDifferentEnterpriseForbidden() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(100L).idEnterprise(999L).build();
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(companyEmployeeRepository.findById(100L)).thenReturn(Optional.of(employee));
+
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.updateFarm(1L, updateDTO, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(farmRepository, never()).save(any(Farm.class));
+    }
+
+    /**
      * Testa atualização de fazenda sem modificações quando DTO for vazio.
      */
     @Test
@@ -647,6 +691,24 @@ class FarmServiceTest {
         assertDoesNotThrow(() -> farmService.deleteFarm(1L, adminPrincipal));
 
         verify(farmRepository).findById(1L);
+        verify(farmRepository).delete(sampleFarm);
+    }
+
+    /**
+     * Testa lançamento de 409 Conflict ao remover fazenda com vínculos/restrições no banco de dados.
+     */
+    @Test
+    @DisplayName("Deve lançar 409 Conflict quando remoção violar integridade referencial")
+    void testDeleteFarmDataIntegrityViolationConflict() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        doThrow(new DataIntegrityViolationException("Violação de FK")).when(farmRepository).delete(sampleFarm);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.deleteFarm(1L, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertEquals("Não é possível remover a fazenda pois existem registros vinculados a ela", ex.getReason());
         verify(farmRepository).delete(sampleFarm);
     }
 
