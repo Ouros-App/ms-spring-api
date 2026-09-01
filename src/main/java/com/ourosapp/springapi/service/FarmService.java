@@ -38,16 +38,21 @@ public class FarmService {
 
     /**
      * Cadastra uma nova Fazenda vinculada à Empresa Integradora e ao Endereço.
+     * Valida as permissões do usuário logado (apenas ADM ou Funcionário da mesma empresa).
      * Suporta endereço pré-existente via {@code id_address} ou criação composta de novo endereço via {@code address}.
      *
-     * @param request payload da requisição contendo os dados da fazenda e endereço
+     * @param request   payload da requisição contendo os dados da fazenda e endereço
+     * @param principal dados do usuário logado extraídos do token JWT
      * @return DTO com os dados da fazenda cadastrada
-     * @throws ResponseStatusException HTTP 404 se a empresa ou endereço vinculado não existirem
      * @throws ResponseStatusException HTTP 400 se nenhuma informação de endereço for fornecida
+     * @throws ResponseStatusException HTTP 401 se não autenticado
+     * @throws ResponseStatusException HTTP 403 se o usuário não tiver permissão para cadastrar na empresa informada
+     * @throws ResponseStatusException HTTP 404 se a empresa ou endereço vinculado não existirem
      */
     @Transactional
-    public FarmResponseDTO createFarm(FarmRequestDTO request) {
+    public FarmResponseDTO createFarm(FarmRequestDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
+        validateFarmCreationPermission(request.idEnterprise(), principal);
 
         if (!enterpriseRepository.existsById(request.idEnterprise())) {
             throw new ResponseStatusException(
@@ -65,7 +70,7 @@ public class FarmService {
                 throw new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Endereço não encontrado para o ID: " + request.idAddress()
-                );
+                    );
             }
             resolvedAddressId = request.idAddress();
         } else {
@@ -145,31 +150,41 @@ public class FarmService {
 
     /**
      * Busca os detalhes de uma fazenda específica pelo seu identificador único.
+     * Valida se o usuário autenticado possui vínculo e autorização para visualizar a fazenda.
      *
-     * @param id identificador único da fazenda
+     * @param id        identificador único da fazenda
+     * @param principal dados do usuário logado extraídos do token JWT
      * @return DTO com as informações da fazenda
+     * @throws ResponseStatusException HTTP 401 se não autenticado
+     * @throws ResponseStatusException HTTP 403 se o usuário não tiver permissão para acessar a fazenda
      * @throws ResponseStatusException HTTP 404 se a fazenda não for encontrada
      */
     @Transactional(readOnly = true)
-    public FarmResponseDTO getFarmById(Long id) {
+    public FarmResponseDTO getFarmById(Long id, UserPrincipal principal) {
         Farm farm = farmRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Fazenda não encontrada para o ID: " + id
                 ));
+
+        validateFarmAccessPermission(farm, principal);
         return FarmResponseDTO.fromEntity(farm);
     }
 
     /**
      * Atualiza dados pontuais de uma fazenda existente (PATCH /farms/{id}).
+     * Valida se o usuário autenticado possui vínculo e autorização para editar a fazenda.
      *
-     * @param id      identificador único da fazenda a ser atualizada
-     * @param request novos dados parciais da fazenda
+     * @param id        identificador único da fazenda a ser atualizada
+     * @param request   novos dados parciais da fazenda
+     * @param principal dados do usuário logado extraídos do token JWT
      * @return DTO com os dados atualizados da fazenda
+     * @throws ResponseStatusException HTTP 401 se não autenticado
+     * @throws ResponseStatusException HTTP 403 se o usuário não tiver permissão para atualizar a fazenda
      * @throws ResponseStatusException HTTP 404 se a fazenda não for encontrada
      */
     @Transactional
-    public FarmResponseDTO updateFarm(Long id, FarmUpdateDTO request) {
+    public FarmResponseDTO updateFarm(Long id, FarmUpdateDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
 
         Farm farm = farmRepository.findById(id)
@@ -177,6 +192,8 @@ public class FarmService {
                         HttpStatus.NOT_FOUND,
                         "Fazenda não encontrada para o ID: " + id
                 ));
+
+        validateFarmAccessPermission(farm, principal);
 
         if (!request.hasUpdates()) {
             return FarmResponseDTO.fromEntity(farm);
@@ -204,18 +221,166 @@ public class FarmService {
 
     /**
      * Remove uma fazenda do sistema.
+     * Valida se o usuário autenticado possui vínculo de administrador ou funcionário da empresa vinculada.
      *
-     * @param id identificador único da fazenda a ser removida
+     * @param id        identificador único da fazenda a ser removida
+     * @param principal dados do usuário logado extraídos do token JWT
+     * @throws ResponseStatusException HTTP 401 se não autenticado
+     * @throws ResponseStatusException HTTP 403 se o usuário não tiver permissão para remover a fazenda
      * @throws ResponseStatusException HTTP 404 se a fazenda não for encontrada
      */
     @Transactional
-    public void deleteFarm(Long id) {
-        if (!farmRepository.existsById(id)) {
+    public void deleteFarm(Long id, UserPrincipal principal) {
+        Farm farm = farmRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Fazenda não encontrada para o ID: " + id
+                ));
+
+        validateFarmDeletePermission(farm, principal);
+        farmRepository.delete(farm);
+    }
+
+    /**
+     * Valida se o usuário autenticado tem permissão para cadastrar uma nova fazenda vinculada à empresa especificada.
+     *
+     * @param idEnterprise ID da empresa integradora onde a fazenda será cadastrada
+     * @param principal    dados do usuário logado
+     * @throws ResponseStatusException HTTP 401 se não autenticado
+     * @throws ResponseStatusException HTTP 403 se o perfil não tiver permissão ou pertencer a outra empresa
+     * @throws ResponseStatusException HTTP 404 se o funcionário não for encontrado
+     */
+    private void validateFarmCreationPermission(Long idEnterprise, UserPrincipal principal) {
+        if (principal == null || principal.getId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+        }
+
+        String role = principal.getRole();
+        if ("ADM".equals(role)) {
+            return;
+        }
+
+        if ("COMPANY_EMPLOYEE".equals(role)) {
+            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Funcionário logado não encontrado para o ID: " + principal.getId()
+                    ));
+            if (!Objects.equals(idEnterprise, employee.getIdEnterprise())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Funcionário não tem permissão para cadastrar fazendas em outra empresa integradora"
+                );
+            }
+            return;
+        }
+
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Perfil de usuário sem permissão para cadastrar fazendas"
+        );
+    }
+
+    /**
+     * Valida se o usuário autenticado possui permissão de leitura ou alteração na fazenda especificada.
+     *
+     * @param farm      entidade da fazenda a ser acessada
+     * @param principal dados do usuário logado
+     * @throws ResponseStatusException HTTP 401 se não autenticado
+     * @throws ResponseStatusException HTTP 403 se o perfil não tiver permissão ou pertencer a outra empresa/fazenda
+     * @throws ResponseStatusException HTTP 404 se o usuário vinculado não for encontrado
+     */
+    private void validateFarmAccessPermission(Farm farm, UserPrincipal principal) {
+        if (principal == null || principal.getId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+        }
+
+        String role = principal.getRole();
+        if ("ADM".equals(role)) {
+            return;
+        }
+
+        if ("COMPANY_EMPLOYEE".equals(role)) {
+            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Funcionário logado não encontrado para o ID: " + principal.getId()
+                    ));
+            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Acesso negado a esta fazenda"
+                );
+            }
+            return;
+        }
+
+        if ("FARM_OWNER".equals(role)) {
+            FarmOwner owner = farmOwnerRepository.findById(principal.getId())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Produtor rural logado não encontrado para o ID: " + principal.getId()
+                    ));
+            if (!Objects.equals(farm.getId(), owner.getIdFarm())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Acesso negado a esta fazenda"
+                );
+            }
+            return;
+        }
+
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Perfil de usuário sem permissão para acessar esta fazenda"
+        );
+    }
+
+    /**
+     * Valida se o usuário autenticado possui permissão para remover a fazenda especificada.
+     * Somente ADM e COMPANY_EMPLOYEE da mesma empresa podem remover fazendas.
+     *
+     * @param farm      entidade da fazenda a ser removida
+     * @param principal dados do usuário logado
+     * @throws ResponseStatusException HTTP 401 se não autenticado
+     * @throws ResponseStatusException HTTP 403 se o perfil não tiver permissão ou pertencer a outra empresa
+     * @throws ResponseStatusException HTTP 404 se o funcionário vinculado não for encontrado
+     */
+    private void validateFarmDeletePermission(Farm farm, UserPrincipal principal) {
+        if (principal == null || principal.getId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+        }
+
+        String role = principal.getRole();
+        if ("ADM".equals(role)) {
+            return;
+        }
+
+        if ("COMPANY_EMPLOYEE".equals(role)) {
+            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Funcionário logado não encontrado para o ID: " + principal.getId()
+                    ));
+            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Acesso negado para remover esta fazenda"
+                );
+            }
+            return;
+        }
+
+        if ("FARM_OWNER".equals(role)) {
             throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Fazenda não encontrada para o ID: " + id
+                    HttpStatus.FORBIDDEN,
+                    "Produtor rural não possui permissão para remover fazendas"
             );
         }
-        farmRepository.deleteById(id);
+
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Perfil de usuário sem permissão para remover fazendas"
+        );
     }
 }

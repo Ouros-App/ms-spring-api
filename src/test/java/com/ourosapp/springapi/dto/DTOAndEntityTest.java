@@ -668,6 +668,23 @@ class DTOAndEntityTest {
                 2L
         );
         assertFalse(validator.validate(noAddress).isEmpty());
+        assertFalse(noAddress.hasValidAddressInfo());
+
+        // DTO inválido com ambos id_address e address informados (rejeição de ambiguidade XOR)
+        FarmRequestDTO bothAddress = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100.00"),
+                "Sul",
+                1000,
+                "Local",
+                1L,
+                address,
+                2L
+        );
+        assertFalse(validator.validate(bothAddress).isEmpty());
+        assertFalse(bothAddress.hasValidAddressInfo());
+        assertTrue(validWithId.hasValidAddressInfo());
+        assertTrue(validWithNested.hasValidAddressInfo());
 
         // Desserialização JSON snake_case
         String snakeJson = """

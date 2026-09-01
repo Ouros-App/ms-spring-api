@@ -85,12 +85,13 @@ public record FarmRequestDTO(
     }
 
     /**
-     * Validação cruzada para garantir que pelo menos um endereço (ID existente ou dados de novo endereço) seja informado.
+     * Validação cruzada para garantir que exatamente uma forma de endereço seja informada
+     * (ou idAddress existente ou objeto de novo endereço address, mas nunca ambos nem nenhum).
      *
-     * @return {@code true} se idAddress ou address estiverem presentes
+     * @return {@code true} se exatamente uma das opções de endereço estiver presente
      */
-    @AssertTrue(message = "É obrigatório informar o 'id_address' ou o objeto 'address' completo")
+    @AssertTrue(message = "É obrigatório informar exatamente uma forma de endereço: 'id_address' ou o objeto 'address' completo, mas não ambos nem nenhum")
     public boolean hasValidAddressInfo() {
-        return idAddress != null || address != null;
+        return (idAddress != null) ^ (address != null);
     }
 }

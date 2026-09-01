@@ -64,6 +64,9 @@ class FarmServiceTest {
     private FarmRequestDTO sampleRequestWithIdAddress;
     private FarmRequestDTO sampleRequestWithNestedAddress;
     private AddressRequestDTO sampleAddressRequest;
+    private UserPrincipal adminPrincipal;
+    private UserPrincipal employeePrincipal;
+    private UserPrincipal farmOwnerPrincipal;
 
     @BeforeEach
     void setUp() {
@@ -107,16 +110,31 @@ class FarmServiceTest {
                 sampleAddressRequest,
                 20L
         );
+
+        adminPrincipal = new UserPrincipal(
+                1L, "adm@ouros.com", "pass", "ADM", List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+
+        employeePrincipal = new UserPrincipal(
+                100L, "emp@empresa.com", "pass", "COMPANY_EMPLOYEE", List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE"))
+        );
+
+        farmOwnerPrincipal = new UserPrincipal(
+                200L, "produtor@fazenda.com", "pass", "FARM_OWNER", List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
+        );
     }
 
+    /**
+     * Testa o cadastro de fazenda com ID de endereço existente com perfil ADM.
+     */
     @Test
-    @DisplayName("Deve cadastrar fazenda com sucesso usando id_address existente")
-    void testCreateFarmWithIdAddressSuccess() {
+    @DisplayName("Deve cadastrar fazenda com sucesso como ADM usando id_address existente")
+    void testCreateFarmWithIdAddressAsAdmSuccess() {
         when(enterpriseRepository.existsById(20L)).thenReturn(true);
         when(addressRepository.existsById(10L)).thenReturn(true);
         when(farmRepository.save(any(Farm.class))).thenReturn(sampleFarm);
 
-        FarmResponseDTO response = farmService.createFarm(sampleRequestWithIdAddress);
+        FarmResponseDTO response = farmService.createFarm(sampleRequestWithIdAddress, adminPrincipal);
 
         assertNotNull(response);
         assertEquals(1L, response.id());
@@ -133,6 +151,73 @@ class FarmServiceTest {
         verify(farmRepository).save(any(Farm.class));
     }
 
+    /**
+     * Testa o cadastro de fazenda com perfil de funcionário vinculado à mesma empresa integradora.
+     */
+    @Test
+    @DisplayName("Deve cadastrar fazenda com sucesso como COMPANY_EMPLOYEE da mesma empresa")
+    void testCreateFarmAsCompanyEmployeeSuccess() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(100L).idEnterprise(20L).build();
+        when(companyEmployeeRepository.findById(100L)).thenReturn(Optional.of(employee));
+        when(enterpriseRepository.existsById(20L)).thenReturn(true);
+        when(addressRepository.existsById(10L)).thenReturn(true);
+        when(farmRepository.save(any(Farm.class))).thenReturn(sampleFarm);
+
+        FarmResponseDTO response = farmService.createFarm(sampleRequestWithIdAddress, employeePrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        verify(companyEmployeeRepository).findById(100L);
+        verify(farmRepository).save(any(Farm.class));
+    }
+
+    /**
+     * Testa restrição de segurança quando funcionário tenta cadastrar fazenda para outra empresa.
+     */
+    @Test
+    @DisplayName("Deve lançar 403 quando COMPANY_EMPLOYEE tentar cadastrar fazenda para outra empresa")
+    void testCreateFarmAsCompanyEmployeeDifferentEnterpriseForbidden() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(100L).idEnterprise(999L).build();
+        when(companyEmployeeRepository.findById(100L)).thenReturn(Optional.of(employee));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.createFarm(sampleRequestWithIdAddress, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(farmRepository, never()).save(any());
+    }
+
+    /**
+     * Testa restrição de segurança impedindo produtor rural de cadastrar fazendas.
+     */
+    @Test
+    @DisplayName("Deve lançar 403 quando FARM_OWNER tentar cadastrar fazenda")
+    void testCreateFarmAsFarmOwnerForbidden() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.createFarm(sampleRequestWithIdAddress, farmOwnerPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(farmRepository, never()).save(any());
+    }
+
+    /**
+     * Testa rejeição quando usuário não está autenticado ao cadastrar fazenda.
+     */
+    @Test
+    @DisplayName("Deve lançar 401 ao cadastrar fazenda sem usuário autenticado")
+    void testCreateFarmNullPrincipalUnauthorized() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.createFarm(sampleRequestWithIdAddress, null)
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+    }
+
+    /**
+     * Testa o cadastro de fazenda com criação composta de novo endereço.
+     */
     @Test
     @DisplayName("Deve cadastrar fazenda com sucesso criando novo endereço embutido (nested address)")
     void testCreateFarmWithNestedAddressSuccess() {
@@ -141,7 +226,7 @@ class FarmServiceTest {
         when(addressService.createAddress(sampleAddressRequest)).thenReturn(createdAddress);
         when(farmRepository.save(any(Farm.class))).thenReturn(sampleFarm);
 
-        FarmResponseDTO response = farmService.createFarm(sampleRequestWithNestedAddress);
+        FarmResponseDTO response = farmService.createFarm(sampleRequestWithNestedAddress, adminPrincipal);
 
         assertNotNull(response);
         assertEquals(1L, response.id());
@@ -150,13 +235,16 @@ class FarmServiceTest {
         verify(farmRepository).save(any(Farm.class));
     }
 
+    /**
+     * Testa lançamento de 404 quando a empresa integradora não existir.
+     */
     @Test
     @DisplayName("Deve lançar 404 quando empresa integradora vinculada não existir")
     void testCreateFarmEnterpriseNotFound() {
         when(enterpriseRepository.existsById(20L)).thenReturn(false);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                farmService.createFarm(sampleRequestWithIdAddress)
+                farmService.createFarm(sampleRequestWithIdAddress, adminPrincipal)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
@@ -164,6 +252,9 @@ class FarmServiceTest {
         verify(farmRepository, never()).save(any());
     }
 
+    /**
+     * Testa lançamento de 404 quando o endereço pré-existente não existir no banco.
+     */
     @Test
     @DisplayName("Deve lançar 404 quando endereço vinculado via id_address não existir")
     void testCreateFarmAddressNotFound() {
@@ -171,7 +262,7 @@ class FarmServiceTest {
         when(addressRepository.existsById(10L)).thenReturn(false);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                farmService.createFarm(sampleRequestWithIdAddress)
+                farmService.createFarm(sampleRequestWithIdAddress, adminPrincipal)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
@@ -179,6 +270,9 @@ class FarmServiceTest {
         verify(farmRepository, never()).save(any());
     }
 
+    /**
+     * Testa lançamento de 400 quando nenhuma informação de endereço for enviada.
+     */
     @Test
     @DisplayName("Deve lançar 400 quando nem id_address nem address forem informados")
     void testCreateFarmNoAddressInfo() {
@@ -195,13 +289,16 @@ class FarmServiceTest {
         );
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                farmService.createFarm(requestWithoutAddress)
+                farmService.createFarm(requestWithoutAddress, adminPrincipal)
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         verify(farmRepository, never()).save(any());
     }
 
+    /**
+     * Testa listagem de fazendas para funcionário da empresa integradora filtrando pelo id da empresa.
+     */
     @Test
     @DisplayName("Deve listar fazendas para COMPANY_EMPLOYEE filtrando pelo id_enterprise")
     void testGetFarmsForCompanyEmployee() {
@@ -225,6 +322,9 @@ class FarmServiceTest {
         verify(farmRepository).findAllByIdEnterprise(20L);
     }
 
+    /**
+     * Testa lançamento de 404 quando o funcionário autenticado não for localizado no banco.
+     */
     @Test
     @DisplayName("Deve lançar 404 quando funcionário autenticado não for encontrado no banco")
     void testGetFarmsForCompanyEmployeeNotFound() {
@@ -240,6 +340,9 @@ class FarmServiceTest {
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 
+    /**
+     * Testa listagem de fazenda para produtor rural retornando sua fazenda vinculada.
+     */
     @Test
     @DisplayName("Deve listar fazenda para FARM_OWNER buscando pelo id_farm vinculado")
     void testGetFarmsForFarmOwner() {
@@ -263,6 +366,9 @@ class FarmServiceTest {
         verify(farmRepository).findById(1L);
     }
 
+    /**
+     * Testa retorno de lista vazia para produtor quando sua fazenda vinculada não for encontrada.
+     */
     @Test
     @DisplayName("Deve retornar lista vazia para FARM_OWNER quando fazenda vinculada não for encontrada")
     void testGetFarmsForFarmOwnerFarmNotFound() {
@@ -283,6 +389,9 @@ class FarmServiceTest {
         assertTrue(farms.isEmpty());
     }
 
+    /**
+     * Testa lançamento de 404 quando produtor rural não for localizado no banco.
+     */
     @Test
     @DisplayName("Deve lançar 404 quando produtor autenticado não for encontrado no banco")
     void testGetFarmsForFarmOwnerNotFound() {
@@ -298,6 +407,9 @@ class FarmServiceTest {
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 
+    /**
+     * Testa listagem geral de fazendas quando usuário autenticado for ADM.
+     */
     @Test
     @DisplayName("Deve listar todas as fazendas quando usuário for ADM")
     void testGetFarmsForAdm() {
@@ -313,6 +425,9 @@ class FarmServiceTest {
         verify(farmRepository).findAll();
     }
 
+    /**
+     * Testa lançamento de 401 ao listar fazendas com usuário nulo.
+     */
     @Test
     @DisplayName("Deve lançar 401 quando principal for nulo ao listar fazendas")
     void testGetFarmsForUserNullPrincipal() {
@@ -323,6 +438,9 @@ class FarmServiceTest {
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
     }
 
+    /**
+     * Testa lançamento de 403 ao listar fazendas com perfil não reconhecido.
+     */
     @Test
     @DisplayName("Deve lançar 403 quando role do usuário não for reconhecida")
     void testGetFarmsForUserForbiddenRole() {
@@ -337,12 +455,15 @@ class FarmServiceTest {
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
 
+    /**
+     * Testa busca de fazenda por ID como ADM.
+     */
     @Test
-    @DisplayName("Deve buscar fazenda por ID com sucesso")
-    void testGetFarmByIdSuccess() {
+    @DisplayName("Deve buscar fazenda por ID com sucesso como ADM")
+    void testGetFarmByIdAsAdmSuccess() {
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
 
-        FarmResponseDTO response = farmService.getFarmById(1L);
+        FarmResponseDTO response = farmService.getFarmById(1L, adminPrincipal);
 
         assertNotNull(response);
         assertEquals(1L, response.id());
@@ -350,21 +471,93 @@ class FarmServiceTest {
         verify(farmRepository).findById(1L);
     }
 
+    /**
+     * Testa busca de fazenda por ID para funcionário vinculado à mesma empresa da fazenda.
+     */
+    @Test
+    @DisplayName("Deve buscar fazenda por ID com sucesso como COMPANY_EMPLOYEE da mesma empresa")
+    void testGetFarmByIdAsCompanyEmployeeSuccess() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(100L).idEnterprise(20L).build();
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(companyEmployeeRepository.findById(100L)).thenReturn(Optional.of(employee));
+
+        FarmResponseDTO response = farmService.getFarmById(1L, employeePrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+    }
+
+    /**
+     * Testa restrição de segurança impedindo funcionário de buscar fazenda de outra empresa integradora.
+     */
+    @Test
+    @DisplayName("Deve lançar 403 ao buscar fazenda por ID como COMPANY_EMPLOYEE de outra empresa")
+    void testGetFarmByIdAsCompanyEmployeeDifferentEnterpriseForbidden() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(100L).idEnterprise(999L).build();
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(companyEmployeeRepository.findById(100L)).thenReturn(Optional.of(employee));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.getFarmById(1L, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    /**
+     * Testa busca de fazenda por ID para produtor proprietário da respectiva fazenda.
+     */
+    @Test
+    @DisplayName("Deve buscar fazenda por ID com sucesso como FARM_OWNER da própria fazenda")
+    void testGetFarmByIdAsFarmOwnerSuccess() {
+        FarmOwner owner = FarmOwner.builder().id(200L).idFarm(1L).build();
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(farmOwnerRepository.findById(200L)).thenReturn(Optional.of(owner));
+
+        FarmResponseDTO response = farmService.getFarmById(1L, farmOwnerPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+    }
+
+    /**
+     * Testa restrição de segurança impedindo produtor de visualizar fazendas de terceiros.
+     */
+    @Test
+    @DisplayName("Deve lançar 403 ao buscar fazenda por ID como FARM_OWNER de outra fazenda")
+    void testGetFarmByIdAsFarmOwnerDifferentFarmForbidden() {
+        FarmOwner owner = FarmOwner.builder().id(200L).idFarm(999L).build();
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(farmOwnerRepository.findById(200L)).thenReturn(Optional.of(owner));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.getFarmById(1L, farmOwnerPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    /**
+     * Testa lançamento de 404 ao buscar fazenda inexistente por ID.
+     */
     @Test
     @DisplayName("Deve lançar 404 ao buscar fazenda por ID inexistente")
     void testGetFarmByIdNotFound() {
         when(farmRepository.findById(99L)).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                farmService.getFarmById(99L)
+                farmService.getFarmById(99L, adminPrincipal)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 
+    /**
+     * Testa atualização parcial de fazenda com usuário ADM.
+     */
     @Test
-    @DisplayName("Deve atualizar parcialmente a fazenda com sucesso")
-    void testUpdateFarmSuccess() {
+    @DisplayName("Deve atualizar parcialmente a fazenda com sucesso como ADM")
+    void testUpdateFarmAsAdmSuccess() {
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
         when(farmRepository.save(any(Farm.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -376,7 +569,7 @@ class FarmServiceTest {
                 "Gleba 5"
         );
 
-        FarmResponseDTO response = farmService.updateFarm(1L, updateDTO);
+        FarmResponseDTO response = farmService.updateFarm(1L, updateDTO, adminPrincipal);
 
         assertNotNull(response);
         assertEquals("Fazenda Ouro Verde Atualizada", response.name());
@@ -387,6 +580,29 @@ class FarmServiceTest {
         verify(farmRepository).save(any(Farm.class));
     }
 
+    /**
+     * Testa atualização parcial de fazenda com funcionário da mesma empresa.
+     */
+    @Test
+    @DisplayName("Deve atualizar parcialmente a fazenda com sucesso como COMPANY_EMPLOYEE da mesma empresa")
+    void testUpdateFarmAsCompanyEmployeeSuccess() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(100L).idEnterprise(20L).build();
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(companyEmployeeRepository.findById(100L)).thenReturn(Optional.of(employee));
+        when(farmRepository.save(any(Farm.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null);
+
+        FarmResponseDTO response = farmService.updateFarm(1L, updateDTO, employeePrincipal);
+
+        assertNotNull(response);
+        assertEquals("Novo Nome", response.name());
+        verify(farmRepository).save(any(Farm.class));
+    }
+
+    /**
+     * Testa atualização de fazenda sem modificações quando DTO for vazio.
+     */
     @Test
     @DisplayName("Deve retornar fazenda inalterada quando DTO de atualização não possuir campos (hasUpdates = false)")
     void testUpdateFarmNoUpdates() {
@@ -394,13 +610,16 @@ class FarmServiceTest {
 
         FarmUpdateDTO emptyUpdate = new FarmUpdateDTO(null, null, null, null, null);
 
-        FarmResponseDTO response = farmService.updateFarm(1L, emptyUpdate);
+        FarmResponseDTO response = farmService.updateFarm(1L, emptyUpdate, adminPrincipal);
 
         assertNotNull(response);
         assertEquals("Fazenda Ouro Verde", response.name());
         verify(farmRepository, never()).save(any(Farm.class));
     }
 
+    /**
+     * Testa lançamento de 404 ao atualizar fazenda inexistente.
+     */
     @Test
     @DisplayName("Deve lançar 404 ao atualizar fazenda inexistente")
     void testUpdateFarmNotFound() {
@@ -409,35 +628,74 @@ class FarmServiceTest {
         FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                farmService.updateFarm(99L, updateDTO)
+                farmService.updateFarm(99L, updateDTO, adminPrincipal)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
         verify(farmRepository, never()).save(any(Farm.class));
     }
 
+    /**
+     * Testa remoção de fazenda com perfil ADM.
+     */
     @Test
-    @DisplayName("Deve remover fazenda com sucesso")
-    void testDeleteFarmSuccess() {
-        when(farmRepository.existsById(1L)).thenReturn(true);
-        doNothing().when(farmRepository).deleteById(1L);
+    @DisplayName("Deve remover fazenda com sucesso como ADM")
+    void testDeleteFarmAsAdmSuccess() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        doNothing().when(farmRepository).delete(sampleFarm);
 
-        assertDoesNotThrow(() -> farmService.deleteFarm(1L));
+        assertDoesNotThrow(() -> farmService.deleteFarm(1L, adminPrincipal));
 
-        verify(farmRepository).existsById(1L);
-        verify(farmRepository).deleteById(1L);
+        verify(farmRepository).findById(1L);
+        verify(farmRepository).delete(sampleFarm);
     }
 
+    /**
+     * Testa remoção de fazenda com funcionário da mesma empresa integradora.
+     */
+    @Test
+    @DisplayName("Deve remover fazenda com sucesso como COMPANY_EMPLOYEE da mesma empresa")
+    void testDeleteFarmAsCompanyEmployeeSuccess() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(100L).idEnterprise(20L).build();
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(companyEmployeeRepository.findById(100L)).thenReturn(Optional.of(employee));
+        doNothing().when(farmRepository).delete(sampleFarm);
+
+        assertDoesNotThrow(() -> farmService.deleteFarm(1L, employeePrincipal));
+
+        verify(farmRepository).findById(1L);
+        verify(farmRepository).delete(sampleFarm);
+    }
+
+    /**
+     * Testa restrição de segurança impedindo produtor de remover fazenda.
+     */
+    @Test
+    @DisplayName("Deve lançar 403 quando FARM_OWNER tentar remover fazenda")
+    void testDeleteFarmAsFarmOwnerForbidden() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.deleteFarm(1L, farmOwnerPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(farmRepository, never()).delete(any());
+    }
+
+    /**
+     * Testa lançamento de 404 ao tentar remover fazenda inexistente.
+     */
     @Test
     @DisplayName("Deve lançar 404 ao remover fazenda inexistente")
     void testDeleteFarmNotFound() {
-        when(farmRepository.existsById(99L)).thenReturn(false);
+        when(farmRepository.findById(99L)).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                farmService.deleteFarm(99L)
+                farmService.deleteFarm(99L, adminPrincipal)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
-        verify(farmRepository, never()).deleteById(any());
+        verify(farmRepository, never()).delete(any());
     }
 }
