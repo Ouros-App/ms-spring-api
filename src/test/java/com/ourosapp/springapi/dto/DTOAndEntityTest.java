@@ -1,9 +1,12 @@
 package com.ourosapp.springapi.dto;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.entity.Address;
 import com.ourosapp.springapi.entity.Adm;
 import com.ourosapp.springapi.entity.CompanyEmployee;
+import com.ourosapp.springapi.entity.Enterprise;
 import com.ourosapp.springapi.entity.FarmOwner;
 import com.ourosapp.springapi.security.JwtAuthFilter;
 import org.junit.jupiter.api.Test;
@@ -14,6 +17,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 class DTOAndEntityTest {
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void testLoginRequestDTO() {
@@ -197,5 +202,128 @@ class DTOAndEntityTest {
 
         CorsConfigurationSource cors = config.corsConfigurationSource();
         assertNotNull(cors);
+    }
+
+    @Test
+    void testEnterpriseEntity() {
+        Enterprise enterprise = new Enterprise();
+        enterprise.setId(1L);
+        enterprise.setName("Agro Ouros S.A.");
+        enterprise.setEmail("contato@agroouros.com.br");
+        enterprise.setDocumentNumber("12345678000195");
+        enterprise.setTelephone("11999999999");
+        enterprise.setIdAddress(10L);
+
+        assertEquals(1L, enterprise.getId());
+        assertEquals("Agro Ouros S.A.", enterprise.getName());
+        assertEquals("contato@agroouros.com.br", enterprise.getEmail());
+        assertEquals("12345678000195", enterprise.getDocumentNumber());
+        assertEquals("11999999999", enterprise.getTelephone());
+        assertEquals(10L, enterprise.getIdAddress());
+
+        Enterprise built = Enterprise.builder()
+                .id(2L)
+                .name("Ouros Filial")
+                .email("filial@agroouros.com.br")
+                .documentNumber("98765432000100")
+                .telephone("11888888888")
+                .idAddress(20L)
+                .build();
+
+        assertEquals(2L, built.getId());
+        assertEquals("Ouros Filial", built.getName());
+        assertTrue(built.toString().contains("Ouros Filial"));
+    }
+
+    @Test
+    void testEnterpriseDTOs() {
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
+                "Agro Ouros S.A.",
+                "contato@agroouros.com.br",
+                "12345678000195",
+                "11999999999",
+                1L
+        );
+        assertEquals("Agro Ouros S.A.", request.name());
+        assertEquals("contato@agroouros.com.br", request.email());
+        assertEquals("12345678000195", request.documentNumber());
+        assertEquals("11999999999", request.telephone());
+        assertEquals(1L, request.idAddress());
+
+        EnterpriseRequestDTO normalizedRequest = new EnterpriseRequestDTO(
+                "  Agro Ouros S.A.  ",
+                "  CONTATO@AGROOUROS.COM.BR  ",
+                "  12345678000195  ",
+                "  11999999999  ",
+                1L
+        );
+        assertEquals("Agro Ouros S.A.", normalizedRequest.name());
+        assertEquals("contato@agroouros.com.br", normalizedRequest.email());
+        assertEquals("12345678000195", normalizedRequest.documentNumber());
+        assertEquals("11999999999", normalizedRequest.telephone());
+
+        EnterpriseRequestDTO nullRequest = new EnterpriseRequestDTO(null, null, null, null, null);
+        assertNull(nullRequest.name());
+        assertNull(nullRequest.email());
+        assertNull(nullRequest.documentNumber());
+        assertNull(nullRequest.telephone());
+        assertNull(nullRequest.idAddress());
+
+        Enterprise entity = Enterprise.builder()
+                .id(1L)
+                .name("Agro Ouros S.A.")
+                .email("contato@agroouros.com.br")
+                .documentNumber("12345678000195")
+                .telephone("11999999999")
+                .idAddress(10L)
+                .build();
+
+        EnterpriseResponseDTO response = EnterpriseResponseDTO.fromEntity(entity);
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        assertEquals("Agro Ouros S.A.", response.name());
+        assertEquals("contato@agroouros.com.br", response.email());
+        assertEquals("12345678000195", response.documentNumber());
+        assertEquals("11999999999", response.telephone());
+        assertEquals(10L, response.idAddress());
+
+        assertThrows(NullPointerException.class, () -> EnterpriseResponseDTO.fromEntity(null));
+    }
+
+    @Test
+    void testEnterpriseRequestDTOJsonDeserialization() throws JsonProcessingException {
+        // Formato snake_case
+        String snakeCaseJson = """
+                {
+                    "name": "Agro Ouros S.A.",
+                    "email": "contato@agroouros.com.br",
+                    "document_number": "12345678000195",
+                    "telephone": "11999999999",
+                    "id_address": 10
+                }
+                """;
+        EnterpriseRequestDTO dtoFromSnake = objectMapper.readValue(snakeCaseJson, EnterpriseRequestDTO.class);
+        assertEquals("Agro Ouros S.A.", dtoFromSnake.name());
+        assertEquals("contato@agroouros.com.br", dtoFromSnake.email());
+        assertEquals("12345678000195", dtoFromSnake.documentNumber());
+        assertEquals("11999999999", dtoFromSnake.telephone());
+        assertEquals(10L, dtoFromSnake.idAddress());
+
+        // Formato camelCase (interoperabilidade via @JsonAlias)
+        String camelCaseJson = """
+                {
+                    "name": "Agro Ouros S.A.",
+                    "email": "contato@agroouros.com.br",
+                    "documentNumber": "12345678000195",
+                    "telephone": "11999999999",
+                    "idAddress": 10
+                }
+                """;
+        EnterpriseRequestDTO dtoFromCamel = objectMapper.readValue(camelCaseJson, EnterpriseRequestDTO.class);
+        assertEquals("Agro Ouros S.A.", dtoFromCamel.name());
+        assertEquals("contato@agroouros.com.br", dtoFromCamel.email());
+        assertEquals("12345678000195", dtoFromCamel.documentNumber());
+        assertEquals("11999999999", dtoFromCamel.telephone());
+        assertEquals(10L, dtoFromCamel.idAddress());
     }
 }
