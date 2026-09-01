@@ -139,7 +139,8 @@ public class FarmController {
             @ApiResponse(responseCode = "204", description = "Fazenda removida com sucesso"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
-            @ApiResponse(responseCode = "404", description = "Fazenda não encontrada")
+            @ApiResponse(responseCode = "404", description = "Fazenda não encontrada"),
+            @ApiResponse(responseCode = "409", description = "Não é possível remover a fazenda pois existem registros vinculados a ela")
     })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFarm(

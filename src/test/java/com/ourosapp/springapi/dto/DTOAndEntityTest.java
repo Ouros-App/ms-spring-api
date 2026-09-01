@@ -686,6 +686,32 @@ class DTOAndEntityTest {
         assertTrue(validWithId.hasValidAddressInfo());
         assertTrue(validWithNested.hasValidAddressInfo());
 
+        // DTO inválido com id_address negativo (< 0)
+        FarmRequestDTO negativeAddressId = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100.00"),
+                "Sul",
+                1000,
+                "Local",
+                -1L,
+                null,
+                2L
+        );
+        assertFalse(validator.validate(negativeAddressId).isEmpty());
+
+        // DTO inválido com id_enterprise negativo (< 0)
+        FarmRequestDTO negativeEnterpriseId = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100.00"),
+                "Sul",
+                1000,
+                "Local",
+                1L,
+                null,
+                -1L
+        );
+        assertFalse(validator.validate(negativeEnterpriseId).isEmpty());
+
         // Desserialização JSON snake_case
         String snakeJson = """
                 {

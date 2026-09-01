@@ -380,6 +380,22 @@ class FarmControllerMockMvcTest {
     }
 
     /**
+     * Testa DELETE /farms/{id} quando há conflito de integridade referencial esperando 409 Conflict.
+     *
+     * @throws Exception se ocorrer erro no MockMvc
+     */
+    @Test
+    @WithMockUser
+    @DisplayName("DELETE /farms/{id} - Deve retornar 409 Conflict quando existirem registros vinculados")
+    void testDeleteFarmConflict() throws Exception {
+        doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Não é possível remover a fazenda pois existem registros vinculados a ela"))
+                .when(farmService).deleteFarm(eq(1L), any());
+
+        mockMvc.perform(delete("/farms/1"))
+                .andExpect(status().isConflict());
+    }
+
+    /**
      * Testa GET /farms/{id} sem permissão de visualização esperando 403 Forbidden.
      *
      * @throws Exception se ocorrer erro no MockMvc

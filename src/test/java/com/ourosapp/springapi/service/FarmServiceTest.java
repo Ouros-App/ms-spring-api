@@ -645,6 +645,24 @@ class FarmServiceTest {
     }
 
     /**
+     * Testa restrição de segurança impedindo produtor rural de atualizar fazenda.
+     */
+    @Test
+    @DisplayName("Deve lançar 403 ao atualizar fazenda como FARM_OWNER")
+    void testUpdateFarmAsFarmOwnerForbidden() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.updateFarm(1L, updateDTO, farmOwnerPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(farmRepository, never()).save(any(Farm.class));
+    }
+
+    /**
      * Testa atualização de fazenda sem modificações quando DTO for vazio.
      */
     @Test
@@ -687,11 +705,13 @@ class FarmServiceTest {
     void testDeleteFarmAsAdmSuccess() {
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
         doNothing().when(farmRepository).delete(sampleFarm);
+        doNothing().when(farmRepository).flush();
 
         assertDoesNotThrow(() -> farmService.deleteFarm(1L, adminPrincipal));
 
         verify(farmRepository).findById(1L);
         verify(farmRepository).delete(sampleFarm);
+        verify(farmRepository).flush();
     }
 
     /**
@@ -701,7 +721,7 @@ class FarmServiceTest {
     @DisplayName("Deve lançar 409 Conflict quando remoção violar integridade referencial")
     void testDeleteFarmDataIntegrityViolationConflict() {
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
-        doThrow(new DataIntegrityViolationException("Violação de FK")).when(farmRepository).delete(sampleFarm);
+        doThrow(new DataIntegrityViolationException("Violação de FK")).when(farmRepository).flush();
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 farmService.deleteFarm(1L, adminPrincipal)
@@ -710,6 +730,7 @@ class FarmServiceTest {
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
         assertEquals("Não é possível remover a fazenda pois existem registros vinculados a ela", ex.getReason());
         verify(farmRepository).delete(sampleFarm);
+        verify(farmRepository).flush();
     }
 
     /**
@@ -722,11 +743,13 @@ class FarmServiceTest {
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
         when(companyEmployeeRepository.findById(100L)).thenReturn(Optional.of(employee));
         doNothing().when(farmRepository).delete(sampleFarm);
+        doNothing().when(farmRepository).flush();
 
         assertDoesNotThrow(() -> farmService.deleteFarm(1L, employeePrincipal));
 
         verify(farmRepository).findById(1L);
         verify(farmRepository).delete(sampleFarm);
+        verify(farmRepository).flush();
     }
 
     /**
