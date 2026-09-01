@@ -18,6 +18,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
+/**
+ * Serviço responsável pela autenticação de usuários e emissão de tokens JWT.
+ * Suporta autenticação de Administradores, Funcionários da Empresa e Produtores Rurais.
+ * Implementa proteção contra timing attacks através de hash dummy em tentativas de login com e-mail inexistente.
+ */
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -32,11 +37,21 @@ public class AuthService {
 
     private String dummyHash;
 
+    /**
+     * Inicializa o hash dummy usado para proteção contra timing attacks.
+     * Executado automaticamente após a construção do bean Spring.
+     */
     @PostConstruct
     public void init() {
         this.dummyHash = passwordEncoder.encode("ouros-dummy-timing-protection");
     }
 
+    /**
+     * Retorna o hash dummy, gerando-o caso ainda não tenha sido inicializado.
+     * Usado para manter tempo constante nas operações de autenticação.
+     *
+     * @return hash dummy BCrypt
+     */
     private String getDummyHash() {
         if (dummyHash == null) {
             dummyHash = passwordEncoder.encode("ouros-dummy-timing-protection");
@@ -44,6 +59,12 @@ public class AuthService {
         return dummyHash;
     }
 
+    /**
+     * Normaliza o e-mail removendo espaços em branco e convertendo para minúsculas.
+     *
+     * @param email o e-mail a ser normalizado
+     * @return o e-mail normalizado ou string vazia se o parâmetro for nulo
+     */
     private String normalizeEmail(String email) {
         return email != null ? email.trim().toLowerCase() : "";
     }
@@ -102,6 +123,17 @@ public class AuthService {
         return authenticate(owner.getId(), owner.getEmail(), request.password(), owner.getPassword(), "FARM_OWNER");
     }
 
+    /**
+     * Método auxiliar que valida a senha e gera o token JWT em caso de sucesso.
+     *
+     * @param id              ID do usuário
+     * @param email           e-mail do usuário
+     * @param rawPassword     senha fornecida em texto plano
+     * @param encodedPassword senha hash armazenada no banco
+     * @param role            perfil de autorização do usuário
+     * @return DTO contendo o token JWT gerado
+     * @throws ResponseStatusException HTTP 401 se as credenciais forem inválidas
+     */
     private LoginResponseDTO authenticate(Long id, String email, String rawPassword, String encodedPassword, String role) {
         if (!passwordEncoder.matches(rawPassword, encodedPassword)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);

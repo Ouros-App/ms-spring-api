@@ -3,6 +3,10 @@ package com.ourosapp.springapi.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+/**
+ * Entidade JPA que representa um Administrador do sistema Ouros App.
+ * Mapeada para a tabela "adms" no banco de dados relacional.
+ */
 @Entity
 @Table(name = "adms")
 @Getter

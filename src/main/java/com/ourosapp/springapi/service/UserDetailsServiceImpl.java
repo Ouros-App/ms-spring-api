@@ -15,6 +15,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+/**
+ * Implementação customizada de {@link UserDetailsService} para autenticação de múltiplos tipos de usuários.
+ * Carrega usuários das entidades Adm, CompanyEmployee e FarmOwner baseado no e-mail e role.
+ */
 @Service
 @RequiredArgsConstructor
 public class UserDetailsServiceImpl implements UserDetailsService {
@@ -23,6 +27,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final FarmOwnerRepository farmOwnerRepository;
 
+    /**
+     * Normaliza o e-mail removendo espaços em branco e convertendo para minúsculas.
+     *
+     * @param email o e-mail a ser normalizado
+     * @return o e-mail normalizado ou string vazia se o parâmetro for nulo
+     */
     private String normalizeEmail(String email) {
         return email != null ? email.trim().toLowerCase() : "";
     }

@@ -3,6 +3,10 @@ package com.ourosapp.springapi.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+/**
+ * Entidade JPA que representa um Produtor Rural / Proprietário de Fazenda no sistema Ouros App.
+ * Mapeada para a tabela "farm_owners" no banco de dados relacional.
+ */
 @Entity
 @Table(name = "farm_owners")
 @Getter

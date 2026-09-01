@@ -12,6 +12,10 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+/**
+ * Utilitário responsável pela geração, validação e extração de claims de tokens JWT (JSON Web Tokens).
+ * Utiliza o algoritmo de assinatura HS256 (HMAC-SHA256) e valida a chave secreta na inicialização.
+ */
 @Component
 public class JwtUtil {
 
@@ -23,6 +27,12 @@ public class JwtUtil {
 
     private SecretKey signingKey;
 
+    /**
+     * Valida a presença e o tamanho mínimo da chave secreta JWT e inicializa a chave de assinatura.
+     * Executado automaticamente após a construção do bean Spring.
+     *
+     * @throws IllegalStateException se a chave secreta for nula ou tiver menos de 32 caracteres
+     */
     @PostConstruct
     public void validateAndInitSecret() {
         if (secret == null || secret.trim().length() < 32) {
@@ -31,6 +41,11 @@ public class JwtUtil {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Retorna a chave de assinatura HMAC usada para gerar e validar tokens JWT.
+     *
+     * @return a chave secreta de assinatura
+     */
     private SecretKey getSigningKey() {
         return this.signingKey;
     }

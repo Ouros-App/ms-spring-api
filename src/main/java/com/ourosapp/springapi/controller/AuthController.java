@@ -14,6 +14,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Controlador REST responsável pela autenticação de usuários e emissão de tokens JWT.
+ * Disponibiliza rotas públicas de login para Administradores, Funcionários da Empresa e Produtores Rurais.
+ */
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Autenticação", description = "Endpoints de login e emissão de tokens JWT para Administradores, Funcionários e Fazendeiros")
