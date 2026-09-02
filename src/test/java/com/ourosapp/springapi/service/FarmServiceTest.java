@@ -179,6 +179,7 @@ class FarmServiceTest {
     @DisplayName("Deve lançar 403 quando COMPANY_EMPLOYEE tentar cadastrar fazenda para outra empresa")
     void testCreateFarmAsCompanyEmployeeDifferentEnterpriseForbidden() {
         CompanyEmployee employee = CompanyEmployee.builder().id(100L).idEnterprise(999L).build();
+        when(enterpriseRepository.existsById(20L)).thenReturn(true);
         when(companyEmployeeRepository.findById(100L)).thenReturn(Optional.of(employee));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
@@ -190,11 +191,31 @@ class FarmServiceTest {
     }
 
     /**
+     * Testa lançamento de 404 quando funcionário tenta cadastrar fazenda para empresa inexistente no banco.
+     */
+    @Test
+    @DisplayName("Deve lançar 404 quando COMPANY_EMPLOYEE tentar cadastrar fazenda para empresa inexistente")
+    void testCreateFarmAsCompanyEmployeeEnterpriseNotFound() {
+        when(enterpriseRepository.existsById(20L)).thenReturn(false);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.createFarm(sampleRequestWithIdAddress, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Empresa integradora não encontrada"));
+        verify(companyEmployeeRepository, never()).findById(any());
+        verify(farmRepository, never()).save(any());
+    }
+
+    /**
      * Testa restrição de segurança impedindo produtor rural de cadastrar fazendas.
      */
     @Test
     @DisplayName("Deve lançar 403 quando FARM_OWNER tentar cadastrar fazenda")
     void testCreateFarmAsFarmOwnerForbidden() {
+        when(enterpriseRepository.existsById(20L)).thenReturn(true);
+
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 farmService.createFarm(sampleRequestWithIdAddress, farmOwnerPrincipal)
         );
@@ -295,6 +316,34 @@ class FarmServiceTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         verify(farmRepository, never()).save(any());
+    }
+
+    /**
+     * Testa lançamento de 400 quando id_address e objeto address forem enviados simultaneamente.
+     */
+    @Test
+    @DisplayName("Deve lançar 400 quando id_address e address forem informados simultaneamente")
+    void testCreateFarmBothAddressAndIdAddressBadRequest() {
+        when(enterpriseRepository.existsById(20L)).thenReturn(true);
+        FarmRequestDTO requestWithBothAddresses = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100"),
+                "Sul",
+                1000,
+                "Local",
+                10L,
+                sampleAddressRequest,
+                20L
+        );
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.createFarm(requestWithBothAddresses, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Não é permitido informar 'id_address' e o objeto 'address' simultaneamente"));
+        verify(farmRepository, never()).save(any());
+        verify(addressService, never()).createAddress(any());
     }
 
     /**

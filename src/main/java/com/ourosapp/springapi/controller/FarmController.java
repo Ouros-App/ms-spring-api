@@ -6,6 +6,7 @@ import com.ourosapp.springapi.dto.farm.FarmUpdateDTO;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.FarmService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -98,6 +99,7 @@ public class FarmController {
     })
     @GetMapping("/{id}")
     public ResponseEntity<FarmResponseDTO> getFarmById(
+            @Parameter(description = "Identificador único da fazenda", example = "1")
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
@@ -122,6 +124,7 @@ public class FarmController {
     })
     @PatchMapping("/{id}")
     public ResponseEntity<FarmResponseDTO> updateFarm(
+            @Parameter(description = "Identificador único da fazenda a ser atualizada", example = "1")
             @PathVariable Long id,
             @RequestBody @Valid FarmUpdateDTO request,
             @AuthenticationPrincipal UserPrincipal principal
@@ -146,6 +149,7 @@ public class FarmController {
     })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFarm(
+            @Parameter(description = "Identificador único da fazenda a ser removida", example = "1")
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal
     ) {

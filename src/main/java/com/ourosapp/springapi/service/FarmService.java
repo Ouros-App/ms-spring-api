@@ -54,7 +54,7 @@ public class FarmService {
     @Transactional
     public FarmResponseDTO createFarm(FarmRequestDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
-        validateFarmCreationPermission(request.idEnterprise(), principal);
+        ensureAuthenticated(principal);
 
         if (request.idEnterprise() == null || !enterpriseRepository.existsById(request.idEnterprise())) {
             throw new ResponseStatusException(
@@ -63,8 +63,15 @@ public class FarmService {
             );
         }
 
+        validateFarmCreationPermission(request.idEnterprise(), principal);
+
         Long resolvedAddressId;
-        if (request.address() != null) {
+        if (request.address() != null && request.idAddress() != null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Não é permitido informar 'id_address' e o objeto 'address' simultaneamente"
+            );
+        } else if (request.address() != null) {
             AddressResponseDTO createdAddress = addressService.createAddress(request.address());
             resolvedAddressId = createdAddress.id();
         } else if (request.idAddress() != null) {
