@@ -92,6 +92,7 @@ public record FarmRequestDTO(
      *
      * @return {@code true} se exatamente uma das opções de endereço estiver presente
      */
+    @Schema(hidden = true)
     @AssertTrue(message = "É obrigatório informar exatamente uma forma de endereço: 'id_address' ou o objeto 'address' completo, mas não ambos nem nenhum")
     public boolean hasValidAddressInfo() {
         return (idAddress != null) ^ (address != null);

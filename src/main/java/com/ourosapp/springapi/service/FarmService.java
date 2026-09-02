@@ -159,12 +159,7 @@ public class FarmService {
      */
     @Transactional(readOnly = true)
     public FarmResponseDTO getFarmById(Long id, UserPrincipal principal) {
-        Farm farm = farmRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Fazenda não encontrada para o ID: " + id
-                ));
-
+        Farm farm = findFarmByIdOrThrow(id);
         validateFarmAccessPermission(farm, principal);
         return FarmResponseDTO.fromEntity(farm);
     }
@@ -185,12 +180,7 @@ public class FarmService {
     public FarmResponseDTO updateFarm(Long id, FarmUpdateDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
 
-        Farm farm = farmRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Fazenda não encontrada para o ID: " + id
-                ));
-
+        Farm farm = findFarmByIdOrThrow(id);
         validateFarmMutationPermission(farm, principal, "alterar");
 
         if (!request.hasUpdates()) {
@@ -229,12 +219,7 @@ public class FarmService {
      */
     @Transactional
     public void deleteFarm(Long id, UserPrincipal principal) {
-        Farm farm = farmRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Fazenda não encontrada para o ID: " + id
-                ));
-
+        Farm farm = findFarmByIdOrThrow(id);
         validateFarmMutationPermission(farm, principal, "remover");
         try {
             farmRepository.delete(farm);
@@ -409,6 +394,27 @@ public class FarmService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Produtor rural logado não encontrado para o ID: " + id
+                ));
+    }
+
+    /**
+     * Busca a fazenda pelo ID ou lança HTTP 404 Not Found se não for encontrada ou se o ID for nulo.
+     *
+     * @param id identificador da fazenda
+     * @return entidade da fazenda encontrada
+     * @throws ResponseStatusException HTTP 404 se a fazenda não for encontrada ou se o ID for nulo
+     */
+    private Farm findFarmByIdOrThrow(Long id) {
+        if (id == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Fazenda não encontrada para o ID: null"
+            );
+        }
+        return farmRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Fazenda não encontrada para o ID: " + id
                 ));
     }
 }

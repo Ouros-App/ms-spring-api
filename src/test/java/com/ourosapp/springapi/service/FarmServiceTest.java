@@ -823,6 +823,39 @@ class FarmServiceTest {
     }
 
     /**
+     * Testa lançamento de 404 ao buscar fazenda com ID nulo sem consultar repositório.
+     */
+    @Test
+    @DisplayName("Deve lançar 404 ao buscar fazenda com ID nulo")
+    void testGetFarmByIdNullIdNotFound() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.getFarmById(null, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Fazenda não encontrada para o ID: null", ex.getReason());
+        verify(farmRepository, never()).findById(any());
+    }
+
+    /**
+     * Testa lançamento de 404 ao atualizar fazenda com ID nulo sem consultar repositório.
+     */
+    @Test
+    @DisplayName("Deve lançar 404 ao atualizar fazenda com ID nulo")
+    void testUpdateFarmNullIdNotFound() {
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.updateFarm(null, updateDTO, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Fazenda não encontrada para o ID: null", ex.getReason());
+        verify(farmRepository, never()).findById(any());
+        verify(farmRepository, never()).save(any());
+    }
+
+    /**
      * Testa lançamento de 404 ao tentar remover fazenda inexistente.
      */
     @Test
@@ -835,6 +868,22 @@ class FarmServiceTest {
         );
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        verify(farmRepository, never()).delete(any());
+    }
+
+    /**
+     * Testa lançamento de 404 ao remover fazenda com ID nulo sem consultar repositório.
+     */
+    @Test
+    @DisplayName("Deve lançar 404 ao remover fazenda com ID nulo")
+    void testDeleteFarmNullIdNotFound() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.deleteFarm(null, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Fazenda não encontrada para o ID: null", ex.getReason());
+        verify(farmRepository, never()).findById(any());
         verify(farmRepository, never()).delete(any());
     }
 }
