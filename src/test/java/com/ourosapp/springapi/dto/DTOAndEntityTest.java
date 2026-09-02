@@ -832,6 +832,16 @@ class DTOAndEntityTest {
         FarmUpdateDTO invalidDto = new FarmUpdateDTO(null, new BigDecimal("-10.00"), null, -5, null);
         assertFalse(validator.validate(invalidDto).isEmpty());
 
+        // Validação de strings em branco/vazias após sanitização
+        FarmUpdateDTO blankNameDto = new FarmUpdateDTO("   ", null, null, null, null);
+        assertFalse(validator.validate(blankNameDto).isEmpty());
+
+        FarmUpdateDTO blankRegionDto = new FarmUpdateDTO(null, null, "   ", null, null);
+        assertFalse(validator.validate(blankRegionDto).isEmpty());
+
+        FarmUpdateDTO blankPlaceDto = new FarmUpdateDTO(null, null, null, null, "   ");
+        assertFalse(validator.validate(blankPlaceDto).isEmpty());
+
         // Desserialização Jackson em snake_case e camelCase (@JsonAlias)
         String snakeJson = "{\"area_property\": 200.00, \"poultry_capacity\": 60000}";
         FarmUpdateDTO fromSnake = assertDoesNotThrow(() -> objectMapper.readValue(snakeJson, FarmUpdateDTO.class));

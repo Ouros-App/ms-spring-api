@@ -131,9 +131,8 @@ public class FarmService {
                 return List.of();
             }
             return farmRepository.findById(owner.getIdFarm())
-                    .map(FarmResponseDTO::fromEntity)
-                    .map(List::of)
-                    .orElse(List.of());
+                    .map(farm -> List.of(FarmResponseDTO.fromEntity(farm)))
+                    .orElseGet(List::of);
         } else if ("ADM".equals(role)) {
             return farmRepository.findAll()
                     .stream()

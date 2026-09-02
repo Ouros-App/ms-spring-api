@@ -182,6 +182,14 @@ class FarmControllerMockMvcTest {
                         .content(camelCasePayload))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Fazenda Camel"));
+
+        verify(farmService).createFarm(argThat(dto ->
+                "Fazenda Camel".equals(dto.name())
+                        && new BigDecimal("120.00").equals(dto.areaProperty())
+                        && Integer.valueOf(30000).equals(dto.poultryCapacity())
+                        && Long.valueOf(1L).equals(dto.idAddress())
+                        && Long.valueOf(2L).equals(dto.idEnterprise())
+        ), eq(mockPrincipal));
     }
 
     /**

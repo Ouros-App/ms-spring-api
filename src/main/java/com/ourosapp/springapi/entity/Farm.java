@@ -26,7 +26,7 @@ public class Farm {
     @Column(name = "name", length = 100, nullable = false)
     private String name;
 
-    @Column(name = "area_property", nullable = false)
+    @Column(name = "area_property", nullable = false, precision = 19, scale = 4)
     private BigDecimal areaProperty;
 
     @Column(name = "region", nullable = false, length = 50)

@@ -23,7 +23,7 @@ import java.math.BigDecimal;
 public record FarmUpdateDTO(
 
         @Schema(description = "Novo nome da fazenda", example = "Fazenda Santa Maria Renomeada")
-        @Size(max = 100, message = "O nome da fazenda deve ter no máximo 100 caracteres")
+        @Size(min = 1, max = 100, message = "O nome da fazenda deve ter entre 1 e 100 caracteres")
         String name,
 
         @Schema(description = "Nova área da propriedade", example = "200.00")
@@ -33,7 +33,7 @@ public record FarmUpdateDTO(
         BigDecimal areaProperty,
 
         @Schema(description = "Nova região da fazenda", example = "Centro-Oeste")
-        @Size(max = 50, message = "A região deve ter no máximo 50 caracteres")
+        @Size(min = 1, max = 50, message = "A região deve ter entre 1 e 50 caracteres")
         String region,
 
         @Schema(description = "Nova capacidade de alojamento de aves", example = "60000")
@@ -43,7 +43,7 @@ public record FarmUpdateDTO(
         Integer poultryCapacity,
 
         @Schema(description = "Novo local ou denominação do sítio/granja", example = "Gleba 5 - Setor Norte")
-        @Size(max = 50, message = "O local deve ter no máximo 50 caracteres")
+        @Size(min = 1, max = 50, message = "O local deve ter entre 1 e 50 caracteres")
         String place
 ) {
 
