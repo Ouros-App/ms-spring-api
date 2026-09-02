@@ -47,7 +47,8 @@ public class FarmController {
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
-            @ApiResponse(responseCode = "404", description = "Empresa ou endereço vinculados não encontrados")
+            @ApiResponse(responseCode = "404", description = "Empresa ou endereço vinculados não encontrados"),
+            @ApiResponse(responseCode = "409", description = "Conflito de integridade de dados ao cadastrar fazenda")
     })
     @PostMapping
     public ResponseEntity<FarmResponseDTO> createFarm(

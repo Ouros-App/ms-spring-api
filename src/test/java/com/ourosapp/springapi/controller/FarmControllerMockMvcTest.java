@@ -237,6 +237,27 @@ class FarmControllerMockMvcTest {
     }
 
     /**
+     * Testa POST /farms quando ocorre conflito de integridade de dados esperando 409 Conflict.
+     *
+     * @throws Exception se ocorrer erro no MockMvc
+     */
+    @Test
+    @DisplayName("POST /farms - Deve retornar 409 Conflict quando ocorre violação de integridade de dados")
+    void testCreateFarmConflict() throws Exception {
+        FarmRequestDTO request = new FarmRequestDTO(
+                "Fazenda", new BigDecimal("100"), "Sul", 1000, "Local", 1L, null, 2L
+        );
+        when(farmService.createFarm(any(FarmRequestDTO.class), eq(mockPrincipal)))
+                .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Conflito de integridade de dados ao cadastrar fazenda"));
+
+        mockMvc.perform(post("/farms")
+                        .with(user(mockPrincipal))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict());
+    }
+
+    /**
      * Testa GET /farms com usuário autenticado esperando 200 OK.
      *
      * @throws Exception se ocorrer erro no MockMvc

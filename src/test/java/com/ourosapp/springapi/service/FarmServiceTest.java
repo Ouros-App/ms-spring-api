@@ -325,30 +325,21 @@ class FarmServiceTest {
     }
 
     /**
-     * Testa lançamento de 400 quando ambos id_address e objeto address forem informados na requisição.
+     * Testa lançamento de 409 quando ocorre violação de integridade de dados ao cadastrar fazenda.
      */
     @Test
-    @DisplayName("Deve lançar 400 quando id_address e objeto address forem informados simultaneamente")
-    void testCreateFarmBothAddressAndIdAddressBadRequest() {
+    @DisplayName("Deve lançar 409 quando ocorrer DataIntegrityViolationException ao salvar fazenda")
+    void testCreateFarmDataIntegrityViolationConflict() {
         when(enterpriseRepository.existsById(20L)).thenReturn(true);
-        FarmRequestDTO requestWithBoth = new FarmRequestDTO(
-                "Fazenda Ouro Verde",
-                new BigDecimal("150.50"),
-                "Sudeste",
-                50000,
-                "Gleba 4 - Setor Sul",
-                10L,
-                sampleAddressRequest,
-                20L
-        );
+        when(addressRepository.existsById(10L)).thenReturn(true);
+        when(farmRepository.save(any(Farm.class))).thenThrow(new DataIntegrityViolationException("Erro de chave estrangeira ou unicidade"));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                farmService.createFarm(requestWithBoth, adminPrincipal)
+                farmService.createFarm(sampleRequestWithIdAddress, adminPrincipal)
         );
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("Não é permitido informar simultaneamente 'id_address' e o objeto 'address'"));
-        verify(farmRepository, never()).save(any());
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Conflito de integridade de dados ao cadastrar fazenda"));
     }
 
     /**

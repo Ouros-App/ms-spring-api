@@ -49,6 +49,7 @@ public class FarmService {
      * @throws ResponseStatusException HTTP 401 se não autenticado
      * @throws ResponseStatusException HTTP 403 se o usuário não tiver permissão para cadastrar na empresa informada
      * @throws ResponseStatusException HTTP 404 se a empresa ou endereço vinculado não existirem
+     * @throws ResponseStatusException HTTP 409 se houver conflito de integridade de dados ao cadastrar fazenda
      */
     @Transactional
     public FarmResponseDTO createFarm(FarmRequestDTO request, UserPrincipal principal) {
@@ -63,12 +64,7 @@ public class FarmService {
         }
 
         Long resolvedAddressId;
-        if (request.address() != null && request.idAddress() != null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Não é permitido informar simultaneamente 'id_address' e o objeto 'address'"
-            );
-        } else if (request.address() != null) {
+        if (request.address() != null) {
             AddressResponseDTO createdAddress = addressService.createAddress(request.address());
             resolvedAddressId = createdAddress.id();
         } else if (request.idAddress() != null) {
@@ -96,8 +92,16 @@ public class FarmService {
                 .idEnterprise(request.idEnterprise())
                 .build();
 
-        Farm savedFarm = farmRepository.save(farm);
-        return FarmResponseDTO.fromEntity(savedFarm);
+        try {
+            Farm savedFarm = farmRepository.save(farm);
+            return FarmResponseDTO.fromEntity(savedFarm);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Conflito de integridade de dados ao cadastrar fazenda",
+                    ex
+            );
+        }
     }
 
     /**
