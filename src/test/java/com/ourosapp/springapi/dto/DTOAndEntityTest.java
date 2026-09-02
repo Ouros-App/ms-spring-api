@@ -3,10 +3,14 @@ package com.ourosapp.springapi.dto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
+import com.ourosapp.springapi.dto.farm.FarmRequestDTO;
+import com.ourosapp.springapi.dto.farm.FarmResponseDTO;
+import com.ourosapp.springapi.dto.farm.FarmUpdateDTO;
 import com.ourosapp.springapi.entity.Address;
 import com.ourosapp.springapi.entity.Adm;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Enterprise;
+import com.ourosapp.springapi.entity.Farm;
 import com.ourosapp.springapi.entity.FarmOwner;
 import com.ourosapp.springapi.security.JwtAuthFilter;
 import jakarta.validation.ConstraintViolation;
@@ -17,6 +21,7 @@ import org.mockito.Mockito;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+import java.math.BigDecimal;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -576,5 +581,278 @@ class DTOAndEntityTest {
         CompanyEmployeeUpdateDTO invalidPass = new CompanyEmployeeUpdateDTO(null, null, "senha123");
         assertFalse(validator.validate(invalidPass).isEmpty());
     }
+
+    /**
+     * Testa getters, setters, builder e toString da entidade {@link Farm}.
+     */
+    @Test
+    void testFarmEntity() {
+        Farm farm = new Farm();
+        farm.setId(1L);
+        farm.setName("Fazenda Teste");
+        farm.setAreaProperty(new BigDecimal("120.50"));
+        farm.setRegion("Sudeste");
+        farm.setPoultryCapacity(40000);
+        farm.setPlace("Setor 1");
+        farm.setIdAddress(10L);
+        farm.setIdEnterprise(20L);
+
+        assertEquals(1L, farm.getId());
+        assertEquals("Fazenda Teste", farm.getName());
+        assertEquals(new BigDecimal("120.50"), farm.getAreaProperty());
+        assertEquals("Sudeste", farm.getRegion());
+        assertEquals(40000, farm.getPoultryCapacity());
+        assertEquals("Setor 1", farm.getPlace());
+        assertEquals(10L, farm.getIdAddress());
+        assertEquals(20L, farm.getIdEnterprise());
+
+        Farm built = Farm.builder()
+                .id(2L)
+                .name("Fazenda Built")
+                .areaProperty(new BigDecimal("200.00"))
+                .region("Sul")
+                .poultryCapacity(50000)
+                .place("Setor 2")
+                .idAddress(11L)
+                .idEnterprise(21L)
+                .build();
+
+        assertEquals(2L, built.getId());
+        assertTrue(built.toString().contains("Fazenda Built"));
+    }
+
+    /**
+     * Testa instanciação, sanitização e validação de {@link FarmRequestDTO}.
+     */
+    @Test
+    void testFarmRequestDTO() throws JsonProcessingException {
+        // DTO válido com id_address
+        FarmRequestDTO validWithId = new FarmRequestDTO(
+                "  Fazenda Santa Maria  ",
+                new BigDecimal("150.00"),
+                "  Sudeste  ",
+                50000,
+                "  Gleba 1  ",
+                1L,
+                null,
+                2L
+        );
+        assertEquals("Fazenda Santa Maria", validWithId.name());
+        assertEquals("Sudeste", validWithId.region());
+        assertEquals("Gleba 1", validWithId.place());
+        assertTrue(validator.validate(validWithId).isEmpty());
+
+        // DTO válido com objeto address embutido
+        AddressRequestDTO address = new AddressRequestDTO("12345678", "SP", "Campinas", "100", "BR");
+        FarmRequestDTO validWithNested = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100.00"),
+                "Sul",
+                1000,
+                "Local",
+                null,
+                address,
+                2L
+        );
+        assertTrue(validator.validate(validWithNested).isEmpty());
+
+        // DTO inválido sem id_address nem address
+        FarmRequestDTO noAddress = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100.00"),
+                "Sul",
+                1000,
+                "Local",
+                null,
+                null,
+                2L
+        );
+        assertFalse(validator.validate(noAddress).isEmpty());
+        assertFalse(noAddress.hasValidAddressInfo());
+
+        // DTO inválido com ambos id_address e address informados (rejeição de ambiguidade XOR)
+        FarmRequestDTO bothAddress = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100.00"),
+                "Sul",
+                1000,
+                "Local",
+                1L,
+                address,
+                2L
+        );
+        assertFalse(validator.validate(bothAddress).isEmpty());
+        assertFalse(bothAddress.hasValidAddressInfo());
+        assertTrue(validWithId.hasValidAddressInfo());
+        assertTrue(validWithNested.hasValidAddressInfo());
+
+        // DTO inválido com id_address negativo (< 0) ou zero (== 0)
+        FarmRequestDTO negativeAddressId = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100.00"),
+                "Sul",
+                1000,
+                "Local",
+                -1L,
+                null,
+                2L
+        );
+        assertFalse(validator.validate(negativeAddressId).isEmpty());
+
+        FarmRequestDTO zeroAddressId = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100.00"),
+                "Sul",
+                1000,
+                "Local",
+                0L,
+                null,
+                2L
+        );
+        assertFalse(validator.validate(zeroAddressId).isEmpty());
+
+        // DTO inválido com id_enterprise negativo (< 0) ou zero (== 0)
+        FarmRequestDTO negativeEnterpriseId = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100.00"),
+                "Sul",
+                1000,
+                "Local",
+                1L,
+                null,
+                -1L
+        );
+        assertFalse(validator.validate(negativeEnterpriseId).isEmpty());
+
+        FarmRequestDTO zeroEnterpriseId = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100.00"),
+                "Sul",
+                1000,
+                "Local",
+                1L,
+                null,
+                0L
+        );
+        assertFalse(validator.validate(zeroEnterpriseId).isEmpty());
+
+        // Desserialização JSON snake_case
+        String snakeJson = """
+                {
+                    "name": "Fazenda JSON",
+                    "area_property": 150.50,
+                    "region": "Sudeste",
+                    "poultry_capacity": 50000,
+                    "place": "Gleba 4",
+                    "id_address": 1,
+                    "id_enterprise": 2
+                }
+                """;
+        FarmRequestDTO snakeDto = objectMapper.readValue(snakeJson, FarmRequestDTO.class);
+        assertEquals("Fazenda JSON", snakeDto.name());
+        assertEquals(new BigDecimal("150.50"), snakeDto.areaProperty());
+        assertEquals(50000, snakeDto.poultryCapacity());
+        assertEquals(1L, snakeDto.idAddress());
+        assertEquals(2L, snakeDto.idEnterprise());
+
+        // Desserialização JSON camelCase
+        String camelJson = """
+                {
+                    "name": "Fazenda JSON",
+                    "areaProperty": 150.50,
+                    "region": "Sudeste",
+                    "poultryCapacity": 50000,
+                    "place": "Gleba 4",
+                    "idAddress": 1,
+                    "idEnterprise": 2
+                }
+                """;
+        FarmRequestDTO camelDto = objectMapper.readValue(camelJson, FarmRequestDTO.class);
+        assertEquals(1L, camelDto.idAddress());
+        assertEquals(2L, camelDto.idEnterprise());
+    }
+
+    /**
+     * Testa instanciação, serialização e conversão de {@link FarmResponseDTO}.
+     */
+    @Test
+    void testFarmResponseDTO() throws JsonProcessingException {
+        Farm farm = Farm.builder()
+                .id(1L)
+                .name("Fazenda Ouro Verde")
+                .areaProperty(new BigDecimal("150.50"))
+                .region("Sudeste")
+                .poultryCapacity(50000)
+                .place("Gleba 4")
+                .idAddress(10L)
+                .idEnterprise(20L)
+                .build();
+
+        FarmResponseDTO dto = FarmResponseDTO.fromEntity(farm);
+        assertEquals(1L, dto.id());
+        assertEquals("Fazenda Ouro Verde", dto.name());
+        assertEquals(new BigDecimal("150.50"), dto.areaProperty());
+        assertEquals("Sudeste", dto.region());
+        assertEquals(50000, dto.poultryCapacity());
+        assertEquals("Gleba 4", dto.place());
+        assertEquals(10L, dto.idAddress());
+        assertEquals(20L, dto.idEnterprise());
+
+        String json = objectMapper.writeValueAsString(dto);
+        assertTrue(json.contains("\"area_property\":150.50"));
+        assertTrue(json.contains("\"poultry_capacity\":50000"));
+        assertTrue(json.contains("\"id_address\":10"));
+        assertTrue(json.contains("\"id_enterprise\":20"));
+
+        assertThrows(NullPointerException.class, () -> FarmResponseDTO.fromEntity(null));
+    }
+
+    /**
+     * Testa comportamento, sanitização e método hasUpdates de {@link FarmUpdateDTO}.
+     */
+    @Test
+    void testFarmUpdateDTO() {
+        FarmUpdateDTO dtoWithUpdates = new FarmUpdateDTO(
+                "  Novo Nome  ",
+                new BigDecimal("200.00"),
+                "  Centro-Oeste  ",
+                60000,
+                "  Gleba 2  "
+        );
+        assertEquals("Novo Nome", dtoWithUpdates.name());
+        assertEquals("Centro-Oeste", dtoWithUpdates.region());
+        assertEquals("Gleba 2", dtoWithUpdates.place());
+        assertTrue(dtoWithUpdates.hasUpdates());
+        assertTrue(validator.validate(dtoWithUpdates).isEmpty());
+
+        FarmUpdateDTO emptyDto = new FarmUpdateDTO(null, null, null, null, null);
+        assertFalse(emptyDto.hasUpdates());
+
+        // Validação de valores negativos
+        FarmUpdateDTO invalidDto = new FarmUpdateDTO(null, new BigDecimal("-10.00"), null, -5, null);
+        assertFalse(validator.validate(invalidDto).isEmpty());
+
+        // Validação de strings em branco/vazias após sanitização
+        FarmUpdateDTO blankNameDto = new FarmUpdateDTO("   ", null, null, null, null);
+        assertFalse(validator.validate(blankNameDto).isEmpty());
+
+        FarmUpdateDTO blankRegionDto = new FarmUpdateDTO(null, null, "   ", null, null);
+        assertFalse(validator.validate(blankRegionDto).isEmpty());
+
+        FarmUpdateDTO blankPlaceDto = new FarmUpdateDTO(null, null, null, null, "   ");
+        assertFalse(validator.validate(blankPlaceDto).isEmpty());
+
+        // Desserialização Jackson em snake_case e camelCase (@JsonAlias)
+        String snakeJson = "{\"area_property\": 200.00, \"poultry_capacity\": 60000}";
+        FarmUpdateDTO fromSnake = assertDoesNotThrow(() -> objectMapper.readValue(snakeJson, FarmUpdateDTO.class));
+        assertEquals(new BigDecimal("200.00"), fromSnake.areaProperty());
+        assertEquals(60000, fromSnake.poultryCapacity());
+
+        String camelJson = "{\"areaProperty\": 300.00, \"poultryCapacity\": 75000}";
+        FarmUpdateDTO fromCamel = assertDoesNotThrow(() -> objectMapper.readValue(camelJson, FarmUpdateDTO.class));
+        assertEquals(new BigDecimal("300.00"), fromCamel.areaProperty());
+        assertEquals(75000, fromCamel.poultryCapacity());
+    }
 }
+
 
