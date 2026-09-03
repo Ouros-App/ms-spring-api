@@ -1,11 +1,15 @@
 package com.ourosapp.springapi.service;
 
-import com.ourosapp.springapi.dto.EnterpriseRequestDTO;
-import com.ourosapp.springapi.dto.EnterpriseResponseDTO;
+import com.ourosapp.springapi.dto.address.AddressResponseDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseRequestDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseResponseDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseUpdateDTO;
+import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Enterprise;
 import com.ourosapp.springapi.repository.AddressRepository;
+import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
-import com.ourosapp.springapi.util.CnpjValidator;
+import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -25,26 +29,22 @@ public class EnterpriseService {
 
     private final EnterpriseRepository enterpriseRepository;
     private final AddressRepository addressRepository;
+    private final AddressService addressService;
+    private final CompanyEmployeeRepository companyEmployeeRepository;
 
     /**
      * Cadastra uma nova Empresa Integradora no sistema.
-     *
-     * @param request dados da empresa a ser cadastrada
-     * @return DTO com os dados da empresa cadastrada incluindo o ID gerado
-     * @throws ResponseStatusException HTTP 400 (Bad Request) se o CNPJ for matematicamente inválido
-     * @throws ResponseStatusException HTTP 404 (Not Found) se o endereço informado não existir
-     * @throws ResponseStatusException HTTP 409 (Conflict) se o CNPJ ou e-mail já estiverem cadastrados
+     * Requer perfil ADM. Suporta criação aninhada de endereço.
      */
     @Transactional
-    public EnterpriseResponseDTO createEnterprise(EnterpriseRequestDTO request) {
+    public EnterpriseResponseDTO createEnterprise(EnterpriseRequestDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
+        ensureAuthenticated(principal);
 
-        if (!CnpjValidator.isValid(request.documentNumber())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "CNPJ informado é inválido"
-            );
+        if (!"ADM".equals(principal.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas administradores podem cadastrar empresas");
         }
+
 
         if (enterpriseRepository.existsByDocumentNumber(request.documentNumber())) {
             throw new ResponseStatusException(
@@ -60,10 +60,27 @@ public class EnterpriseService {
             );
         }
 
-        if (!addressRepository.existsById(request.idAddress())) {
+        Long resolvedAddressId;
+        if (request.address() != null && request.idAddress() != null) {
             throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Endereço não encontrado para o ID: " + request.idAddress()
+                    HttpStatus.BAD_REQUEST,
+                    "Não é permitido informar 'id_address' e o objeto 'address' simultaneamente"
+            );
+        } else if (request.address() != null) {
+            AddressResponseDTO createdAddress = addressService.createAddress(request.address());
+            resolvedAddressId = createdAddress.id();
+        } else if (request.idAddress() != null) {
+            if (!addressRepository.existsById(request.idAddress())) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Endereço não encontrado para o ID: " + request.idAddress()
+                );
+            }
+            resolvedAddressId = request.idAddress();
+        } else {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "É obrigatório informar o 'id_address' ou o objeto 'address' completo"
             );
         }
 
@@ -72,7 +89,7 @@ public class EnterpriseService {
                 .email(request.email())
                 .documentNumber(request.documentNumber())
                 .telephone(request.telephone())
-                .idAddress(request.idAddress())
+                .idAddress(resolvedAddressId)
                 .build();
 
         try {
@@ -89,47 +106,56 @@ public class EnterpriseService {
 
     /**
      * Busca as informações de uma empresa específica a partir do seu identificador único.
-     *
-     * @param id identificador único da empresa
-     * @return DTO com as informações da empresa encontrada
-     * @throws ResponseStatusException HTTP 404 (Not Found) se a empresa não existir
      */
     @Transactional(readOnly = true)
-    public EnterpriseResponseDTO getEnterpriseById(Long id) {
+    public EnterpriseResponseDTO getEnterpriseById(Long id, UserPrincipal principal) {
+        ensureAuthenticated(principal);
         Enterprise enterprise = enterpriseRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Empresa não encontrada para o ID: " + id
                 ));
+
+        validateEnterpriseAccessPermission(enterprise, principal);
+
         return EnterpriseResponseDTO.fromEntity(enterprise);
     }
 
     /**
-     * Retorna a lista de todas as empresas integradoras cadastradas no sistema.
-     *
-     * @return lista contendo os DTOs de todas as empresas encontradas
+     * Retorna a lista de todas as empresas integradoras cadastradas no sistema se for ADM.
+     * Se for funcionário, retorna apenas a sua empresa.
      */
     @Transactional(readOnly = true)
-    public List<EnterpriseResponseDTO> getAllEnterprises() {
-        return enterpriseRepository.findAll()
-                .stream()
-                .map(EnterpriseResponseDTO::fromEntity)
-                .toList();
+    public List<EnterpriseResponseDTO> getAllEnterprises(UserPrincipal principal) {
+        ensureAuthenticated(principal);
+
+        String role = principal.getRole();
+        if ("ADM".equals(role)) {
+            return enterpriseRepository.findAll()
+                    .stream()
+                    .map(EnterpriseResponseDTO::fromEntity)
+                    .toList();
+        } else if ("COMPANY_EMPLOYEE".equals(role)) {
+            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
+            return enterpriseRepository.findById(employee.getIdEnterprise())
+                    .map(enterprise -> List.of(EnterpriseResponseDTO.fromEntity(enterprise)))
+                    .orElseGet(List::of);
+        } else {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Perfil sem permissão para listar empresas"
+            );
+        }
     }
 
     /**
-     * Substitui integralmente os dados cadastrais de uma empresa existente por novos valores.
-     *
-     * @param id      identificador único da empresa a ser atualizada
-     * @param request novos dados da empresa
-     * @return DTO com os dados atualizados da empresa
-     * @throws ResponseStatusException HTTP 400 (Bad Request) se o CNPJ for matematicamente inválido
-     * @throws ResponseStatusException HTTP 404 (Not Found) se a empresa ou o endereço não existirem
-     * @throws ResponseStatusException HTTP 409 (Conflict) se o CNPJ ou e-mail já pertencerem a outra empresa
+     * Atualiza parcialmente os dados cadastrais de uma empresa existente.
      */
     @Transactional
-    public EnterpriseResponseDTO updateEnterprise(Long id, EnterpriseRequestDTO request) {
+    public EnterpriseResponseDTO updateEnterprise(Long id, EnterpriseUpdateDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
+        ensureAuthenticated(principal);
 
         Enterprise enterprise = enterpriseRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -137,43 +163,47 @@ public class EnterpriseService {
                         "Empresa não encontrada para o ID: " + id
                 ));
 
-        if (!CnpjValidator.isValid(request.documentNumber())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "CNPJ informado é inválido"
-            );
+        validateEnterpriseMutationPermission(enterprise, principal);
+
+        if (!request.hasUpdates()) {
+            return EnterpriseResponseDTO.fromEntity(enterprise);
         }
 
-        enterpriseRepository.findByDocumentNumber(request.documentNumber())
-                .filter(existing -> !existing.getId().equals(id))
-                .ifPresent(existing -> {
-                    throw new ResponseStatusException(
-                            HttpStatus.CONFLICT,
-                            "Já existe outra empresa cadastrada com este CNPJ"
-                    );
-                });
-
-        enterpriseRepository.findByEmailIgnoreCase(request.email())
-                .filter(existing -> !existing.getId().equals(id))
-                .ifPresent(existing -> {
-                    throw new ResponseStatusException(
-                            HttpStatus.CONFLICT,
-                            "Já existe outra empresa cadastrada com este e-mail"
-                    );
-                });
-
-        if (!addressRepository.existsById(request.idAddress())) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Endereço não encontrado para o ID: " + request.idAddress()
-            );
+        if (request.documentNumber() != null && !request.documentNumber().isBlank()) {
+            enterpriseRepository.findByDocumentNumber(request.documentNumber())
+                    .filter(existing -> !existing.getId().equals(id))
+                    .ifPresent(existing -> {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Já existe outra empresa cadastrada com este CNPJ");
+                    });
+            enterprise.setDocumentNumber(request.documentNumber());
         }
 
-        enterprise.setName(request.name());
-        enterprise.setDocumentNumber(request.documentNumber());
-        enterprise.setEmail(request.email());
-        enterprise.setTelephone(request.telephone());
-        enterprise.setIdAddress(request.idAddress());
+        if (request.email() != null && !request.email().isBlank()) {
+            enterpriseRepository.findByEmailIgnoreCase(request.email())
+                    .filter(existing -> !existing.getId().equals(id))
+                    .ifPresent(existing -> {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Já existe outra empresa cadastrada com este e-mail");
+                    });
+            enterprise.setEmail(request.email());
+        }
+
+        if (request.idAddress() != null) {
+            if (!addressRepository.existsById(request.idAddress())) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Endereço não encontrado para o ID: " + request.idAddress()
+                );
+            }
+            enterprise.setIdAddress(request.idAddress());
+        }
+
+        if (request.name() != null && !request.name().isBlank()) {
+            enterprise.setName(request.name());
+        }
+        
+        if (request.telephone() != null && !request.telephone().isBlank()) {
+            enterprise.setTelephone(request.telephone());
+        }
 
         try {
             Enterprise updatedEnterprise = enterpriseRepository.save(enterprise);
@@ -186,5 +216,42 @@ public class EnterpriseService {
             );
         }
     }
-}
 
+    private void ensureAuthenticated(UserPrincipal principal) {
+        if (principal == null || principal.getId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+        }
+    }
+
+    private void validateEnterpriseAccessPermission(Enterprise enterprise, UserPrincipal principal) {
+        String role = principal.getRole();
+        if ("ADM".equals(role)) {
+            return;
+        }
+        if ("COMPANY_EMPLOYEE".equals(role)) {
+            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
+            if (!Objects.equals(enterprise.getId(), employee.getIdEnterprise())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado a esta empresa");
+            }
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado a esta empresa");
+    }
+
+    private void validateEnterpriseMutationPermission(Enterprise enterprise, UserPrincipal principal) {
+        String role = principal.getRole();
+        if ("ADM".equals(role)) {
+            return;
+        }
+        if ("COMPANY_EMPLOYEE".equals(role)) {
+            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
+            if (!Objects.equals(enterprise.getId(), employee.getIdEnterprise())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para alterar esta empresa");
+            }
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para alterar esta empresa");
+    }
+}

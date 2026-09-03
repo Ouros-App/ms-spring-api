@@ -2,7 +2,7 @@ package com.ourosapp.springapi.dto.farm;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.ourosapp.springapi.dto.AddressRequestDTO;
+import com.ourosapp.springapi.dto.address.AddressRequestDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
