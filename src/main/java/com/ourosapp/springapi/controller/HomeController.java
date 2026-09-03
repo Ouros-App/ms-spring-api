@@ -7,6 +7,9 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Controlador REST responsável pela página inicial ou rotas padrão da API.
+ */
 @RestController
 @Tag(name = "Geral", description = "Endpoints informativos e utilitários da aplicação")
 public class HomeController {

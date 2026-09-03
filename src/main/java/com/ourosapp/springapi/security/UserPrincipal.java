@@ -12,6 +12,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * Representa o usuário autenticado na sessão atual do Spring Security.
+ */
 @Getter
 @AllArgsConstructor
 public class UserPrincipal implements UserDetails {
