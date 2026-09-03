@@ -194,6 +194,32 @@ class DTOAndEntityTest {
         assertEquals("São Paulo", request.city());
         assertEquals("1000", request.number());
         assertEquals("BR", request.country());
+        assertTrue(request.hasUpdates());
+
+        // Test individual hasUpdates branches
+        assertTrue(new AddressUpdateDTO("12345", null, null, null, null).hasUpdates());
+        assertTrue(new AddressUpdateDTO(null, "SP", null, null, null).hasUpdates());
+        assertTrue(new AddressUpdateDTO(null, null, "City", null, null).hasUpdates());
+        assertTrue(new AddressUpdateDTO(null, null, null, "10", null).hasUpdates());
+        assertTrue(new AddressUpdateDTO(null, null, null, null, "BR").hasUpdates());
+
+        AddressUpdateDTO emptyUpdate = new AddressUpdateDTO(null, null, null, null, null);
+        assertFalse(emptyUpdate.hasUpdates());
+        assertNull(emptyUpdate.zipCode());
+        assertNull(emptyUpdate.state());
+        assertNull(emptyUpdate.city());
+        assertNull(emptyUpdate.number());
+        assertNull(emptyUpdate.country());
+
+        AddressUpdateDTO blankUpdate = new AddressUpdateDTO("   ", "   ", "   ", "   ", "   ");
+        assertFalse(blankUpdate.hasUpdates());
+
+        AddressUpdateDTO normalizedUpdate = new AddressUpdateDTO("  12345678  ", " sp ", "  São Paulo  ", " 1000 ", " br ");
+        assertEquals("12345678", normalizedUpdate.zipCode());
+        assertEquals("SP", normalizedUpdate.state());
+        assertEquals("São Paulo", normalizedUpdate.city());
+        assertEquals("1000", normalizedUpdate.number());
+        assertEquals("BR", normalizedUpdate.country());
 
         AddressRequestDTO normalizedRequest = new AddressRequestDTO("  01310-100  ", " sp ", "  São Paulo  ", " 1000 ", " br ");
         assertEquals("01310-100", normalizedRequest.zipCode());
@@ -228,6 +254,23 @@ class DTOAndEntityTest {
         assertEquals("BR", response.country());
 
         assertThrows(NullPointerException.class, () -> AddressResponseDTO.fromEntity(null));
+    }
+
+    @Test
+    void testConstantsClasses() throws Exception {
+        assertEquals("ADM", com.ourosapp.springapi.constants.RoleConstants.ADM);
+        assertEquals("COMPANY_EMPLOYEE", com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE);
+        assertEquals("Funcionário não encontrado", com.ourosapp.springapi.constants.ErrorMessages.EMPLOYEE_NOT_FOUND);
+        assertEquals("Usuário não autenticado", com.ourosapp.springapi.constants.ErrorMessages.USER_NOT_AUTHENTICATED);
+
+        // Exercise private constructors for 100% coverage
+        var roleConstConstructor = com.ourosapp.springapi.constants.RoleConstants.class.getDeclaredConstructor();
+        roleConstConstructor.setAccessible(true);
+        roleConstConstructor.newInstance();
+
+        var errorMsgConstructor = com.ourosapp.springapi.constants.ErrorMessages.class.getDeclaredConstructor();
+        errorMsgConstructor.setAccessible(true);
+        errorMsgConstructor.newInstance();
     }
 
     /**

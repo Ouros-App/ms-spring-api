@@ -188,4 +188,43 @@ class AddressServiceTest {
         verify(addressRepository, never()).findById(any());
         verify(addressRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("Deve retornar endereço sem chamar save quando payload de atualização não tiver campos informados")
+    void testUpdateAddressWithoutUpdates() {
+        AddressUpdateDTO emptyRequest = new AddressUpdateDTO(null, null, null, null, null);
+
+        when(addressRepository.findById(1L)).thenReturn(Optional.of(sampleAddress));
+
+        AddressResponseDTO response = addressService.updateAddress(1L, emptyRequest);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        assertEquals("01310-100", response.zipCode());
+        verify(addressRepository, times(1)).findById(1L);
+        verify(addressRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve atualizar apenas campos informados individualmente")
+    void testUpdateAddressPartialFields() {
+        AddressUpdateDTO partialRequest = new AddressUpdateDTO(
+                null,
+                "RJ",
+                null,
+                "200",
+                null
+        );
+
+        when(addressRepository.findById(1L)).thenReturn(Optional.of(sampleAddress));
+        when(addressRepository.save(any(Address.class))).thenReturn(sampleAddress);
+
+        AddressResponseDTO response = addressService.updateAddress(1L, partialRequest);
+
+        assertNotNull(response);
+        assertEquals("RJ", sampleAddress.getState());
+        assertEquals("200", sampleAddress.getNumber());
+        assertEquals("São Paulo", sampleAddress.getCity());
+        verify(addressRepository, times(1)).save(sampleAddress);
+    }
 }

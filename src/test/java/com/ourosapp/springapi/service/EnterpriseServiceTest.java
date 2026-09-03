@@ -4,8 +4,10 @@ import com.ourosapp.springapi.dto.address.AddressRequestDTO;
 import com.ourosapp.springapi.dto.enterprise.EnterpriseRequestDTO;
 import com.ourosapp.springapi.dto.enterprise.EnterpriseResponseDTO;
 import com.ourosapp.springapi.dto.enterprise.EnterpriseUpdateDTO;
+import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Enterprise;
 import com.ourosapp.springapi.repository.AddressRepository;
+import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +40,9 @@ class EnterpriseServiceTest {
 
     @Mock
     private AddressService addressService;
+
+    @Mock
+    private CompanyEmployeeRepository companyEmployeeRepository;
 
     @InjectMocks
     private EnterpriseService enterpriseService;
@@ -455,5 +460,171 @@ class EnterpriseServiceTest {
         assertEquals("O payload da requisição não pode ser nulo", exception.getMessage());
         verify(enterpriseRepository, never()).findById(any());
         verify(enterpriseRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve retornar apenas a empresa do funcionário ao buscar todas as empresas como COMPANY_EMPLOYEE")
+    void testGetAllEnterprises_AsCompanyEmployee_Success() {
+        CompanyEmployee employee = new CompanyEmployee();
+        employee.setId(2L);
+        employee.setIdEnterprise(1L);
+
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+
+        List<EnterpriseResponseDTO> result = enterpriseService.getAllEnterprises(nonAdminPrincipal);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Agro Ouros S.A.", result.get(0).name());
+    }
+
+    @Test
+    @DisplayName("Deve retornar lista vazia ao buscar todas as empresas como COMPANY_EMPLOYEE se a empresa não existir")
+    void testGetAllEnterprises_AsCompanyEmployee_NoEnterpriseFound_ReturnsEmptyList() {
+        CompanyEmployee employee = new CompanyEmployee();
+        employee.setId(2L);
+        employee.setIdEnterprise(99L);
+
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(enterpriseRepository.findById(99L)).thenReturn(Optional.empty());
+
+        List<EnterpriseResponseDTO> result = enterpriseService.getAllEnterprises(nonAdminPrincipal);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 403 ao buscar todas as empresas com perfil desconhecido")
+    void testGetAllEnterprises_AsUnknownRole_Forbidden() {
+        UserPrincipal unknownPrincipal = new UserPrincipal(3L, "user", "pass", "UNKNOWN", List.of());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.getAllEnterprises(unknownPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("permissão"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar a empresa ao buscar por ID como COMPANY_EMPLOYEE da mesma empresa")
+    void testGetEnterpriseById_AsCompanyEmployee_SameEnterprise_Success() {
+        CompanyEmployee employee = new CompanyEmployee();
+        employee.setId(2L);
+        employee.setIdEnterprise(1L);
+
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        EnterpriseResponseDTO response = enterpriseService.getEnterpriseById(1L, nonAdminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 403 ao buscar por ID como COMPANY_EMPLOYEE de outra empresa")
+    void testGetEnterpriseById_AsCompanyEmployee_DifferentEnterprise_Forbidden() {
+        CompanyEmployee employee = new CompanyEmployee();
+        employee.setId(2L);
+        employee.setIdEnterprise(999L);
+
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.getEnterpriseById(1L, nonAdminPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Acesso negado"));
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 403 ao buscar por ID com perfil desconhecido")
+    void testGetEnterpriseById_AsUnknownRole_Forbidden() {
+        UserPrincipal unknownPrincipal = new UserPrincipal(3L, "user", "pass", "UNKNOWN", List.of());
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.getEnterpriseById(1L, unknownPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Acesso negado"));
+    }
+
+    @Test
+    @DisplayName("Deve atualizar a empresa com sucesso como COMPANY_EMPLOYEE da mesma empresa")
+    void testUpdateEnterprise_AsCompanyEmployee_SameEnterprise_Success() {
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Novo Nome", "contato@agroouros.com.br", "12345678000195", "11999999999", 10L);
+        CompanyEmployee employee = new CompanyEmployee();
+        employee.setId(2L);
+        employee.setIdEnterprise(1L);
+
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(enterpriseRepository.findByDocumentNumber("12345678000195")).thenReturn(Optional.of(sampleEnterprise));
+        when(enterpriseRepository.findByEmailIgnoreCase("contato@agroouros.com.br")).thenReturn(Optional.of(sampleEnterprise));
+        when(addressRepository.existsById(10L)).thenReturn(true);
+        when(enterpriseRepository.save(any(Enterprise.class))).thenReturn(sampleEnterprise);
+
+        EnterpriseResponseDTO response = enterpriseService.updateEnterprise(1L, updateRequest, nonAdminPrincipal);
+
+        assertNotNull(response);
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 403 ao atualizar empresa como COMPANY_EMPLOYEE de outra empresa")
+    void testUpdateEnterprise_AsCompanyEmployee_DifferentEnterprise_Forbidden() {
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Novo Nome", "contato@agroouros.com.br", "12345678000195", "11999999999", 10L);
+        CompanyEmployee employee = new CompanyEmployee();
+        employee.setId(2L);
+        employee.setIdEnterprise(999L);
+
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.updateEnterprise(1L, updateRequest, nonAdminPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Acesso negado"));
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 403 ao atualizar empresa com perfil desconhecido")
+    void testUpdateEnterprise_AsUnknownRole_Forbidden() {
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Novo Nome", "contato@agroouros.com.br", "12345678000195", "11999999999", 10L);
+        UserPrincipal unknownPrincipal = new UserPrincipal(3L, "user", "pass", "UNKNOWN", List.of());
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.updateEnterprise(1L, updateRequest, unknownPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Acesso negado"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar a empresa existente sem salvar quando não houver atualizações")
+    void testUpdateEnterprise_WithoutUpdates_ReturnsExisting() {
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO(null, null, null, null, null);
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+
+        EnterpriseResponseDTO response = enterpriseService.updateEnterprise(1L, updateRequest, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        verify(enterpriseRepository, never()).save(any(Enterprise.class));
     }
 }
