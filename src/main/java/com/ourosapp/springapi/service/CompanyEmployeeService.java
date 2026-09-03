@@ -1,5 +1,9 @@
 package com.ourosapp.springapi.service;
 
+import static com.ourosapp.springapi.constants.ErrorMessages.EMPLOYEE_NOT_FOUND;
+import static com.ourosapp.springapi.constants.RoleConstants.ADM;
+import static com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE;
+
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeRequestDTO;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeResponseDTO;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeUpdateDTO;
@@ -95,7 +99,7 @@ public class CompanyEmployeeService {
     @Transactional(readOnly = true)
     public CompanyEmployeeResponseDTO getLoggedInEmployee(UserPrincipal principal) {
         ensureAuthenticated(principal);
-        if (!"COMPANY_EMPLOYEE".equals(principal.getRole())) {
+        if (!COMPANY_EMPLOYEE.equals(principal.getRole())) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Acesso restrito a funcionários da integradora"
@@ -180,12 +184,12 @@ public class CompanyEmployeeService {
 
     private void validateCompanyEmployeeCreationPermission(Long idEnterprise, UserPrincipal principal) {
         String role = principal.getRole();
-        if ("ADM".equals(role)) {
+        if (ADM.equals(role)) {
             return;
         }
-        if ("COMPANY_EMPLOYEE".equals(role)) {
+        if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, EMPLOYEE_NOT_FOUND));
             if (!Objects.equals(idEnterprise, employee.getIdEnterprise())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Não é permitido cadastrar funcionário em outra empresa");
             }
@@ -196,12 +200,12 @@ public class CompanyEmployeeService {
 
     private void validateCompanyEmployeeAccessPermission(CompanyEmployee targetEmployee, UserPrincipal principal) {
         String role = principal.getRole();
-        if ("ADM".equals(role)) {
+        if (ADM.equals(role)) {
             return;
         }
-        if ("COMPANY_EMPLOYEE".equals(role)) {
+        if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee loggedEmployee = companyEmployeeRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, EMPLOYEE_NOT_FOUND));
             if (!Objects.equals(targetEmployee.getIdEnterprise(), loggedEmployee.getIdEnterprise())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado a este funcionário");
             }
@@ -212,10 +216,10 @@ public class CompanyEmployeeService {
 
     private void validateCompanyEmployeeMutationPermission(CompanyEmployee targetEmployee, UserPrincipal principal) {
         String role = principal.getRole();
-        if ("ADM".equals(role)) {
+        if (ADM.equals(role)) {
             return;
         }
-        if ("COMPANY_EMPLOYEE".equals(role)) {
+        if (COMPANY_EMPLOYEE.equals(role)) {
             // Apenas o próprio funcionário pode alterar seus dados (ou um ADM da empresa, se existisse essa hierarquia, mas manteremos simples)
             if (!Objects.equals(targetEmployee.getId(), principal.getId())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Não é permitido alterar/remover dados de outro funcionário");

@@ -1,5 +1,9 @@
 package com.ourosapp.springapi.service;
 
+import static com.ourosapp.springapi.constants.ErrorMessages.EMPLOYEE_NOT_FOUND;
+import static com.ourosapp.springapi.constants.RoleConstants.ADM;
+import static com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE;
+
 import com.ourosapp.springapi.dto.address.AddressResponseDTO;
 import com.ourosapp.springapi.dto.enterprise.EnterpriseRequestDTO;
 import com.ourosapp.springapi.dto.enterprise.EnterpriseResponseDTO;
@@ -41,7 +45,7 @@ public class EnterpriseService {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         ensureAuthenticated(principal);
 
-        if (!"ADM".equals(principal.getRole())) {
+        if (!ADM.equals(principal.getRole())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas administradores podem cadastrar empresas");
         }
 
@@ -130,14 +134,14 @@ public class EnterpriseService {
         ensureAuthenticated(principal);
 
         String role = principal.getRole();
-        if ("ADM".equals(role)) {
+        if (ADM.equals(role)) {
             return enterpriseRepository.findAll()
                     .stream()
                     .map(EnterpriseResponseDTO::fromEntity)
                     .toList();
-        } else if ("COMPANY_EMPLOYEE".equals(role)) {
+        } else if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, EMPLOYEE_NOT_FOUND));
             return enterpriseRepository.findById(employee.getIdEnterprise())
                     .map(enterprise -> List.of(EnterpriseResponseDTO.fromEntity(enterprise)))
                     .orElseGet(List::of);
@@ -225,12 +229,12 @@ public class EnterpriseService {
 
     private void validateEnterpriseAccessPermission(Enterprise enterprise, UserPrincipal principal) {
         String role = principal.getRole();
-        if ("ADM".equals(role)) {
+        if (ADM.equals(role)) {
             return;
         }
-        if ("COMPANY_EMPLOYEE".equals(role)) {
+        if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, EMPLOYEE_NOT_FOUND));
             if (!Objects.equals(enterprise.getId(), employee.getIdEnterprise())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado a esta empresa");
             }
@@ -241,12 +245,12 @@ public class EnterpriseService {
 
     private void validateEnterpriseMutationPermission(Enterprise enterprise, UserPrincipal principal) {
         String role = principal.getRole();
-        if ("ADM".equals(role)) {
+        if (ADM.equals(role)) {
             return;
         }
-        if ("COMPANY_EMPLOYEE".equals(role)) {
+        if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, EMPLOYEE_NOT_FOUND));
             if (!Objects.equals(enterprise.getId(), employee.getIdEnterprise())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para alterar esta empresa");
             }
