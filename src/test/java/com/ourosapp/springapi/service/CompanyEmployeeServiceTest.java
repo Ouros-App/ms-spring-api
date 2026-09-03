@@ -1,12 +1,8 @@
 package com.ourosapp.springapi.service;
-import com.ourosapp.springapi.dto.address.*;
-import com.ourosapp.springapi.dto.enterprise.*;
-import com.ourosapp.springapi.dto.companyemployee.*;
-import com.ourosapp.springapi.security.UserPrincipal;
 
-import com.ourosapp.springapi.dto.companyemployee.*;
-import com.ourosapp.springapi.dto.companyemployee.*;
-import com.ourosapp.springapi.dto.companyemployee.*;
+import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeRequestDTO;
+import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeResponseDTO;
+import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeUpdateDTO;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
@@ -51,6 +47,7 @@ class CompanyEmployeeServiceTest {
 
     private CompanyEmployee sampleEmployee;
     private CompanyEmployeeRequestDTO sampleRequest;
+    private UserPrincipal adminPrincipal;
 
     /**
      * Inicializa os dados de teste antes de cada execução.
@@ -60,7 +57,7 @@ class CompanyEmployeeServiceTest {
         sampleEmployee = CompanyEmployee.builder()
                 .id(1L)
                 .name("Carlos Eduardo Pereira")
-                .documentNumber("12345678901")
+                .documentNumber("12345678909")
                 .email("carlos.pereira@empresa.com.br")
                 .telephone("11987654321")
                 .password("encoded_password_123")
@@ -69,11 +66,19 @@ class CompanyEmployeeServiceTest {
 
         sampleRequest = new CompanyEmployeeRequestDTO(
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
                 "SenhaForte@123",
                 10L
+        );
+
+        adminPrincipal = new UserPrincipal(
+                1L,
+                "adm@empresa.com.br",
+                null,
+                "ADM",
+                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
         );
     }
 
@@ -84,23 +89,23 @@ class CompanyEmployeeServiceTest {
     @DisplayName("Deve cadastrar um novo funcionário com sucesso quando os dados forem válidos")
     void testCreateCompanyEmployeeSuccess() {
         when(enterpriseRepository.existsById(10L)).thenReturn(true);
-        when(companyEmployeeRepository.existsByDocumentNumber("12345678901")).thenReturn(false);
+        when(companyEmployeeRepository.existsByDocumentNumber("12345678909")).thenReturn(false);
         when(companyEmployeeRepository.existsByEmailIgnoreCase("carlos.pereira@empresa.com.br")).thenReturn(false);
         when(passwordEncoder.encode("SenhaForte@123")).thenReturn("encoded_password_123");
         when(companyEmployeeRepository.save(any(CompanyEmployee.class))).thenReturn(sampleEmployee);
 
-        CompanyEmployeeResponseDTO response = companyEmployeeService.createCompanyEmployee(sampleRequest, any(UserPrincipal.class));
+        CompanyEmployeeResponseDTO response = companyEmployeeService.createCompanyEmployee(sampleRequest, adminPrincipal);
 
         assertNotNull(response);
         assertEquals(1L, response.id());
         assertEquals("Carlos Eduardo Pereira", response.name());
-        assertEquals("12345678901", response.documentNumber());
+        assertEquals("12345678909", response.documentNumber());
         assertEquals("carlos.pereira@empresa.com.br", response.email());
         assertEquals("11987654321", response.telephone());
         assertEquals(10L, response.idEnterprise());
 
         verify(enterpriseRepository, times(1)).existsById(10L);
-        verify(companyEmployeeRepository, times(1)).existsByDocumentNumber("12345678901");
+        verify(companyEmployeeRepository, times(1)).existsByDocumentNumber("12345678909");
         verify(companyEmployeeRepository, times(1)).existsByEmailIgnoreCase("carlos.pereira@empresa.com.br");
         verify(passwordEncoder, times(1)).encode("SenhaForte@123");
         verify(companyEmployeeRepository, times(1)).save(any(CompanyEmployee.class));
@@ -116,7 +121,7 @@ class CompanyEmployeeServiceTest {
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> companyEmployeeService.createCompanyEmployee(sampleRequest, any(UserPrincipal.class))
+                () -> companyEmployeeService.createCompanyEmployee(sampleRequest, adminPrincipal)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
@@ -131,11 +136,11 @@ class CompanyEmployeeServiceTest {
     @DisplayName("Deve lançar ResponseStatusException 409 ao tentar cadastrar funcionário com documento duplicado")
     void testCreateCompanyEmployeeDuplicateDocumentNumber() {
         when(enterpriseRepository.existsById(10L)).thenReturn(true);
-        when(companyEmployeeRepository.existsByDocumentNumber("12345678901")).thenReturn(true);
+        when(companyEmployeeRepository.existsByDocumentNumber("12345678909")).thenReturn(true);
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> companyEmployeeService.createCompanyEmployee(sampleRequest, any(UserPrincipal.class))
+                () -> companyEmployeeService.createCompanyEmployee(sampleRequest, adminPrincipal)
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
@@ -150,12 +155,12 @@ class CompanyEmployeeServiceTest {
     @DisplayName("Deve lançar ResponseStatusException 409 ao tentar cadastrar funcionário com e-mail duplicado")
     void testCreateCompanyEmployeeDuplicateEmail() {
         when(enterpriseRepository.existsById(10L)).thenReturn(true);
-        when(companyEmployeeRepository.existsByDocumentNumber("12345678901")).thenReturn(false);
+        when(companyEmployeeRepository.existsByDocumentNumber("12345678909")).thenReturn(false);
         when(companyEmployeeRepository.existsByEmailIgnoreCase("carlos.pereira@empresa.com.br")).thenReturn(true);
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> companyEmployeeService.createCompanyEmployee(sampleRequest, any(UserPrincipal.class))
+                () -> companyEmployeeService.createCompanyEmployee(sampleRequest, adminPrincipal)
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
@@ -170,14 +175,14 @@ class CompanyEmployeeServiceTest {
     @DisplayName("Deve lançar ResponseStatusException 409 quando ocorrer DataIntegrityViolationException no cadastro")
     void testCreateCompanyEmployeeDataIntegrityViolation() {
         when(enterpriseRepository.existsById(10L)).thenReturn(true);
-        when(companyEmployeeRepository.existsByDocumentNumber("12345678901")).thenReturn(false);
+        when(companyEmployeeRepository.existsByDocumentNumber("12345678909")).thenReturn(false);
         when(companyEmployeeRepository.existsByEmailIgnoreCase("carlos.pereira@empresa.com.br")).thenReturn(false);
         when(passwordEncoder.encode("SenhaForte@123")).thenReturn("encoded_password_123");
         when(companyEmployeeRepository.save(any(CompanyEmployee.class))).thenThrow(new DataIntegrityViolationException("Constraint violation"));
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> companyEmployeeService.createCompanyEmployee(sampleRequest, any(UserPrincipal.class))
+                () -> companyEmployeeService.createCompanyEmployee(sampleRequest, adminPrincipal)
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
@@ -192,7 +197,7 @@ class CompanyEmployeeServiceTest {
     void testCreateCompanyEmployeeNullPayload() {
         NullPointerException exception = assertThrows(
                 NullPointerException.class,
-                () -> companyEmployeeService.createCompanyEmployee(null, any(UserPrincipal.class))
+                () -> companyEmployeeService.createCompanyEmployee(null, adminPrincipal)
         );
 
         assertEquals("O payload da requisição não pode ser nulo", exception.getMessage());
@@ -207,12 +212,12 @@ class CompanyEmployeeServiceTest {
     void testGetCompanyEmployeeByIdSuccess() {
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
 
-        CompanyEmployeeResponseDTO response = companyEmployeeService.getCompanyEmployeeById(1L, any(UserPrincipal.class));
+        CompanyEmployeeResponseDTO response = companyEmployeeService.getCompanyEmployeeById(1L, adminPrincipal);
 
         assertNotNull(response);
         assertEquals(1L, response.id());
         assertEquals("Carlos Eduardo Pereira", response.name());
-        assertEquals("12345678901", response.documentNumber());
+        assertEquals("12345678909", response.documentNumber());
         assertEquals("carlos.pereira@empresa.com.br", response.email());
         verify(companyEmployeeRepository, times(1)).findById(1L);
     }
@@ -227,7 +232,7 @@ class CompanyEmployeeServiceTest {
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> companyEmployeeService.getCompanyEmployeeById(99L, any(UserPrincipal.class))
+                () -> companyEmployeeService.getCompanyEmployeeById(99L, adminPrincipal)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
@@ -339,7 +344,7 @@ class CompanyEmployeeServiceTest {
         when(passwordEncoder.encode("NovaSenha@123")).thenReturn("new_encoded_password");
         when(companyEmployeeRepository.save(any(CompanyEmployee.class))).thenReturn(sampleEmployee);
 
-        CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, any(UserPrincipal.class));
+        CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, adminPrincipal);
 
         assertNotNull(response);
         assertEquals("carlos.novo@empresa.com.br", sampleEmployee.getEmail());
@@ -364,7 +369,7 @@ class CompanyEmployeeServiceTest {
         when(companyEmployeeRepository.findByEmailIgnoreCase("carlos.pereira@empresa.com.br")).thenReturn(Optional.of(sampleEmployee));
         when(companyEmployeeRepository.save(any(CompanyEmployee.class))).thenReturn(sampleEmployee);
 
-        CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, any(UserPrincipal.class));
+        CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, adminPrincipal);
 
         assertNotNull(response);
         assertEquals("11999998888", sampleEmployee.getTelephone());
@@ -382,7 +387,7 @@ class CompanyEmployeeServiceTest {
 
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
 
-        CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, any(UserPrincipal.class));
+        CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, adminPrincipal);
 
         assertNotNull(response);
         assertEquals(sampleEmployee.getId(), response.id());
@@ -412,7 +417,7 @@ class CompanyEmployeeServiceTest {
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> companyEmployeeService.updateCompanyEmployee(1L, updateDTO, any(UserPrincipal.class))
+                () -> companyEmployeeService.updateCompanyEmployee(1L, updateDTO, adminPrincipal)
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
@@ -436,7 +441,7 @@ class CompanyEmployeeServiceTest {
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> companyEmployeeService.updateCompanyEmployee(99L, updateDTO, any(UserPrincipal.class))
+                () -> companyEmployeeService.updateCompanyEmployee(99L, updateDTO, adminPrincipal)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
@@ -451,7 +456,7 @@ class CompanyEmployeeServiceTest {
     void testUpdateCompanyEmployeeNullPayload() {
         NullPointerException exception = assertThrows(
                 NullPointerException.class,
-                () -> companyEmployeeService.updateCompanyEmployee(1L, null, any(UserPrincipal.class))
+                () -> companyEmployeeService.updateCompanyEmployee(1L, null, adminPrincipal)
         );
 
         assertEquals("O payload da requisição não pode ser nulo", exception.getMessage());
@@ -463,11 +468,11 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve excluir funcionário com sucesso quando o ID existir")
     void testDeleteCompanyEmployeeSuccess() {
-        when(companyEmployeeRepository.existsById(1L)).thenReturn(true);
+        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
 
-        assertDoesNotThrow(() -> companyEmployeeService.deleteCompanyEmployee(1L, any(UserPrincipal.class)));
+        assertDoesNotThrow(() -> companyEmployeeService.deleteCompanyEmployee(1L, adminPrincipal));
 
-        verify(companyEmployeeRepository, times(1)).existsById(1L);
+        verify(companyEmployeeRepository, times(1)).findById(1L);
         verify(companyEmployeeRepository, times(1)).deleteById(1L);
     }
 
@@ -477,11 +482,11 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve lançar ResponseStatusException 404 ao tentar excluir funcionário inexistente")
     void testDeleteCompanyEmployeeNotFound() {
-        when(companyEmployeeRepository.existsById(99L)).thenReturn(false);
+        when(companyEmployeeRepository.findById(99L)).thenReturn(Optional.empty());
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> companyEmployeeService.deleteCompanyEmployee(99L, any(UserPrincipal.class))
+                () -> companyEmployeeService.deleteCompanyEmployee(99L, adminPrincipal)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());

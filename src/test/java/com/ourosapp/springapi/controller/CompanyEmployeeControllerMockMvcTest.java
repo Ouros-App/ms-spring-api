@@ -70,7 +70,7 @@ class CompanyEmployeeControllerMockMvcTest {
     void testCreateCompanyEmployeeSuccess() throws Exception {
         CompanyEmployeeRequestDTO request = new CompanyEmployeeRequestDTO(
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
                 "SenhaForte@123",
@@ -79,7 +79,7 @@ class CompanyEmployeeControllerMockMvcTest {
         CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
                 1L,
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
                 10L
@@ -94,7 +94,7 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/company-employees/1")))
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.name").value("Carlos Eduardo Pereira"))
-                .andExpect(jsonPath("$.document_number").value("12345678901"))
+                .andExpect(jsonPath("$.document_number").value("12345678909"))
                 .andExpect(jsonPath("$.email").value("carlos.pereira@empresa.com.br"))
                 .andExpect(jsonPath("$.telephone").value("11987654321"))
                 .andExpect(jsonPath("$.id_enterprise").value(10L));
@@ -110,7 +110,7 @@ class CompanyEmployeeControllerMockMvcTest {
     void testCreateCompanyEmployeeUnauthorized() throws Exception {
         CompanyEmployeeRequestDTO request = new CompanyEmployeeRequestDTO(
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
                 "SenhaForte@123",
@@ -166,7 +166,7 @@ class CompanyEmployeeControllerMockMvcTest {
         CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
                 1L,
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
                 10L
@@ -206,7 +206,7 @@ class CompanyEmployeeControllerMockMvcTest {
         CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
                 1L,
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
                 10L
@@ -218,7 +218,7 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.name").value("Carlos Eduardo Pereira"))
-                .andExpect(jsonPath("$.document_number").value("12345678901"));
+                .andExpect(jsonPath("$.document_number").value("12345678909"));
     }
 
     /**
@@ -254,7 +254,7 @@ class CompanyEmployeeControllerMockMvcTest {
         CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
                 1L,
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.novo@empresa.com.br",
                 "11999998888",
                 10L

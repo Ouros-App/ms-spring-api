@@ -55,8 +55,7 @@ class EnterpriseControllerMockMvcTest {
     @WithMockUser
     @DisplayName("POST /enterprises - Deve criar empresa e retornar 201 Created com cabeçalho Location")
     void testCreateEnterpriseSuccess() throws Exception {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L, null);
         EnterpriseResponseDTO response = new EnterpriseResponseDTO(
                 1L,
                 "Agro Ouros S.A.",
@@ -117,8 +116,7 @@ class EnterpriseControllerMockMvcTest {
     @Test
     @DisplayName("POST /enterprises - Deve retornar 401 Unauthorized quando não autenticado")
     void testCreateEnterpriseUnauthorized() throws Exception {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L, null);
 
         mockMvc.perform(post("/enterprises")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -263,8 +261,7 @@ class EnterpriseControllerMockMvcTest {
     @WithMockUser
     @DisplayName("POST /enterprises - Deve retornar 409 Conflict quando empresa com mesmo CNPJ ou e-mail já existir")
     void testCreateEnterpriseConflict() throws Exception {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L, null);
 
         when(enterpriseService.createEnterprise(any(EnterpriseRequestDTO.class), any(UserPrincipal.class)))
                 .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Já existe uma empresa cadastrada com este CNPJ"));
