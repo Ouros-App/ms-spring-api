@@ -222,7 +222,7 @@ class AddressControllerMockMvcTest {
     @WithMockUser
     @DisplayName("PUT /addresses/{id} - Deve retornar 400 Bad Request quando payload for inválido")
     void testUpdateAddressInvalidPayload() throws Exception {
-        AddressUpdateDTO invalidRequest = new AddressUpdateDTO("", "", "", "", "");
+        AddressUpdateDTO invalidRequest = new AddressUpdateDTO("a".repeat(51), "123", "a".repeat(101), "a".repeat(51), "123");
 
         mockMvc.perform(patch("/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
