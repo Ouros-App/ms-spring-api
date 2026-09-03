@@ -22,6 +22,12 @@ public class AddressService {
 
     private final AddressRepository addressRepository;
 
+    /**
+     * Cadastra um novo endereço no sistema.
+     *
+     * @param request dados do endereço a ser cadastrado
+     * @return DTO com as informações do endereço salvo
+     */
     @Transactional
     public AddressResponseDTO createAddress(AddressRequestDTO request) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
@@ -36,6 +42,13 @@ public class AddressService {
         return AddressResponseDTO.fromEntity(savedAddress);
     }
 
+    /**
+     * Busca um endereço pelo seu identificador único.
+     *
+     * @param id identificador do endereço
+     * @return DTO com as informações do endereço encontrado
+     * @throws ResponseStatusException se o endereço não for encontrado
+     */
     @Transactional(readOnly = true)
     public AddressResponseDTO getAddressById(Long id) {
         Address address = addressRepository.findById(id)
@@ -46,6 +59,14 @@ public class AddressService {
         return AddressResponseDTO.fromEntity(address);
     }
 
+    /**
+     * Atualiza parcialmente os dados de um endereço existente.
+     *
+     * @param id      identificador do endereço
+     * @param request dados para atualização (apenas os campos preenchidos serão atualizados)
+     * @return DTO com as informações do endereço atualizado
+     * @throws ResponseStatusException se o endereço não for encontrado
+     */
     @Transactional
     public AddressResponseDTO updateAddress(Long id, AddressUpdateDTO request) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
