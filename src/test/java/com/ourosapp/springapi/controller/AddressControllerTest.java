@@ -36,7 +36,7 @@ class AddressControllerTest {
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(requestContext));
 
         try {
-            AddressUpdateDTO request = new AddressUpdateDTO("01310-100", "SP", "São Paulo", "1000", "BR");
+            AddressRequestDTO request = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR");
             AddressResponseDTO expectedResponse = new AddressResponseDTO(1L, "01310-100", "SP", "São Paulo", "1000", "BR");
 
             when(addressService.createAddress(request)).thenReturn(expectedResponse);

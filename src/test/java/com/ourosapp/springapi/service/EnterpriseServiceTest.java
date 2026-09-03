@@ -261,8 +261,7 @@ class EnterpriseServiceTest {
     @Test
     @DisplayName("Deve atualizar uma empresa existente com sucesso quando os dados forem válidos")
     void testUpdateEnterpriseSuccess() {
-        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "11222333000181", "11988887777", 15L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "11222333000181", "11988887777", 15L);
 
         Enterprise updatedEnterprise = Enterprise.builder()
                 .id(1L)
@@ -296,8 +295,7 @@ class EnterpriseServiceTest {
     @Test
     @DisplayName("Deve atualizar uma empresa existente mantendo o mesmo CNPJ e e-mail da própria empresa")
     void testUpdateEnterpriseKeepingSameCredentials() {
-        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO("Agro Ouros S.A. Alterada", "contato@agroouros.com.br", "12345678000195", "11999999999", 10L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Agro Ouros S.A. Alterada", "contato@agroouros.com.br", "12345678000195", "11999999999", 10L);
 
         when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
         when(enterpriseRepository.findByDocumentNumber("12345678000195")).thenReturn(Optional.of(sampleEnterprise));
@@ -315,8 +313,7 @@ class EnterpriseServiceTest {
     @Test
     @DisplayName("Deve lançar ResponseStatusException 400 ao tentar atualizar empresa com CNPJ inválido")
     void testUpdateEnterpriseInvalidCnpj() {
-        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "00000000000000", "11988887777", 10L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "00000000000000", "11988887777", 10L);
 
         when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
 
@@ -342,8 +339,7 @@ class EnterpriseServiceTest {
                 .idAddress(10L)
                 .build();
 
-        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "11222333000181", "11988887777", 10L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "11222333000181", "11988887777", 10L);
 
         when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
         when(enterpriseRepository.findByDocumentNumber("11222333000181")).thenReturn(Optional.of(anotherEnterprise));
@@ -370,8 +366,7 @@ class EnterpriseServiceTest {
                 .idAddress(10L)
                 .build();
 
-        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO("Agro Ouros Renovada S.A.", "outra@agroouros.com.br", "12345678000195", "11988887777", 10L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "outra@agroouros.com.br", "12345678000195", "11988887777", 10L);
 
         when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
         when(enterpriseRepository.findByDocumentNumber("12345678000195")).thenReturn(Optional.of(sampleEnterprise));
@@ -390,8 +385,7 @@ class EnterpriseServiceTest {
     @Test
     @DisplayName("Deve lançar ResponseStatusException 409 quando ocorrer DataIntegrityViolationException na atualização")
     void testUpdateEnterpriseDataIntegrityViolation() {
-        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "12345678000195", "11988887777", 10L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "12345678000195", "11988887777", 10L);
 
         when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
         when(enterpriseRepository.findByDocumentNumber("12345678000195")).thenReturn(Optional.of(sampleEnterprise));
@@ -411,8 +405,7 @@ class EnterpriseServiceTest {
     @Test
     @DisplayName("Deve lançar ResponseStatusException 404 ao tentar atualizar empresa inexistente")
     void testUpdateEnterpriseNotFound() {
-        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "12345678000195", "11988887777", 10L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "12345678000195", "11988887777", 10L);
 
         when(enterpriseRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -430,8 +423,7 @@ class EnterpriseServiceTest {
     @Test
     @DisplayName("Deve lançar ResponseStatusException 404 ao tentar atualizar empresa com endereço inexistente")
     void testUpdateEnterpriseAddressNotFound() {
-        EnterpriseRequestDTO updateRequest = new EnterpriseRequestDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "12345678000195", "11988887777", 999L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "12345678000195", "11988887777", 999L);
 
         when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
         when(enterpriseRepository.findByDocumentNumber("12345678000195")).thenReturn(Optional.of(sampleEnterprise));

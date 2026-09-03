@@ -70,7 +70,7 @@ class CompanyEmployeeControllerTest {
 
             when(companyEmployeeService.createCompanyEmployee(request, any(UserPrincipal.class))).thenReturn(expectedResponse);
 
-            ResponseEntity<CompanyEmployeeResponseDTO> response = companyEmployeeController.createCompanyEmployee(request, any(UserPrincipal.class, null));
+            ResponseEntity<CompanyEmployeeResponseDTO> response = companyEmployeeController.createCompanyEmployee(request, mock(UserPrincipal.class));
 
             assertEquals(HttpStatus.CREATED, response.getStatusCode());
             assertNotNull(response.getBody());
@@ -134,7 +134,7 @@ class CompanyEmployeeControllerTest {
 
         when(companyEmployeeService.getCompanyEmployeeById(1L, any(UserPrincipal.class))).thenReturn(expectedResponse);
 
-        ResponseEntity<CompanyEmployeeResponseDTO> response = companyEmployeeController.getCompanyEmployeeById(1L, any(UserPrincipal.class, null));
+        ResponseEntity<CompanyEmployeeResponseDTO> response = companyEmployeeController.getCompanyEmployeeById(1L, mock(UserPrincipal.class));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
@@ -164,7 +164,7 @@ class CompanyEmployeeControllerTest {
 
         when(companyEmployeeService.updateCompanyEmployee(1L, request, any(UserPrincipal.class))).thenReturn(expectedResponse);
 
-        ResponseEntity<CompanyEmployeeResponseDTO> response = companyEmployeeController.updateCompanyEmployee(1L, request, any(UserPrincipal.class, null));
+        ResponseEntity<CompanyEmployeeResponseDTO> response = companyEmployeeController.updateCompanyEmployee(1L, request, mock(UserPrincipal.class));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
@@ -181,7 +181,7 @@ class CompanyEmployeeControllerTest {
     void testDeleteCompanyEmployee() {
         doNothing().when(companyEmployeeService).deleteCompanyEmployee(1L, any(UserPrincipal.class));
 
-        ResponseEntity<Void> response = companyEmployeeController.deleteCompanyEmployee(1L, any(UserPrincipal.class, null));
+        ResponseEntity<Void> response = companyEmployeeController.deleteCompanyEmployee(1L, mock(UserPrincipal.class));
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
         assertNull(response.getBody());

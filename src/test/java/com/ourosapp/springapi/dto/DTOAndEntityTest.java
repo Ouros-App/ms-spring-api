@@ -371,6 +371,32 @@ class DTOAndEntityTest {
     }
 
     /**
+     * Testa instanciação, normalização e método hasUpdates de {@link EnterpriseUpdateDTO}.
+     */
+    @Test
+    void testEnterpriseUpdateDTO() {
+        EnterpriseUpdateDTO updateDTO = new EnterpriseUpdateDTO(
+                "  Agro Ouros S.A.  ",
+                "  CONTATO@AGROOUROS.COM.BR  ",
+                "  12345678000195  ",
+                "  11999999999  ",
+                2L
+        );
+        assertEquals("Agro Ouros S.A.", updateDTO.name());
+        assertEquals("contato@agroouros.com.br", updateDTO.email());
+        assertEquals("12345678000195", updateDTO.documentNumber());
+        assertEquals("11999999999", updateDTO.telephone());
+        assertEquals(2L, updateDTO.idAddress());
+        assertTrue(updateDTO.hasUpdates());
+
+        EnterpriseUpdateDTO emptyDTO = new EnterpriseUpdateDTO(null, null, null, null, null);
+        assertFalse(emptyDTO.hasUpdates());
+
+        EnterpriseUpdateDTO blankDTO = new EnterpriseUpdateDTO("  ", "  ", "  ", "  ", null);
+        assertFalse(blankDTO.hasUpdates());
+    }
+
+    /**
      * Testa instanciação, normalização e conversão de entidade dos DTOs de funcionário da empresa.
      */
     @Test
@@ -512,44 +538,44 @@ class DTOAndEntityTest {
     void testCompanyEmployeeRequestDTOPasswordValidation() {
         // Senha válida com 8 caracteres, maiúscula, minúscula, número e caractere especial
         CompanyEmployeeRequestDTO validDto = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha@12", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "Senha@12", 1L
         );
         Set<ConstraintViolation<CompanyEmployeeRequestDTO>> violations = validator.validate(validDto);
         assertTrue(violations.isEmpty());
 
         // Senha curta (< 8)
         CompanyEmployeeRequestDTO shortPass = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Sen@12", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "Sen@12", 1L
         );
         assertFalse(validator.validate(shortPass).isEmpty());
 
         // Senha longa (> 20)
         CompanyEmployeeRequestDTO longPass = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "SenhaMuitoLongaComMaisDe20@1", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "SenhaMuitoLongaComMaisDe20@1", 1L
         );
         assertFalse(validator.validate(longPass).isEmpty());
 
         // Sem maiúscula
         CompanyEmployeeRequestDTO noUpper = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "senha@123", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "senha@123", 1L
         );
         assertFalse(validator.validate(noUpper).isEmpty());
 
         // Sem minúscula
         CompanyEmployeeRequestDTO noLower = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "SENHA@123", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "SENHA@123", 1L
         );
         assertFalse(validator.validate(noLower).isEmpty());
 
         // Sem número
         CompanyEmployeeRequestDTO noDigit = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha@abc", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "Senha@abc", 1L
         );
         assertFalse(validator.validate(noDigit).isEmpty());
 
         // Sem caractere especial
         CompanyEmployeeRequestDTO noSpecial = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha1234", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "Senha1234", 1L
         );
         assertFalse(validator.validate(noSpecial).isEmpty());
     }

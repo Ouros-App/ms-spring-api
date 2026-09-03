@@ -85,7 +85,7 @@ class CompanyEmployeeControllerMockMvcTest {
                 10L
         );
 
-        when(companyEmployeeService.createCompanyEmployee(any(CompanyEmployeeUpdateDTO.class, any(UserPrincipal.class)))).thenReturn(response);
+        when(companyEmployeeService.createCompanyEmployee(any(CompanyEmployeeRequestDTO.class), any(UserPrincipal.class))).thenReturn(response);
 
         mockMvc.perform(post("/company-employees")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -260,7 +260,7 @@ class CompanyEmployeeControllerMockMvcTest {
                 10L
         );
 
-        when(companyEmployeeService.updateCompanyEmployee(eq(1L, any(UserPrincipal.class)), any(CompanyEmployeeUpdateDTO.class))).thenReturn(response);
+        when(companyEmployeeService.updateCompanyEmployee(eq(1L), any(CompanyEmployeeUpdateDTO.class), any(UserPrincipal.class))).thenReturn(response);
 
         mockMvc.perform(patch("/company-employees/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -286,7 +286,7 @@ class CompanyEmployeeControllerMockMvcTest {
                 null
         );
 
-        when(companyEmployeeService.updateCompanyEmployee(eq(99L, any(UserPrincipal.class)), any(CompanyEmployeeUpdateDTO.class)))
+        when(companyEmployeeService.updateCompanyEmployee(eq(99L), any(CompanyEmployeeUpdateDTO.class), any(UserPrincipal.class)))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
 
         mockMvc.perform(patch("/company-employees/99")
@@ -310,7 +310,7 @@ class CompanyEmployeeControllerMockMvcTest {
                 null
         );
 
-        when(companyEmployeeService.updateCompanyEmployee(eq(1L, any(UserPrincipal.class)), any(CompanyEmployeeUpdateDTO.class)))
+        when(companyEmployeeService.updateCompanyEmployee(eq(1L), any(CompanyEmployeeUpdateDTO.class), any(UserPrincipal.class)))
                 .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Já existe outro funcionário cadastrado com este e-mail"));
 
         mockMvc.perform(patch("/company-employees/1")

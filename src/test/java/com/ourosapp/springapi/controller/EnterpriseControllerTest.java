@@ -55,7 +55,7 @@ class EnterpriseControllerTest {
 
             when(enterpriseService.createEnterprise(request, any(UserPrincipal.class))).thenReturn(expectedResponse);
 
-            ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.createEnterprise(request, any(UserPrincipal.class, null));
+            ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.createEnterprise(request, mock(UserPrincipal.class));
 
             assertEquals(HttpStatus.CREATED, response.getStatusCode());
             assertNotNull(response.getBody());
@@ -82,7 +82,7 @@ class EnterpriseControllerTest {
         );
         when(enterpriseService.getAllEnterprises(any(UserPrincipal.class))).thenReturn(List.of(emp1));
 
-        ResponseEntity<List<EnterpriseResponseDTO>> response = enterpriseController.getAllEnterprises(any(UserPrincipal.class, null));
+        ResponseEntity<List<EnterpriseResponseDTO>> response = enterpriseController.getAllEnterprises(mock(UserPrincipal.class));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
@@ -105,7 +105,7 @@ class EnterpriseControllerTest {
 
         when(enterpriseService.getEnterpriseById(1L, any(UserPrincipal.class))).thenReturn(expectedResponse);
 
-        ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.getEnterpriseById(1L, any(UserPrincipal.class, null));
+        ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.getEnterpriseById(1L, mock(UserPrincipal.class));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
@@ -116,8 +116,7 @@ class EnterpriseControllerTest {
     @Test
     @DisplayName("Deve atualizar empresa por ID e retornar status 200 OK")
     void testUpdateEnterprise() {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros Renovada S.A.", "novo@agroouros.com.br", "12345678000195", "11988887777", 10L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseUpdateDTO request = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo@agroouros.com.br", "12345678000195", "11988887777", 10L);
         EnterpriseResponseDTO expectedResponse = new EnterpriseResponseDTO(
                 1L,
                 "Agro Ouros Renovada S.A.",
@@ -129,7 +128,7 @@ class EnterpriseControllerTest {
 
         when(enterpriseService.updateEnterprise(1L, request, any(UserPrincipal.class))).thenReturn(expectedResponse);
 
-        ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.updateEnterprise(1L, request, any(UserPrincipal.class, null));
+        ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.updateEnterprise(1L, request, mock(UserPrincipal.class));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());

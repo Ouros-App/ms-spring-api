@@ -106,7 +106,7 @@ class AddressServiceTest {
     @Test
     @DisplayName("Deve atualizar um endereço existente com sucesso")
     void testUpdateAddressSuccess() {
-        AddressRequestDTO updateRequest = new AddressRequestDTO(
+        AddressUpdateDTO updateRequest = new AddressUpdateDTO(
                 "13010-001",
                 "SP",
                 "Campinas",
@@ -143,7 +143,7 @@ class AddressServiceTest {
     @Test
     @DisplayName("Deve lançar ResponseStatusException 404 ao tentar atualizar endereço inexistente")
     void testUpdateAddressNotFound() {
-        AddressRequestDTO updateRequest = new AddressRequestDTO(
+        AddressUpdateDTO updateRequest = new AddressUpdateDTO(
                 "13010-001",
                 "SP",
                 "Campinas",
