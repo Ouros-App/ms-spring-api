@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ourosapp.springapi.dto.address.AddressRequestDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -46,6 +47,7 @@ public record EnterpriseRequestDTO(
         Long idAddress,
 
         @Schema(description = "Dados do novo endereço (caso não seja fornecido um id_address existente)")
+        @Valid
         AddressRequestDTO address
 ) {
     /**

@@ -4,6 +4,7 @@ import com.ourosapp.springapi.entity.Enterprise;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -43,5 +44,13 @@ public interface EnterpriseRepository extends JpaRepository<Enterprise, Long> {
      * @return Optional contendo a empresa se encontrada
      */
     Optional<Enterprise> findByEmailIgnoreCase(String email);
+
+    /**
+     * Busca todas as empresas associadas a um determinado endereço.
+     *
+     * @param idAddress identificador único do endereço
+     * @return lista de empresas associadas ao endereço
+     */
+    List<Enterprise> findAllByIdAddress(Long idAddress);
 }
 

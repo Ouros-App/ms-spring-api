@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.util.Locale;
+
 /**
  * DTO de requisição para operações de cadastro e atualização total de endereços.
  *
@@ -52,10 +54,10 @@ public record AddressRequestDTO(
      */
     public AddressRequestDTO {
         zipCode = zipCode != null ? zipCode.trim() : null;
-        state = state != null ? state.trim().toUpperCase() : null;
+        state = state != null ? state.trim().toUpperCase(Locale.ROOT) : null;
         city = city != null ? city.trim() : null;
         number = number != null ? number.trim() : null;
-        country = country != null ? country.trim().toUpperCase() : null;
+        country = country != null ? country.trim().toUpperCase(Locale.ROOT) : null;
     }
 }
 

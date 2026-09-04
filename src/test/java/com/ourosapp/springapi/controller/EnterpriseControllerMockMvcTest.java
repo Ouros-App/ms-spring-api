@@ -143,6 +143,26 @@ class EnterpriseControllerMockMvcTest {
 
     @Test
     @WithMockUser
+    @DisplayName("POST /enterprises - Deve retornar 400 Bad Request quando objeto address embutido for inválido")
+    void testCreateEnterpriseInvalidEmbeddedAddress() throws Exception {
+        AddressRequestDTO invalidAddress = new AddressRequestDTO("", "SPP", "", "", "BRR");
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
+                "Agro Ouros S.A.",
+                "contato@agroouros.com.br",
+                "12345678000195",
+                "11999999999",
+                null,
+                invalidAddress
+        );
+
+        mockMvc.perform(post("/enterprises")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
     @DisplayName("GET /enterprises - Deve retornar 200 OK e lista de empresas cadastradas")
     void testGetAllEnterprisesSuccess() throws Exception {
         EnterpriseResponseDTO response = new EnterpriseResponseDTO(

@@ -57,11 +57,15 @@ public class AddressController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Endereço retornado com sucesso"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
             @ApiResponse(responseCode = "404", description = "Endereço não encontrado")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<AddressResponseDTO> getAddressById(@PathVariable Long id) {
-        return ResponseEntity.ok(addressService.getAddressById(id));
+    public ResponseEntity<AddressResponseDTO> getAddressById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(addressService.getAddressById(id, principal));
     }
 
     @Operation(summary = "Atualizar endereço parcialmente", description = "Atualiza parcialmente as informações de um endereço existente.")
@@ -69,14 +73,16 @@ public class AddressController {
             @ApiResponse(responseCode = "200", description = "Endereço atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
             @ApiResponse(responseCode = "404", description = "Endereço não encontrado")
     })
     @PatchMapping("/{id}")
     public ResponseEntity<AddressResponseDTO> updateAddress(
             @Parameter(description = "Identificador único do endereço", example = "1")
             @PathVariable Long id,
-            @RequestBody @Valid AddressUpdateDTO request
+            @RequestBody @Valid AddressUpdateDTO request,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(addressService.updateAddress(id, request));
+        return ResponseEntity.ok(addressService.updateAddress(id, request, principal));
     }
 }

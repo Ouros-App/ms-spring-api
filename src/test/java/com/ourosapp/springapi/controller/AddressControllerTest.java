@@ -1,8 +1,11 @@
 package com.ourosapp.springapi.controller;
 
-import com.ourosapp.springapi.dto.address.*;
-import com.ourosapp.springapi.dto.address.*;
+import com.ourosapp.springapi.dto.address.AddressRequestDTO;
+import com.ourosapp.springapi.dto.address.AddressResponseDTO;
+import com.ourosapp.springapi.dto.address.AddressUpdateDTO;
+import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.AddressService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,8 +15,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -26,6 +32,19 @@ class AddressControllerTest {
 
     @InjectMocks
     private AddressController addressController;
+
+    private UserPrincipal adminPrincipal;
+
+    @BeforeEach
+    void setUp() {
+        adminPrincipal = new UserPrincipal(
+                1L,
+                "admin@test.com",
+                "secret",
+                "ADM",
+                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+    }
 
     @Test
     @DisplayName("Deve cadastrar endereço e retornar status 201 Created com cabeçalho Location")
@@ -60,14 +79,14 @@ class AddressControllerTest {
     void testGetAddressById() {
         AddressResponseDTO expectedResponse = new AddressResponseDTO(1L, "01310-100", "SP", "São Paulo", "1000", "BR");
 
-        when(addressService.getAddressById(1L)).thenReturn(expectedResponse);
+        when(addressService.getAddressById(1L, adminPrincipal)).thenReturn(expectedResponse);
 
-        ResponseEntity<AddressResponseDTO> response = addressController.getAddressById(1L);
+        ResponseEntity<AddressResponseDTO> response = addressController.getAddressById(1L, adminPrincipal);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1L, response.getBody().id());
-        verify(addressService, times(1)).getAddressById(1L);
+        verify(addressService, times(1)).getAddressById(1L, adminPrincipal);
     }
 
     @Test
@@ -76,14 +95,14 @@ class AddressControllerTest {
         AddressUpdateDTO request = new AddressUpdateDTO("13010-001", "SP", "Campinas", "555", "BR");
         AddressResponseDTO expectedResponse = new AddressResponseDTO(1L, "13010-001", "SP", "Campinas", "555", "BR");
 
-        when(addressService.updateAddress(1L, request)).thenReturn(expectedResponse);
+        when(addressService.updateAddress(1L, request, adminPrincipal)).thenReturn(expectedResponse);
 
-        ResponseEntity<AddressResponseDTO> response = addressController.updateAddress(1L, request);
+        ResponseEntity<AddressResponseDTO> response = addressController.updateAddress(1L, request, adminPrincipal);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1L, response.getBody().id());
         assertEquals("13010-001", response.getBody().zipCode());
-        verify(addressService, times(1)).updateAddress(1L, request);
+        verify(addressService, times(1)).updateAddress(1L, request, adminPrincipal);
     }
 }

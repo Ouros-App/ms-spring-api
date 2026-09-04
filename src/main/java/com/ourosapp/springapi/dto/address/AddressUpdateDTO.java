@@ -6,6 +6,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.util.Locale;
+
 /**
  * DTO de requisição para atualização parcial de endereços (PATCH).
  * Todos os campos são opcionais.
@@ -40,10 +42,10 @@ public record AddressUpdateDTO(
      */
     public AddressUpdateDTO {
         zipCode = zipCode != null ? zipCode.trim() : null;
-        state = state != null ? state.trim().toUpperCase() : null;
+        state = state != null ? state.trim().toUpperCase(Locale.ROOT) : null;
         city = city != null ? city.trim() : null;
         number = number != null ? number.trim() : null;
-        country = country != null ? country.trim().toUpperCase() : null;
+        country = country != null ? country.trim().toUpperCase(Locale.ROOT) : null;
     }
 
     /**

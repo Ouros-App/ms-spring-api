@@ -7,6 +7,7 @@ public final class RoleConstants {
 
     public static final String ADM = "ADM";
     public static final String COMPANY_EMPLOYEE = "COMPANY_EMPLOYEE";
+    public static final String FARM_OWNER = "FARM_OWNER";
 
     private RoleConstants() {
         // Classe utilitária — não deve ser instanciada
