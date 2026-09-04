@@ -2,8 +2,8 @@ package com.ourosapp.springapi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
-import com.ourosapp.springapi.dto.AddressRequestDTO;
-import com.ourosapp.springapi.dto.AddressResponseDTO;
+import com.ourosapp.springapi.dto.address.*;
+import com.ourosapp.springapi.dto.address.*;
 import com.ourosapp.springapi.security.JwtAuthFilter;
 import com.ourosapp.springapi.security.JwtUtil;
 import com.ourosapp.springapi.service.AddressService;
@@ -152,7 +152,7 @@ class AddressControllerMockMvcTest {
     void testGetAddressByIdSuccess() throws Exception {
         AddressResponseDTO response = new AddressResponseDTO(1L, "01310-100", "SP", "São Paulo", "1000", "BR");
 
-        when(addressService.getAddressById(1L)).thenReturn(response);
+        when(addressService.getAddressById(eq(1L), any())).thenReturn(response);
 
         mockMvc.perform(get("/addresses/1"))
                 .andExpect(status().isOk())
@@ -168,11 +168,22 @@ class AddressControllerMockMvcTest {
     @WithMockUser
     @DisplayName("GET /addresses/{id} - Deve retornar 404 Not Found quando endereço não existir")
     void testGetAddressByIdNotFound() throws Exception {
-        when(addressService.getAddressById(99L))
+        when(addressService.getAddressById(eq(99L), any()))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Endereço não encontrado"));
 
         mockMvc.perform(get("/addresses/99"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /addresses/{id} - Deve retornar 403 Forbidden quando usuário não tiver permissão")
+    void testGetAddressByIdForbidden() throws Exception {
+        when(addressService.getAddressById(eq(1L), any()))
+                .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado a este endereço"));
+
+        mockMvc.perform(get("/addresses/1"))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -184,14 +195,14 @@ class AddressControllerMockMvcTest {
 
     @Test
     @WithMockUser
-    @DisplayName("PUT /addresses/{id} - Deve atualizar endereço e retornar 200 OK quando válido")
+    @DisplayName("PATCH /addresses/{id} - Deve atualizar endereço e retornar 200 OK quando válido")
     void testUpdateAddressSuccess() throws Exception {
-        AddressRequestDTO request = new AddressRequestDTO("13010-001", "SP", "Campinas", "555", "BR");
+        AddressUpdateDTO request = new AddressUpdateDTO("13010-001", "SP", "Campinas", "555", "BR");
         AddressResponseDTO response = new AddressResponseDTO(1L, "13010-001", "SP", "Campinas", "555", "BR");
 
-        when(addressService.updateAddress(eq(1L), any(AddressRequestDTO.class))).thenReturn(response);
+        when(addressService.updateAddress(eq(1L), any(AddressUpdateDTO.class), any())).thenReturn(response);
 
-        mockMvc.perform(put("/addresses/1")
+        mockMvc.perform(patch("/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -205,14 +216,14 @@ class AddressControllerMockMvcTest {
 
     @Test
     @WithMockUser
-    @DisplayName("PUT /addresses/{id} - Deve retornar 404 Not Found ao tentar atualizar endereço inexistente")
+    @DisplayName("PATCH /addresses/{id} - Deve retornar 404 Not Found ao tentar atualizar endereço inexistente")
     void testUpdateAddressNotFound() throws Exception {
-        AddressRequestDTO request = new AddressRequestDTO("13010-001", "SP", "Campinas", "555", "BR");
+        AddressUpdateDTO request = new AddressUpdateDTO("13010-001", "SP", "Campinas", "555", "BR");
 
-        when(addressService.updateAddress(eq(99L), any(AddressRequestDTO.class)))
+        when(addressService.updateAddress(eq(99L), any(AddressUpdateDTO.class), any()))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Endereço não encontrado"));
 
-        mockMvc.perform(put("/addresses/99")
+        mockMvc.perform(patch("/addresses/99")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
@@ -220,11 +231,26 @@ class AddressControllerMockMvcTest {
 
     @Test
     @WithMockUser
-    @DisplayName("PUT /addresses/{id} - Deve retornar 400 Bad Request quando payload for inválido")
-    void testUpdateAddressInvalidPayload() throws Exception {
-        AddressRequestDTO invalidRequest = new AddressRequestDTO("", "", "", "", "");
+    @DisplayName("PATCH /addresses/{id} - Deve retornar 403 Forbidden ao tentar atualizar endereço sem permissão")
+    void testUpdateAddressForbidden() throws Exception {
+        AddressUpdateDTO request = new AddressUpdateDTO("13010-001", "SP", "Campinas", "555", "BR");
 
-        mockMvc.perform(put("/addresses/1")
+        when(addressService.updateAddress(eq(1L), any(AddressUpdateDTO.class), any()))
+                .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado a este endereço"));
+
+        mockMvc.perform(patch("/addresses/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PATCH /addresses/{id} - Deve retornar 400 Bad Request quando payload for inválido")
+    void testUpdateAddressInvalidPayload() throws Exception {
+        AddressUpdateDTO invalidRequest = new AddressUpdateDTO("a".repeat(51), "123", "a".repeat(101), "a".repeat(51), "123");
+
+        mockMvc.perform(patch("/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest());
@@ -232,39 +258,39 @@ class AddressControllerMockMvcTest {
 
     @Test
     @WithMockUser
-    @DisplayName("PUT /addresses/{id} - Deve retornar 400 Bad Request quando formato de state ou country for inválido")
+    @DisplayName("PATCH /addresses/{id} - Deve retornar 400 Bad Request quando formato de state ou country for inválido")
     void testUpdateAddressInvalidStateAndCountryFormat() throws Exception {
-        AddressRequestDTO invalidStateDigits = new AddressRequestDTO("13010-001", "12", "Campinas", "555", "BR");
-        mockMvc.perform(put("/addresses/1")
+        AddressUpdateDTO invalidStateDigits = new AddressUpdateDTO("13010-001", "12", "Campinas", "555", "BR");
+        mockMvc.perform(patch("/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidStateDigits)))
                 .andExpect(status().isBadRequest());
 
-        AddressRequestDTO invalidStateLength = new AddressRequestDTO("13010-001", "SPA", "Campinas", "555", "BR");
-        mockMvc.perform(put("/addresses/1")
+        AddressUpdateDTO invalidStateLength = new AddressUpdateDTO("13010-001", "SPA", "Campinas", "555", "BR");
+        mockMvc.perform(patch("/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidStateLength)))
                 .andExpect(status().isBadRequest());
 
-        AddressRequestDTO invalidCountryDigits = new AddressRequestDTO("13010-001", "SP", "Campinas", "555", "12");
-        mockMvc.perform(put("/addresses/1")
+        AddressUpdateDTO invalidCountryDigits = new AddressUpdateDTO("13010-001", "SP", "Campinas", "555", "12");
+        mockMvc.perform(patch("/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidCountryDigits)))
                 .andExpect(status().isBadRequest());
 
-        AddressRequestDTO invalidCountryLength = new AddressRequestDTO("13010-001", "SP", "Campinas", "555", "BRA");
-        mockMvc.perform(put("/addresses/1")
+        AddressUpdateDTO invalidCountryLength = new AddressUpdateDTO("13010-001", "SP", "Campinas", "555", "BRA");
+        mockMvc.perform(patch("/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidCountryLength)))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("PUT /addresses/{id} - Deve retornar 401 Unauthorized quando não autenticado")
+    @DisplayName("PATCH /addresses/{id} - Deve retornar 401 Unauthorized quando não autenticado")
     void testUpdateAddressUnauthorized() throws Exception {
-        AddressRequestDTO request = new AddressRequestDTO("13010-001", "SP", "Campinas", "555", "BR");
+        AddressUpdateDTO request = new AddressUpdateDTO("13010-001", "SP", "Campinas", "555", "BR");
 
-        mockMvc.perform(put("/addresses/1")
+        mockMvc.perform(patch("/addresses/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());

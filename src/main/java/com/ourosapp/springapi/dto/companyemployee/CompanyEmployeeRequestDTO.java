@@ -1,4 +1,4 @@
-package com.ourosapp.springapi.dto;
+package com.ourosapp.springapi.dto.companyemployee;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -8,6 +8,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Positive;
+import org.hibernate.validator.constraints.br.CPF;
 
 /**
  * DTO de requisição para cadastro de Funcionário da Empresa Integradora.
@@ -31,7 +33,7 @@ public record CompanyEmployeeRequestDTO(
         @JsonProperty("document_number")
         @JsonAlias("documentNumber")
         @NotBlank(message = "O documento/CPF não pode estar em branco")
-        @Pattern(regexp = "^\\d{11}$", message = "O documento deve conter exatamente 11 dígitos numéricos")
+        @CPF(message = "O documento/CPF deve ser válido")
         String documentNumber,
 
         @Schema(description = "E-mail corporativo do funcionário", example = "joao.silva@empresa.com.br")
@@ -57,6 +59,7 @@ public record CompanyEmployeeRequestDTO(
         @JsonProperty("id_enterprise")
         @JsonAlias("idEnterprise")
         @NotNull(message = "O ID da empresa integradora é obrigatório")
+        @Positive(message = "O ID da empresa integradora deve ser maior que zero")
         Long idEnterprise
 ) {
     /**

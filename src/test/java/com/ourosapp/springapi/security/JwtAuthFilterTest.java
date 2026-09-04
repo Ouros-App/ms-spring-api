@@ -1,4 +1,8 @@
 package com.ourosapp.springapi.security;
+import com.ourosapp.springapi.dto.address.*;
+import com.ourosapp.springapi.dto.enterprise.*;
+import com.ourosapp.springapi.dto.companyemployee.*;
+import com.ourosapp.springapi.security.UserPrincipal;
 
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;
 import jakarta.servlet.FilterChain;

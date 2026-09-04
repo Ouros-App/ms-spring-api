@@ -6,6 +6,9 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * Repositório de dados para a entidade FarmOwner.
+ */
 @Repository
 public interface FarmOwnerRepository extends JpaRepository<FarmOwner, Long> {
     Optional<FarmOwner> findByEmail(String email);

@@ -1,4 +1,4 @@
-package com.ourosapp.springapi.dto;
+package com.ourosapp.springapi.dto.enterprise;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ourosapp.springapi.entity.Enterprise;

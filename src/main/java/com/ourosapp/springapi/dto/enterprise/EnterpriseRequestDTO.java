@@ -1,13 +1,16 @@
-package com.ourosapp.springapi.dto;
+package com.ourosapp.springapi.dto.enterprise;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ourosapp.springapi.dto.address.AddressRequestDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import org.hibernate.validator.constraints.br.CNPJ;
 
 /**
  * DTO de requisição para cadastro e atualização de Empresa Integradora.
@@ -30,7 +33,7 @@ public record EnterpriseRequestDTO(
         @JsonProperty("document_number")
         @JsonAlias("documentNumber")
         @NotBlank(message = "O CNPJ/documento não pode estar em branco")
-        @Pattern(regexp = "^\\d{14}$", message = "O documento/CNPJ deve conter exatamente 14 dígitos numéricos")
+        @CNPJ(message = "O documento/CNPJ deve ser válido")
         String documentNumber,
 
         @Schema(description = "Telefone de contato (apenas números, entre 10 e 13 dígitos)", example = "11999999999")
@@ -41,8 +44,11 @@ public record EnterpriseRequestDTO(
         @Schema(description = "Identificador do endereço cadastrado", example = "1")
         @JsonProperty("id_address")
         @JsonAlias("idAddress")
-        @NotNull(message = "O ID do endereço é obrigatório")
-        Long idAddress
+        Long idAddress,
+
+        @Schema(description = "Dados do novo endereço (caso não seja fornecido um id_address existente)")
+        @Valid
+        AddressRequestDTO address
 ) {
     /**
      * Construtor compacto para sanitização automática (trim e lowercase do e-mail).

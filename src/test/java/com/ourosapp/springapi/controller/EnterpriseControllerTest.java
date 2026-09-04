@@ -1,7 +1,10 @@
 package com.ourosapp.springapi.controller;
 
-import com.ourosapp.springapi.dto.EnterpriseRequestDTO;
-import com.ourosapp.springapi.dto.EnterpriseResponseDTO;
+import com.ourosapp.springapi.dto.address.AddressRequestDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseRequestDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseResponseDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseUpdateDTO;
+import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.EnterpriseService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +33,8 @@ class EnterpriseControllerTest {
 
     @InjectMocks
     private EnterpriseController enterpriseController;
+
+    private final UserPrincipal mockPrincipal = mock(UserPrincipal.class);
 
     @Test
     @DisplayName("Deve cadastrar empresa e retornar status 201 Created com cabeçalho Location")
@@ -43,7 +50,8 @@ class EnterpriseControllerTest {
                     "contato@agroouros.com.br",
                     "12345678000195",
                     "11999999999",
-                    10L
+                    null,
+                    new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR")
             );
             EnterpriseResponseDTO expectedResponse = new EnterpriseResponseDTO(
                     1L,
@@ -54,9 +62,9 @@ class EnterpriseControllerTest {
                     10L
             );
 
-            when(enterpriseService.createEnterprise(request)).thenReturn(expectedResponse);
+            when(enterpriseService.createEnterprise(eq(request), any(UserPrincipal.class))).thenReturn(expectedResponse);
 
-            ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.createEnterprise(request);
+            ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.createEnterprise(request, mockPrincipal);
 
             assertEquals(HttpStatus.CREATED, response.getStatusCode());
             assertNotNull(response.getBody());
@@ -64,7 +72,7 @@ class EnterpriseControllerTest {
             assertEquals("Agro Ouros S.A.", response.getBody().name());
             assertNotNull(response.getHeaders().getLocation());
             assertTrue(response.getHeaders().getLocation().getPath().endsWith("/1"));
-            verify(enterpriseService, times(1)).createEnterprise(request);
+            verify(enterpriseService, times(1)).createEnterprise(eq(request), any(UserPrincipal.class));
         } finally {
             RequestContextHolder.resetRequestAttributes();
         }
@@ -81,15 +89,15 @@ class EnterpriseControllerTest {
                 "11999999999",
                 10L
         );
-        when(enterpriseService.getAllEnterprises()).thenReturn(List.of(emp1));
+        when(enterpriseService.getAllEnterprises(any(UserPrincipal.class))).thenReturn(List.of(emp1));
 
-        ResponseEntity<List<EnterpriseResponseDTO>> response = enterpriseController.getAllEnterprises();
+        ResponseEntity<List<EnterpriseResponseDTO>> response = enterpriseController.getAllEnterprises(mockPrincipal);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
         assertEquals("Agro Ouros S.A.", response.getBody().get(0).name());
-        verify(enterpriseService, times(1)).getAllEnterprises();
+        verify(enterpriseService, times(1)).getAllEnterprises(any(UserPrincipal.class));
     }
 
     @Test
@@ -104,26 +112,20 @@ class EnterpriseControllerTest {
                 10L
         );
 
-        when(enterpriseService.getEnterpriseById(1L)).thenReturn(expectedResponse);
+        when(enterpriseService.getEnterpriseById(eq(1L), any(UserPrincipal.class))).thenReturn(expectedResponse);
 
-        ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.getEnterpriseById(1L);
+        ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.getEnterpriseById(1L, mockPrincipal);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1L, response.getBody().id());
-        verify(enterpriseService, times(1)).getEnterpriseById(1L);
+        verify(enterpriseService, times(1)).getEnterpriseById(eq(1L), any(UserPrincipal.class));
     }
 
     @Test
     @DisplayName("Deve atualizar empresa por ID e retornar status 200 OK")
     void testUpdateEnterprise() {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
-                "Agro Ouros Renovada S.A.",
-                "novo@agroouros.com.br",
-                "12345678000195",
-                "11988887777",
-                10L
-        );
+        EnterpriseUpdateDTO request = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo@agroouros.com.br", "12345678000195", "11988887777", 10L);
         EnterpriseResponseDTO expectedResponse = new EnterpriseResponseDTO(
                 1L,
                 "Agro Ouros Renovada S.A.",
@@ -133,14 +135,14 @@ class EnterpriseControllerTest {
                 10L
         );
 
-        when(enterpriseService.updateEnterprise(1L, request)).thenReturn(expectedResponse);
+        when(enterpriseService.updateEnterprise(eq(1L), eq(request), any(UserPrincipal.class))).thenReturn(expectedResponse);
 
-        ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.updateEnterprise(1L, request);
+        ResponseEntity<EnterpriseResponseDTO> response = enterpriseController.updateEnterprise(1L, request, mockPrincipal);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1L, response.getBody().id());
         assertEquals("Agro Ouros Renovada S.A.", response.getBody().name());
-        verify(enterpriseService, times(1)).updateEnterprise(1L, request);
+        verify(enterpriseService, times(1)).updateEnterprise(eq(1L), eq(request), any(UserPrincipal.class));
     }
 }

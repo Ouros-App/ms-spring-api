@@ -1,9 +1,12 @@
 package com.ourosapp.springapi.controller;
 
-import com.ourosapp.springapi.dto.AddressRequestDTO;
-import com.ourosapp.springapi.dto.AddressResponseDTO;
+import com.ourosapp.springapi.dto.address.AddressRequestDTO;
+import com.ourosapp.springapi.dto.address.AddressResponseDTO;
+import com.ourosapp.springapi.dto.address.AddressUpdateDTO;
+import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.AddressService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -11,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -29,12 +33,6 @@ public class AddressController {
 
     private final AddressService addressService;
 
-    /**
-     * Endpoint para cadastrar um novo endereço.
-     *
-     * @param request corpo da requisição contendo os dados do novo endereço
-     * @return resposta HTTP com status 201 (Created), cabeçalho Location e o DTO do endereço cadastrado
-     */
     @Operation(summary = "Cadastrar endereço", description = "Cadastra um novo endereço no sistema.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Endereço cadastrado com sucesso"),
@@ -42,7 +40,10 @@ public class AddressController {
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido")
     })
     @PostMapping
-    public ResponseEntity<AddressResponseDTO> createAddress(@RequestBody @Valid AddressRequestDTO request) {
+    public ResponseEntity<AddressResponseDTO> createAddress(
+            @RequestBody @Valid AddressRequestDTO request
+    ) {
+        // Address might not need permission checks directly, but we can pass principal if needed.
         AddressResponseDTO response = addressService.createAddress(request);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
@@ -52,42 +53,36 @@ public class AddressController {
         return ResponseEntity.created(location).body(response);
     }
 
-    /**
-     * Endpoint para buscar um endereço específico através do seu ID.
-     *
-     * @param id identificador único do endereço
-     * @return resposta HTTP com status 200 (OK) e o DTO do endereço encontrado
-     */
     @Operation(summary = "Buscar endereço por ID", description = "Retorna as informações de um endereço específico.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Endereço retornado com sucesso"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
             @ApiResponse(responseCode = "404", description = "Endereço não encontrado")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<AddressResponseDTO> getAddressById(@PathVariable Long id) {
-        return ResponseEntity.ok(addressService.getAddressById(id));
+    public ResponseEntity<AddressResponseDTO> getAddressById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(addressService.getAddressById(id, principal));
     }
 
-    /**
-     * Endpoint para substituir integralmente todas as informações de um endereço existente.
-     *
-     * @param id      identificador único do endereço a ser atualizado
-     * @param request corpo da requisição com os novos dados do endereço
-     * @return resposta HTTP com status 200 (OK) e o DTO do endereço atualizado
-     */
-    @Operation(summary = "Atualizar endereço", description = "Substitui integralmente todas as informações de um endereço existente.")
+    @Operation(summary = "Atualizar endereço parcialmente", description = "Atualiza parcialmente as informações de um endereço existente.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Endereço atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
             @ApiResponse(responseCode = "404", description = "Endereço não encontrado")
     })
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     public ResponseEntity<AddressResponseDTO> updateAddress(
+            @Parameter(description = "Identificador único do endereço", example = "1")
             @PathVariable Long id,
-            @RequestBody @Valid AddressRequestDTO request
+            @RequestBody @Valid AddressUpdateDTO request,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(addressService.updateAddress(id, request));
+        return ResponseEntity.ok(addressService.updateAddress(id, request, principal));
     }
 }

@@ -2,8 +2,10 @@ package com.ourosapp.springapi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
-import com.ourosapp.springapi.dto.EnterpriseRequestDTO;
-import com.ourosapp.springapi.dto.EnterpriseResponseDTO;
+import com.ourosapp.springapi.dto.address.AddressRequestDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseRequestDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseResponseDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseUpdateDTO;
 import com.ourosapp.springapi.security.JwtAuthFilter;
 import com.ourosapp.springapi.security.JwtUtil;
 import com.ourosapp.springapi.service.EnterpriseService;
@@ -56,7 +58,8 @@ class EnterpriseControllerMockMvcTest {
                 "contato@agroouros.com.br",
                 "12345678000195",
                 "11999999999",
-                1L
+                1L,
+                null
         );
         EnterpriseResponseDTO response = new EnterpriseResponseDTO(
                 1L,
@@ -67,7 +70,7 @@ class EnterpriseControllerMockMvcTest {
                 1L
         );
 
-        when(enterpriseService.createEnterprise(any(EnterpriseRequestDTO.class))).thenReturn(response);
+        when(enterpriseService.createEnterprise(any(), any())).thenReturn(response);
 
         mockMvc.perform(post("/enterprises")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -104,7 +107,7 @@ class EnterpriseControllerMockMvcTest {
                 1L
         );
 
-        when(enterpriseService.createEnterprise(any(EnterpriseRequestDTO.class))).thenReturn(response);
+        when(enterpriseService.createEnterprise(any(), any())).thenReturn(response);
 
         mockMvc.perform(post("/enterprises")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -118,13 +121,7 @@ class EnterpriseControllerMockMvcTest {
     @Test
     @DisplayName("POST /enterprises - Deve retornar 401 Unauthorized quando não autenticado")
     void testCreateEnterpriseUnauthorized() throws Exception {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
-                "Agro Ouros S.A.",
-                "contato@agroouros.com.br",
-                "12345678000195",
-                "11999999999",
-                1L
-        );
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L, null);
 
         mockMvc.perform(post("/enterprises")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -136,17 +133,31 @@ class EnterpriseControllerMockMvcTest {
     @WithMockUser
     @DisplayName("POST /enterprises - Deve retornar 400 Bad Request quando campos obrigatórios forem inválidos")
     void testCreateEnterpriseInvalidPayload() throws Exception {
-        EnterpriseRequestDTO invalidRequest = new EnterpriseRequestDTO(
-                "",
-                "email-invalido",
-                "123",
-                "123",
-                null
-        );
+        EnterpriseRequestDTO invalidRequest = new EnterpriseRequestDTO("", "email-invalido", "123", "123", null, null);
 
         mockMvc.perform(post("/enterprises")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /enterprises - Deve retornar 400 Bad Request quando objeto address embutido for inválido")
+    void testCreateEnterpriseInvalidEmbeddedAddress() throws Exception {
+        AddressRequestDTO invalidAddress = new AddressRequestDTO("", "SPP", "", "", "BRR");
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
+                "Agro Ouros S.A.",
+                "contato@agroouros.com.br",
+                "12345678000195",
+                "11999999999",
+                null,
+                invalidAddress
+        );
+
+        mockMvc.perform(post("/enterprises")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -163,7 +174,7 @@ class EnterpriseControllerMockMvcTest {
                 1L
         );
 
-        when(enterpriseService.getAllEnterprises()).thenReturn(List.of(response));
+        when(enterpriseService.getAllEnterprises(any())).thenReturn(List.of(response));
 
         mockMvc.perform(get("/enterprises"))
                 .andExpect(status().isOk())
@@ -191,7 +202,7 @@ class EnterpriseControllerMockMvcTest {
                 1L
         );
 
-        when(enterpriseService.getEnterpriseById(1L)).thenReturn(response);
+        when(enterpriseService.getEnterpriseById(eq(1L), any())).thenReturn(response);
 
         mockMvc.perform(get("/enterprises/1"))
                 .andExpect(status().isOk())
@@ -204,7 +215,7 @@ class EnterpriseControllerMockMvcTest {
     @WithMockUser
     @DisplayName("GET /enterprises/{id} - Deve retornar 404 Not Found quando empresa não existir")
     void testGetEnterpriseByIdNotFound() throws Exception {
-        when(enterpriseService.getEnterpriseById(99L))
+        when(enterpriseService.getEnterpriseById(eq(99L), any()))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Empresa não encontrada"));
 
         mockMvc.perform(get("/enterprises/99"))
@@ -220,15 +231,9 @@ class EnterpriseControllerMockMvcTest {
 
     @Test
     @WithMockUser
-    @DisplayName("PUT /enterprises/{id} - Deve atualizar empresa e retornar 200 OK quando válido")
+    @DisplayName("PATCH /enterprises/{id} - Deve atualizar empresa e retornar 200 OK quando válido")
     void testUpdateEnterpriseSuccess() throws Exception {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
-                "Agro Ouros Renovada S.A.",
-                "novo@agroouros.com.br",
-                "12345678000195",
-                "11988887777",
-                1L
-        );
+        EnterpriseUpdateDTO request = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo@agroouros.com.br", "12345678000195", "11988887777", 1L);
         EnterpriseResponseDTO response = new EnterpriseResponseDTO(
                 1L,
                 "Agro Ouros Renovada S.A.",
@@ -238,9 +243,9 @@ class EnterpriseControllerMockMvcTest {
                 1L
         );
 
-        when(enterpriseService.updateEnterprise(eq(1L), any(EnterpriseRequestDTO.class))).thenReturn(response);
+        when(enterpriseService.updateEnterprise(eq(1L), any(), any())).thenReturn(response);
 
-        mockMvc.perform(put("/enterprises/1")
+        mockMvc.perform(patch("/enterprises/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -251,20 +256,14 @@ class EnterpriseControllerMockMvcTest {
 
     @Test
     @WithMockUser
-    @DisplayName("PUT /enterprises/{id} - Deve retornar 404 Not Found ao tentar atualizar empresa inexistente")
+    @DisplayName("PATCH /enterprises/{id} - Deve retornar 404 Not Found ao tentar atualizar empresa inexistente")
     void testUpdateEnterpriseNotFound() throws Exception {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
-                "Agro Ouros Renovada S.A.",
-                "novo@agroouros.com.br",
-                "12345678000195",
-                "11988887777",
-                1L
-        );
+        EnterpriseUpdateDTO request = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo@agroouros.com.br", "12345678000195", "11988887777", 1L);
 
-        when(enterpriseService.updateEnterprise(eq(99L), any(EnterpriseRequestDTO.class)))
+        when(enterpriseService.updateEnterprise(eq(99L), any(), any()))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Empresa não encontrada"));
 
-        mockMvc.perform(put("/enterprises/99")
+        mockMvc.perform(patch("/enterprises/99")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
@@ -272,17 +271,11 @@ class EnterpriseControllerMockMvcTest {
 
     @Test
     @WithMockUser
-    @DisplayName("PUT /enterprises/{id} - Deve retornar 400 Bad Request quando payload for inválido")
+    @DisplayName("PATCH /enterprises/{id} - Deve retornar 400 Bad Request quando payload for inválido")
     void testUpdateEnterpriseInvalidPayload() throws Exception {
-        EnterpriseRequestDTO invalidRequest = new EnterpriseRequestDTO(
-                "",
-                "email-invalido",
-                "123",
-                "123",
-                null
-        );
+        EnterpriseUpdateDTO invalidRequest = new EnterpriseUpdateDTO("", "email-invalido", "123", "123", null);
 
-        mockMvc.perform(put("/enterprises/1")
+        mockMvc.perform(patch("/enterprises/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest());
@@ -292,15 +285,9 @@ class EnterpriseControllerMockMvcTest {
     @WithMockUser
     @DisplayName("POST /enterprises - Deve retornar 409 Conflict quando empresa com mesmo CNPJ ou e-mail já existir")
     void testCreateEnterpriseConflict() throws Exception {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
-                "Agro Ouros S.A.",
-                "contato@agroouros.com.br",
-                "12345678000195",
-                "11999999999",
-                1L
-        );
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L, null);
 
-        when(enterpriseService.createEnterprise(any(EnterpriseRequestDTO.class)))
+        when(enterpriseService.createEnterprise(any(), any()))
                 .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Já existe uma empresa cadastrada com este CNPJ"));
 
         mockMvc.perform(post("/enterprises")
@@ -311,37 +298,25 @@ class EnterpriseControllerMockMvcTest {
 
     @Test
     @WithMockUser
-    @DisplayName("PUT /enterprises/{id} - Deve retornar 409 Conflict quando CNPJ ou e-mail pertencer a outra empresa")
+    @DisplayName("PATCH /enterprises/{id} - Deve retornar 409 Conflict quando CNPJ ou e-mail pertencer a outra empresa")
     void testUpdateEnterpriseConflict() throws Exception {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
-                "Agro Ouros Renovada S.A.",
-                "novo@agroouros.com.br",
-                "12345678000195",
-                "11988887777",
-                1L
-        );
+        EnterpriseUpdateDTO request = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo@agroouros.com.br", "12345678000195", "11988887777", 1L);
 
-        when(enterpriseService.updateEnterprise(eq(1L), any(EnterpriseRequestDTO.class)))
+        when(enterpriseService.updateEnterprise(eq(1L), any(), any()))
                 .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Já existe outra empresa cadastrada com este CNPJ"));
 
-        mockMvc.perform(put("/enterprises/1")
+        mockMvc.perform(patch("/enterprises/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict());
     }
 
     @Test
-    @DisplayName("PUT /enterprises/{id} - Deve retornar 401 Unauthorized quando não autenticado")
+    @DisplayName("PATCH /enterprises/{id} - Deve retornar 401 Unauthorized quando não autenticado")
     void testUpdateEnterpriseUnauthorized() throws Exception {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
-                "Agro Ouros Renovada S.A.",
-                "novo@agroouros.com.br",
-                "12345678000195",
-                "11988887777",
-                1L
-        );
+        EnterpriseUpdateDTO request = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo@agroouros.com.br", "12345678000195", "11988887777", 1L);
 
-        mockMvc.perform(put("/enterprises/1")
+        mockMvc.perform(patch("/enterprises/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());

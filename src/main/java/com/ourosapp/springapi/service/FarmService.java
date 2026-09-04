@@ -1,6 +1,6 @@
 package com.ourosapp.springapi.service;
 
-import com.ourosapp.springapi.dto.AddressResponseDTO;
+import com.ourosapp.springapi.dto.address.AddressResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRequestDTO;
 import com.ourosapp.springapi.dto.farm.FarmResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmUpdateDTO;

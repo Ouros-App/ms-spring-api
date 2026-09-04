@@ -1,8 +1,12 @@
 package com.ourosapp.springapi.service;
 
-import com.ourosapp.springapi.dto.CompanyEmployeeRequestDTO;
-import com.ourosapp.springapi.dto.CompanyEmployeeResponseDTO;
-import com.ourosapp.springapi.dto.CompanyEmployeeUpdateDTO;
+import static com.ourosapp.springapi.constants.ErrorMessages.EMPLOYEE_NOT_FOUND;
+import static com.ourosapp.springapi.constants.RoleConstants.ADM;
+import static com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE;
+
+import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeRequestDTO;
+import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeResponseDTO;
+import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeUpdateDTO;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
@@ -28,17 +32,11 @@ public class CompanyEmployeeService {
     private final EnterpriseRepository enterpriseRepository;
     private final PasswordEncoder passwordEncoder;
 
-    /**
-     * Cadastra um novo Funcionário da Empresa Integradora no sistema.
-     *
-     * @param request dados cadastrais do funcionário
-     * @return DTO contendo os dados do funcionário cadastrado (sem a senha)
-     * @throws ResponseStatusException HTTP 404 (Not Found) se a empresa vinculada não existir
-     * @throws ResponseStatusException HTTP 409 (Conflict) se o documento ou e-mail já estiverem cadastrados
-     */
     @Transactional
-    public CompanyEmployeeResponseDTO createCompanyEmployee(CompanyEmployeeRequestDTO request) {
+    public CompanyEmployeeResponseDTO createCompanyEmployee(CompanyEmployeeRequestDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
+        ensureAuthenticated(principal);
+        validateCompanyEmployeeCreationPermission(request.idEnterprise(), principal);
 
         if (!enterpriseRepository.existsById(request.idEnterprise())) {
             throw new ResponseStatusException(
@@ -84,38 +82,24 @@ public class CompanyEmployeeService {
         }
     }
 
-    /**
-     * Busca as informações de um funcionário específico através do seu identificador único.
-     *
-     * @param id identificador único do funcionário
-     * @return DTO com os dados do funcionário encontrado
-     * @throws ResponseStatusException HTTP 404 (Not Found) se o funcionário não for encontrado
-     */
     @Transactional(readOnly = true)
-    public CompanyEmployeeResponseDTO getCompanyEmployeeById(Long id) {
+    public CompanyEmployeeResponseDTO getCompanyEmployeeById(Long id, UserPrincipal principal) {
+        ensureAuthenticated(principal);
         CompanyEmployee companyEmployee = companyEmployeeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Funcionário não encontrado para o ID: " + id
                 ));
+
+        validateCompanyEmployeeAccessPermission(companyEmployee, principal);
+
         return CompanyEmployeeResponseDTO.fromEntity(companyEmployee);
     }
 
-    /**
-     * Retorna as informações do funcionário atualmente autenticado via token JWT.
-     *
-     * @param principal o usuário autenticado extraído do contexto de segurança
-     * @return DTO com os dados do funcionário autenticado
-     * @throws ResponseStatusException HTTP 401 (Unauthorized) se o principal for nulo
-     * @throws ResponseStatusException HTTP 403 (Forbidden) se o perfil não for de funcionário da empresa
-     * @throws ResponseStatusException HTTP 404 (Not Found) se o funcionário não existir no banco
-     */
     @Transactional(readOnly = true)
     public CompanyEmployeeResponseDTO getLoggedInEmployee(UserPrincipal principal) {
-        if (principal == null || principal.getId() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
-        }
-        if (!"COMPANY_EMPLOYEE".equals(principal.getRole())) {
+        ensureAuthenticated(principal);
+        if (!COMPANY_EMPLOYEE.equals(principal.getRole())) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Acesso restrito a funcionários da integradora"
@@ -129,24 +113,18 @@ public class CompanyEmployeeService {
         return CompanyEmployeeResponseDTO.fromEntity(employee);
     }
 
-    /**
-     * Atualiza parcialmente as informações cadastrais de um funcionário existente (telefone, e-mail e/ou senha).
-     *
-     * @param id      identificador único do funcionário a ser atualizado
-     * @param request novos dados parciais a serem aplicados
-     * @return DTO com os dados atualizados do funcionário
-     * @throws ResponseStatusException HTTP 404 (Not Found) se o funcionário não for encontrado
-     * @throws ResponseStatusException HTTP 409 (Conflict) se o novo e-mail já pertencer a outro funcionário
-     */
     @Transactional
-    public CompanyEmployeeResponseDTO updateCompanyEmployee(Long id, CompanyEmployeeUpdateDTO request) {
+    public CompanyEmployeeResponseDTO updateCompanyEmployee(Long id, CompanyEmployeeUpdateDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
+        ensureAuthenticated(principal);
 
         CompanyEmployee employee = companyEmployeeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Funcionário não encontrado para o ID: " + id
                 ));
+
+        validateCompanyEmployeeMutationPermission(employee, principal);
 
         if (!request.hasUpdates()) {
             return CompanyEmployeeResponseDTO.fromEntity(employee);
@@ -184,21 +162,70 @@ public class CompanyEmployeeService {
         }
     }
 
-    /**
-     * Remove um funcionário da Empresa Integradora do sistema.
-     *
-     * @param id identificador único do funcionário a ser removido
-     * @throws ResponseStatusException HTTP 404 (Not Found) se o funcionário não for encontrado
-     */
     @Transactional
-    public void deleteCompanyEmployee(Long id) {
-        if (!companyEmployeeRepository.existsById(id)) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Funcionário não encontrado para o ID: " + id
-            );
-        }
+    public void deleteCompanyEmployee(Long id, UserPrincipal principal) {
+        ensureAuthenticated(principal);
+        CompanyEmployee employee = companyEmployeeRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Funcionário não encontrado para o ID: " + id
+                ));
+
+        validateCompanyEmployeeMutationPermission(employee, principal);
+
         companyEmployeeRepository.deleteById(id);
     }
-}
 
+    private void ensureAuthenticated(UserPrincipal principal) {
+        if (principal == null || principal.getId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+        }
+    }
+
+    private void validateCompanyEmployeeCreationPermission(Long idEnterprise, UserPrincipal principal) {
+        String role = principal.getRole();
+        if (ADM.equals(role)) {
+            return;
+        }
+        if (COMPANY_EMPLOYEE.equals(role)) {
+            CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, EMPLOYEE_NOT_FOUND));
+            if (!Objects.equals(idEnterprise, employee.getIdEnterprise())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Não é permitido cadastrar funcionário em outra empresa");
+            }
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Perfil sem permissão para cadastrar funcionários");
+    }
+
+    private void validateCompanyEmployeeAccessPermission(CompanyEmployee targetEmployee, UserPrincipal principal) {
+        String role = principal.getRole();
+        if (ADM.equals(role)) {
+            return;
+        }
+        if (COMPANY_EMPLOYEE.equals(role)) {
+            CompanyEmployee loggedEmployee = companyEmployeeRepository.findById(principal.getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, EMPLOYEE_NOT_FOUND));
+            if (!Objects.equals(targetEmployee.getIdEnterprise(), loggedEmployee.getIdEnterprise())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado a este funcionário");
+            }
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado a este funcionário");
+    }
+
+    private void validateCompanyEmployeeMutationPermission(CompanyEmployee targetEmployee, UserPrincipal principal) {
+        String role = principal.getRole();
+        if (ADM.equals(role)) {
+            return;
+        }
+        if (COMPANY_EMPLOYEE.equals(role)) {
+            // Apenas o próprio funcionário pode alterar seus dados (ou um ADM da empresa, se existisse essa hierarquia, mas manteremos simples)
+            if (!Objects.equals(targetEmployee.getId(), principal.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Não é permitido alterar/remover dados de outro funcionário");
+            }
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para alterar este funcionário");
+    }
+}

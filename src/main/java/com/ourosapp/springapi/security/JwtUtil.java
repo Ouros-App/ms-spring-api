@@ -12,6 +12,9 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+/**
+ * Classe utilitária responsável pela geração, validação e extração de dados de tokens JWT.
+ */
 @Component
 public class JwtUtil {
 
