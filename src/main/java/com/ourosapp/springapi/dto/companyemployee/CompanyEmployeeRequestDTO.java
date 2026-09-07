@@ -33,6 +33,7 @@ public record CompanyEmployeeRequestDTO(
         @JsonProperty("document_number")
         @JsonAlias("documentNumber")
         @NotBlank(message = "O documento/CPF não pode estar em branco")
+        @Pattern(regexp = "^\\d{11}$", message = "O documento deve conter exatamente 11 dígitos numéricos")
         @CPF(message = "O documento/CPF deve ser válido")
         String documentNumber,
 

@@ -48,6 +48,7 @@ class CompanyEmployeeServiceTest {
     private CompanyEmployee sampleEmployee;
     private CompanyEmployeeRequestDTO sampleRequest;
     private UserPrincipal adminPrincipal;
+    private UserPrincipal employeePrincipal;
 
     /**
      * Inicializa os dados de teste antes de cada execução.
@@ -79,6 +80,14 @@ class CompanyEmployeeServiceTest {
                 null,
                 "ADM",
                 List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+
+        employeePrincipal = new UserPrincipal(
+                1L,
+                "emp@empresa.com.br",
+                "123",
+                "COMPANY_EMPLOYEE",
+                List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE"))
         );
     }
 
@@ -496,8 +505,6 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve permitir COMPANY_EMPLOYEE cadastrar funcionário na mesma empresa")
     void testCreateCompanyEmployee_AsCompanyEmployee_SameEnterprise_Success() {
-        UserPrincipal employeePrincipal = new UserPrincipal(1L, "emp@empresa.com.br", "123", "COMPANY_EMPLOYEE", List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE")));
-        
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
         when(enterpriseRepository.existsById(10L)).thenReturn(true);
         when(companyEmployeeRepository.existsByDocumentNumber(sampleRequest.documentNumber())).thenReturn(false);
@@ -514,8 +521,6 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve proibir COMPANY_EMPLOYEE de cadastrar funcionário em outra empresa")
     void testCreateCompanyEmployee_AsCompanyEmployee_DifferentEnterprise_Forbidden() {
-        UserPrincipal employeePrincipal = new UserPrincipal(1L, "emp@empresa.com.br", "123", "COMPANY_EMPLOYEE", List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE")));
-        
         CompanyEmployee employeeInDifferentEnterprise = CompanyEmployee.builder().idEnterprise(99L).build();
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(employeeInDifferentEnterprise));
 
@@ -538,8 +543,6 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve permitir COMPANY_EMPLOYEE acessar funcionário da mesma empresa")
     void testGetCompanyEmployeeById_AsCompanyEmployee_SameEnterprise_Success() {
-        UserPrincipal employeePrincipal = new UserPrincipal(1L, "emp@empresa.com.br", "123", "COMPANY_EMPLOYEE", List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE")));
-        
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
 
         CompanyEmployeeResponseDTO response = companyEmployeeService.getCompanyEmployeeById(1L, employeePrincipal);
@@ -551,8 +554,6 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve proibir COMPANY_EMPLOYEE de acessar funcionário de outra empresa")
     void testGetCompanyEmployeeById_AsCompanyEmployee_DifferentEnterprise_Forbidden() {
-        UserPrincipal employeePrincipal = new UserPrincipal(1L, "emp@empresa.com.br", "123", "COMPANY_EMPLOYEE", List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE")));
-        
         CompanyEmployee targetEmployee = CompanyEmployee.builder().id(2L).idEnterprise(99L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(targetEmployee));
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
@@ -576,8 +577,6 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve permitir COMPANY_EMPLOYEE atualizar próprios dados")
     void testUpdateCompanyEmployee_AsCompanyEmployee_OwnData_Success() {
-        UserPrincipal employeePrincipal = new UserPrincipal(1L, "emp@empresa.com.br", "123", "COMPANY_EMPLOYEE", List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE")));
-        
         CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO("novo@empresa.com", "11999999999", "NovaSenha@123");
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
         when(companyEmployeeRepository.findByEmailIgnoreCase("novo@empresa.com")).thenReturn(Optional.empty());
@@ -592,7 +591,6 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve proibir COMPANY_EMPLOYEE de atualizar outro funcionário")
     void testUpdateCompanyEmployee_AsCompanyEmployee_OtherEmployee_Forbidden() {
-        UserPrincipal employeePrincipal = new UserPrincipal(1L, "emp@empresa.com.br", "123", "COMPANY_EMPLOYEE", List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE")));
         CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO("novo@empresa.com", "11999999999", "NovaSenha@123");
         
         CompanyEmployee targetEmployee = CompanyEmployee.builder().id(2L).build();
@@ -606,8 +604,6 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve permitir COMPANY_EMPLOYEE excluir próprios dados")
     void testDeleteCompanyEmployee_AsCompanyEmployee_OwnData_Success() {
-        UserPrincipal employeePrincipal = new UserPrincipal(1L, "emp@empresa.com.br", "123", "COMPANY_EMPLOYEE", List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE")));
-        
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
 
         assertDoesNotThrow(() -> companyEmployeeService.deleteCompanyEmployee(1L, employeePrincipal));
@@ -617,8 +613,6 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve proibir COMPANY_EMPLOYEE de excluir outro funcionário")
     void testDeleteCompanyEmployee_AsCompanyEmployee_OtherEmployee_Forbidden() {
-        UserPrincipal employeePrincipal = new UserPrincipal(1L, "emp@empresa.com.br", "123", "COMPANY_EMPLOYEE", List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE")));
-        
         CompanyEmployee targetEmployee = CompanyEmployee.builder().id(2L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(targetEmployee));
 

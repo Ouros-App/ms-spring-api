@@ -56,8 +56,15 @@ class CompanyEmployeeControllerMockMvcTest {
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;
 
+    private final UserPrincipal defaultPrincipal = new UserPrincipal(
+            1L,
+            "carlos.pereira@empresa.com.br",
+            null,
+            "COMPANY_EMPLOYEE",
+            List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE"))
+    );
+
     @Test
-    @WithMockUser
     @DisplayName("POST /company-employees - Deve cadastrar funcionário e retornar 201 Created com cabeçalho Location")
     void testCreateCompanyEmployeeSuccess() throws Exception {
         CompanyEmployeeRequestDTO request = new CompanyEmployeeRequestDTO(
@@ -77,9 +84,10 @@ class CompanyEmployeeControllerMockMvcTest {
                 10L
         );
 
-        when(companyEmployeeService.createCompanyEmployee(any(), any())).thenReturn(response);
+        when(companyEmployeeService.createCompanyEmployee(any(CompanyEmployeeRequestDTO.class), eq(defaultPrincipal))).thenReturn(response);
 
         mockMvc.perform(post("/company-employees")
+                        .with(user(defaultPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -93,7 +101,6 @@ class CompanyEmployeeControllerMockMvcTest {
     }
 
     @Test
-    @WithMockUser
     @DisplayName("POST /company-employees - Deve aceitar payload em formato camelCase (interoperabilidade)")
     void testCreateCompanyEmployeeCamelCasePayloadSuccess() throws Exception {
         String camelCasePayload = """
@@ -115,9 +122,10 @@ class CompanyEmployeeControllerMockMvcTest {
                 10L
         );
 
-        when(companyEmployeeService.createCompanyEmployee(any(), any())).thenReturn(response);
+        when(companyEmployeeService.createCompanyEmployee(any(CompanyEmployeeRequestDTO.class), eq(defaultPrincipal))).thenReturn(response);
 
         mockMvc.perform(post("/company-employees")
+                        .with(user(defaultPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(camelCasePayload))
                 .andExpect(status().isCreated())
@@ -218,7 +226,6 @@ class CompanyEmployeeControllerMockMvcTest {
     }
 
     @Test
-    @WithMockUser
     @DisplayName("GET /company-employees/{id} - Deve retornar 200 OK e dados do funcionário quando encontrado")
     void testGetCompanyEmployeeByIdSuccess() throws Exception {
         CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
@@ -230,9 +237,9 @@ class CompanyEmployeeControllerMockMvcTest {
                 10L
         );
 
-        when(companyEmployeeService.getCompanyEmployeeById(eq(1L), any())).thenReturn(response);
+        when(companyEmployeeService.getCompanyEmployeeById(eq(1L), eq(defaultPrincipal))).thenReturn(response);
 
-        mockMvc.perform(get("/company-employees/1"))
+        mockMvc.perform(get("/company-employees/1").with(user(defaultPrincipal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.name").value("Carlos Eduardo Pereira"))
@@ -240,13 +247,12 @@ class CompanyEmployeeControllerMockMvcTest {
     }
 
     @Test
-    @WithMockUser
     @DisplayName("GET /company-employees/{id} - Deve retornar 404 Not Found quando funcionário não existir")
     void testGetCompanyEmployeeByIdNotFound() throws Exception {
-        when(companyEmployeeService.getCompanyEmployeeById(eq(99L), any()))
+        when(companyEmployeeService.getCompanyEmployeeById(eq(99L), eq(defaultPrincipal)))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
 
-        mockMvc.perform(get("/company-employees/99"))
+        mockMvc.perform(get("/company-employees/99").with(user(defaultPrincipal)))
                 .andExpect(status().isNotFound());
     }
 
@@ -258,7 +264,6 @@ class CompanyEmployeeControllerMockMvcTest {
     }
 
     @Test
-    @WithMockUser
     @DisplayName("PATCH /company-employees/{id} - Deve atualizar funcionário e retornar 200 OK quando válido")
     void testUpdateCompanyEmployeeSuccess() throws Exception {
         CompanyEmployeeUpdateDTO request = new CompanyEmployeeUpdateDTO(
@@ -275,9 +280,10 @@ class CompanyEmployeeControllerMockMvcTest {
                 10L
         );
 
-        when(companyEmployeeService.updateCompanyEmployee(eq(1L), any(), any())).thenReturn(response);
+        when(companyEmployeeService.updateCompanyEmployee(eq(1L), any(CompanyEmployeeUpdateDTO.class), eq(defaultPrincipal))).thenReturn(response);
 
         mockMvc.perform(patch("/company-employees/1")
+                        .with(user(defaultPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -287,7 +293,6 @@ class CompanyEmployeeControllerMockMvcTest {
     }
 
     @Test
-    @WithMockUser
     @DisplayName("PATCH /company-employees/{id} - Deve retornar 404 Not Found ao tentar atualizar funcionário inexistente")
     void testUpdateCompanyEmployeeNotFound() throws Exception {
         CompanyEmployeeUpdateDTO request = new CompanyEmployeeUpdateDTO(
@@ -296,10 +301,11 @@ class CompanyEmployeeControllerMockMvcTest {
                 "NovaSenha@123"
         );
 
-        when(companyEmployeeService.updateCompanyEmployee(eq(99L), any(), any()))
+        when(companyEmployeeService.updateCompanyEmployee(eq(99L), any(CompanyEmployeeUpdateDTO.class), eq(defaultPrincipal)))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
 
         mockMvc.perform(patch("/company-employees/99")
+                        .with(user(defaultPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
@@ -322,23 +328,21 @@ class CompanyEmployeeControllerMockMvcTest {
     }
 
     @Test
-    @WithMockUser
     @DisplayName("DELETE /company-employees/{id} - Deve excluir funcionário e retornar 204 No Content quando existir")
     void testDeleteCompanyEmployeeSuccess() throws Exception {
-        doNothing().when(companyEmployeeService).deleteCompanyEmployee(eq(1L), any());
+        doNothing().when(companyEmployeeService).deleteCompanyEmployee(eq(1L), eq(defaultPrincipal));
 
-        mockMvc.perform(delete("/company-employees/1"))
+        mockMvc.perform(delete("/company-employees/1").with(user(defaultPrincipal)))
                 .andExpect(status().isNoContent());
     }
 
     @Test
-    @WithMockUser
     @DisplayName("DELETE /company-employees/{id} - Deve retornar 404 Not Found ao tentar excluir funcionário inexistente")
     void testDeleteCompanyEmployeeNotFound() throws Exception {
         doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"))
-                .when(companyEmployeeService).deleteCompanyEmployee(eq(99L), any());
+                .when(companyEmployeeService).deleteCompanyEmployee(eq(99L), eq(defaultPrincipal));
 
-        mockMvc.perform(delete("/company-employees/99"))
+        mockMvc.perform(delete("/company-employees/99").with(user(defaultPrincipal)))
                 .andExpect(status().isNotFound());
     }
 

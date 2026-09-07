@@ -2,7 +2,6 @@ package com.ourosapp.springapi.dto.enterprise;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.ourosapp.springapi.dto.address.AddressRequestDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
@@ -48,7 +47,7 @@ public record EnterpriseUpdateDTO(
     public EnterpriseUpdateDTO {
         name = name != null ? name.trim() : null;
         email = email != null ? email.trim().toLowerCase() : null;
-        documentNumber = documentNumber != null ? documentNumber.trim() : null;
+        documentNumber = documentNumber != null ? documentNumber.replaceAll("\\D", "") : null;
         telephone = telephone != null ? telephone.trim() : null;
     }
 

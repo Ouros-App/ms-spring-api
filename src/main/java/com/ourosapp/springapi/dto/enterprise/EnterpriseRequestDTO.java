@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import org.hibernate.validator.constraints.br.CNPJ;
 
@@ -44,6 +45,7 @@ public record EnterpriseRequestDTO(
         @Schema(description = "Identificador do endereço cadastrado", example = "1")
         @JsonProperty("id_address")
         @JsonAlias("idAddress")
+        @Positive(message = "O ID do endereço deve ser maior que zero")
         Long idAddress,
 
         @Schema(description = "Dados do novo endereço (caso não seja fornecido um id_address existente)")
@@ -51,12 +53,12 @@ public record EnterpriseRequestDTO(
         AddressRequestDTO address
 ) {
     /**
-     * Construtor compacto para sanitização automática (trim e lowercase do e-mail).
+     * Construtor compacto para sanitização automática (trim, lowercase do e-mail e extração de dígitos do CNPJ).
      */
     public EnterpriseRequestDTO {
         name = name != null ? name.trim() : null;
         email = email != null ? email.trim().toLowerCase() : null;
-        documentNumber = documentNumber != null ? documentNumber.trim() : null;
+        documentNumber = documentNumber != null ? documentNumber.replaceAll("\\D", "") : null;
         telephone = telephone != null ? telephone.trim() : null;
     }
 }

@@ -2,6 +2,8 @@ package com.ourosapp.springapi.dto;
 import com.ourosapp.springapi.dto.address.*;
 import com.ourosapp.springapi.dto.enterprise.*;
 import com.ourosapp.springapi.dto.companyemployee.*;
+import com.ourosapp.springapi.constants.ErrorMessages;
+import com.ourosapp.springapi.constants.RoleConstants;
 import com.ourosapp.springapi.security.UserPrincipal;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -256,21 +258,15 @@ class DTOAndEntityTest {
         assertThrows(NullPointerException.class, () -> AddressResponseDTO.fromEntity(null));
     }
 
+    /**
+     * Testa os valores das constantes de perfil e mensagens de erro centralizadas.
+     */
     @Test
-    void testConstantsClasses() throws Exception {
-        assertEquals("ADM", com.ourosapp.springapi.constants.RoleConstants.ADM);
-        assertEquals("COMPANY_EMPLOYEE", com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE);
-        assertEquals("Funcionário não encontrado", com.ourosapp.springapi.constants.ErrorMessages.EMPLOYEE_NOT_FOUND);
-        assertEquals("Usuário não autenticado", com.ourosapp.springapi.constants.ErrorMessages.USER_NOT_AUTHENTICATED);
-
-        // Exercise private constructors for 100% coverage
-        var roleConstConstructor = com.ourosapp.springapi.constants.RoleConstants.class.getDeclaredConstructor();
-        roleConstConstructor.setAccessible(true);
-        roleConstConstructor.newInstance();
-
-        var errorMsgConstructor = com.ourosapp.springapi.constants.ErrorMessages.class.getDeclaredConstructor();
-        errorMsgConstructor.setAccessible(true);
-        errorMsgConstructor.newInstance();
+    void testConstantsClasses() {
+        assertEquals("ADM", RoleConstants.ADM);
+        assertEquals("COMPANY_EMPLOYEE", RoleConstants.COMPANY_EMPLOYEE);
+        assertEquals("Funcionário não encontrado", ErrorMessages.EMPLOYEE_NOT_FOUND);
+        assertEquals("Usuário não autenticado", ErrorMessages.USER_NOT_AUTHENTICATED);
     }
 
     /**
@@ -342,6 +338,13 @@ class DTOAndEntityTest {
         assertEquals("contato@agroouros.com.br", normalizedRequest.email());
         assertEquals("12345678000195", normalizedRequest.documentNumber());
         assertEquals("11999999999", normalizedRequest.telephone());
+
+        EnterpriseRequestDTO formattedCnpjRequest = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12.345.678/0001-95", "11999999999", 1L, null);
+        assertEquals("12345678000195", formattedCnpjRequest.documentNumber());
+
+        EnterpriseRequestDTO invalidIdAddress = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", -1L, null);
+        Set<ConstraintViolation<EnterpriseRequestDTO>> violations = validator.validate(invalidIdAddress);
+        assertFalse(violations.isEmpty());
 
         EnterpriseRequestDTO nullRequest = new EnterpriseRequestDTO(null, null, null, null, null, null);
         assertNull(nullRequest.name());
@@ -472,6 +475,17 @@ class DTOAndEntityTest {
         assertEquals("carlos@empresa.com.br", normalizedRequest.email());
         assertEquals("11987654321", normalizedRequest.telephone());
         assertEquals("  Senha@123  ", normalizedRequest.password());
+
+        CompanyEmployeeRequestDTO formattedCpfRequest = new CompanyEmployeeRequestDTO(
+                "Carlos Pereira",
+                "123.456.789-01",
+                "carlos@empresa.com.br",
+                "11987654321",
+                "SenhaForte@123",
+                1L
+        );
+        Set<ConstraintViolation<CompanyEmployeeRequestDTO>> cpfViolations = validator.validate(formattedCpfRequest);
+        assertFalse(cpfViolations.isEmpty());
 
         CompanyEmployeeRequestDTO nullRequest = new CompanyEmployeeRequestDTO(null, null, null, null, null, null);
         assertNull(nullRequest.name());

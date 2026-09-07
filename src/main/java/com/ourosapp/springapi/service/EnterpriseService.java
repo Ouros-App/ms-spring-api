@@ -174,6 +174,9 @@ public class EnterpriseService {
         }
 
         if (request.documentNumber() != null && !request.documentNumber().isBlank()) {
+            if (!ADM.equals(principal.getRole())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas administradores podem alterar o CNPJ da empresa");
+            }
             enterpriseRepository.findByDocumentNumber(request.documentNumber())
                     .filter(existing -> !existing.getId().equals(id))
                     .ifPresent(existing -> {
@@ -192,6 +195,9 @@ public class EnterpriseService {
         }
 
         if (request.idAddress() != null) {
+            if (!ADM.equals(principal.getRole())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas administradores podem alterar o endereço da empresa");
+            }
             if (!addressRepository.existsById(request.idAddress())) {
                 throw new ResponseStatusException(
                         HttpStatus.NOT_FOUND,

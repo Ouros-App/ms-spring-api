@@ -562,21 +562,59 @@ class EnterpriseServiceTest {
     @Test
     @DisplayName("Deve atualizar a empresa com sucesso como COMPANY_EMPLOYEE da mesma empresa")
     void testUpdateEnterprise_AsCompanyEmployee_SameEnterprise_Success() {
-        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Novo Nome", "contato@agroouros.com.br", "12345678000195", "11999999999", 10L);
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Novo Nome", "contato@agroouros.com.br", null, "11999999999", null);
         CompanyEmployee employee = new CompanyEmployee();
         employee.setId(2L);
         employee.setIdEnterprise(1L);
 
         when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
-        when(enterpriseRepository.findByDocumentNumber("12345678000195")).thenReturn(Optional.of(sampleEnterprise));
         when(enterpriseRepository.findByEmailIgnoreCase("contato@agroouros.com.br")).thenReturn(Optional.of(sampleEnterprise));
-        when(addressRepository.existsById(10L)).thenReturn(true);
         when(enterpriseRepository.save(any(Enterprise.class))).thenReturn(sampleEnterprise);
 
         EnterpriseResponseDTO response = enterpriseService.updateEnterprise(1L, updateRequest, nonAdminPrincipal);
 
         assertNotNull(response);
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 403 ao tentar alterar CNPJ como COMPANY_EMPLOYEE")
+    void testUpdateEnterprise_AsCompanyEmployee_ChangeDocumentNumber_Forbidden() {
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO(null, null, "12345678000195", null, null);
+        CompanyEmployee employee = new CompanyEmployee();
+        employee.setId(2L);
+        employee.setIdEnterprise(1L);
+
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.updateEnterprise(1L, updateRequest, nonAdminPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Apenas administradores podem alterar o CNPJ"));
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 403 ao tentar alterar endereço como COMPANY_EMPLOYEE")
+    void testUpdateEnterprise_AsCompanyEmployee_ChangeIdAddress_Forbidden() {
+        EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO(null, null, null, null, 10L);
+        CompanyEmployee employee = new CompanyEmployee();
+        employee.setId(2L);
+        employee.setIdEnterprise(1L);
+
+        when(enterpriseRepository.findById(1L)).thenReturn(Optional.of(sampleEnterprise));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> enterpriseService.updateEnterprise(1L, updateRequest, nonAdminPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Apenas administradores podem alterar o endereço"));
     }
 
     @Test
