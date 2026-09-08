@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ourosapp.springapi.dto.address.AddressRequestDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -60,5 +61,17 @@ public record EnterpriseRequestDTO(
         email = email != null ? email.trim().toLowerCase() : null;
         documentNumber = documentNumber != null ? documentNumber.trim().replaceAll("[-./]", "") : null;
         telephone = telephone != null ? telephone.trim() : null;
+    }
+
+    /**
+     * Validação cruzada para garantir que exatamente uma forma de endereço seja informada
+     * (ou idAddress existente ou objeto de novo endereço address, mas não ambos nem nenhum).
+     *
+     * @return {@code true} se exatamente uma das opções de endereço estiver presente
+     */
+    @Schema(hidden = true)
+    @AssertTrue(message = "É obrigatório informar exatamente uma forma de endereço: 'id_address' ou o objeto 'address' completo, mas não ambos nem nenhum")
+    public boolean hasValidAddressInfo() {
+        return (idAddress != null) ^ (address != null);
     }
 }

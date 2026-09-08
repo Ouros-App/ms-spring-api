@@ -324,16 +324,14 @@ class DTOAndEntityTest {
      */
     @Test
     void testEnterpriseDTOs() {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L, null);
         assertEquals("Agro Ouros S.A.", request.name());
         assertEquals("contato@agroouros.com.br", request.email());
         assertEquals("12345678000195", request.documentNumber());
         assertEquals("11999999999", request.telephone());
         assertEquals(1L, request.idAddress());
 
-        EnterpriseRequestDTO normalizedRequest = new EnterpriseRequestDTO("  Agro Ouros S.A.  ", "  CONTATO@AGROOUROS.COM.BR  ", "  12345678000195  ", "  11999999999  ", 1L
-        , new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        EnterpriseRequestDTO normalizedRequest = new EnterpriseRequestDTO("  Agro Ouros S.A.  ", "  CONTATO@AGROOUROS.COM.BR  ", "  12345678000195  ", "  11999999999  ", 1L, null);
         assertEquals("Agro Ouros S.A.", normalizedRequest.name());
         assertEquals("contato@agroouros.com.br", normalizedRequest.email());
         assertEquals("12345678000195", normalizedRequest.documentNumber());
@@ -351,6 +349,15 @@ class DTOAndEntityTest {
         EnterpriseRequestDTO invalidIdAddress = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", -1L, null);
         Set<ConstraintViolation<EnterpriseRequestDTO>> violations = validator.validate(invalidIdAddress);
         assertFalse(violations.isEmpty());
+
+        EnterpriseRequestDTO bothAddresses = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L, new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        assertFalse(validator.validate(bothAddresses).isEmpty());
+
+        EnterpriseRequestDTO neitherAddress = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", null, null);
+        assertFalse(validator.validate(neitherAddress).isEmpty());
+
+        EnterpriseRequestDTO onlyEmbeddedAddress = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", null, new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        assertTrue(validator.validate(onlyEmbeddedAddress).isEmpty());
 
         EnterpriseRequestDTO nullRequest = new EnterpriseRequestDTO(null, null, null, null, null, null);
         assertNull(nullRequest.name());
