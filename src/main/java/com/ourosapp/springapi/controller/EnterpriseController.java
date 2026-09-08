@@ -1,9 +1,12 @@
 package com.ourosapp.springapi.controller;
 
-import com.ourosapp.springapi.dto.EnterpriseRequestDTO;
-import com.ourosapp.springapi.dto.EnterpriseResponseDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseRequestDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseResponseDTO;
+import com.ourosapp.springapi.dto.enterprise.EnterpriseUpdateDTO;
+import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.EnterpriseService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -11,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -33,7 +37,8 @@ public class EnterpriseController {
     /**
      * Endpoint para cadastrar uma nova Empresa Integradora.
      *
-     * @param request corpo da requisição contendo os dados da empresa
+     * @param request   corpo da requisição contendo os dados da empresa
+     * @param principal dados do usuário autenticado via token JWT
      * @return resposta HTTP com status 201 (Created), cabeçalho Location e o DTO da empresa cadastrada
      */
     @Operation(summary = "Cadastrar empresa", description = "Cadastra uma nova Empresa Integradora no sistema.")
@@ -41,12 +46,16 @@ public class EnterpriseController {
             @ApiResponse(responseCode = "201", description = "Empresa cadastrada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos ou CNPJ inválido"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
             @ApiResponse(responseCode = "404", description = "Endereço vinculado não encontrado"),
             @ApiResponse(responseCode = "409", description = "CNPJ ou e-mail já cadastrados no sistema")
     })
     @PostMapping
-    public ResponseEntity<EnterpriseResponseDTO> createEnterprise(@RequestBody @Valid EnterpriseRequestDTO request) {
-        EnterpriseResponseDTO response = enterpriseService.createEnterprise(request);
+    public ResponseEntity<EnterpriseResponseDTO> createEnterprise(
+            @RequestBody @Valid EnterpriseRequestDTO request,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        EnterpriseResponseDTO response = enterpriseService.createEnterprise(request, principal);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
@@ -56,58 +65,72 @@ public class EnterpriseController {
     }
 
     /**
-     * Endpoint para listar todas as Empresas Integradoras cadastradas.
+     * Endpoint para listar todas as Empresas Integradoras cadastradas (ou a empresa do usuário).
      *
+     * @param principal dados do usuário autenticado via token JWT
      * @return resposta HTTP com status 200 (OK) e a lista de DTOs das empresas
      */
     @Operation(summary = "Listar empresas", description = "Retorna a lista de todas as Empresas Integradoras cadastradas.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
-            @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido")
+            @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário")
     })
     @GetMapping
-    public ResponseEntity<List<EnterpriseResponseDTO>> getAllEnterprises() {
-        return ResponseEntity.ok(enterpriseService.getAllEnterprises());
+    public ResponseEntity<List<EnterpriseResponseDTO>> getAllEnterprises(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(enterpriseService.getAllEnterprises(principal));
     }
 
     /**
      * Endpoint para buscar uma empresa específica através do seu ID.
      *
-     * @param id identificador único da empresa
+     * @param id        identificador único da empresa
+     * @param principal dados do usuário autenticado via token JWT
      * @return resposta HTTP com status 200 (OK) e o DTO da empresa encontrada
      */
     @Operation(summary = "Buscar empresa por ID", description = "Retorna as informações de uma empresa específica.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empresa retornada com sucesso"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
             @ApiResponse(responseCode = "404", description = "Empresa não encontrada")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<EnterpriseResponseDTO> getEnterpriseById(@PathVariable Long id) {
-        return ResponseEntity.ok(enterpriseService.getEnterpriseById(id));
+    public ResponseEntity<EnterpriseResponseDTO> getEnterpriseById(
+            @Parameter(description = "Identificador único da empresa", example = "1")
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(enterpriseService.getEnterpriseById(id, principal));
     }
 
     /**
-     * Endpoint para substituir integralmente todas as informações cadastrais de uma empresa existente.
+     * Endpoint para atualizar parcialmente informações cadastrais de uma empresa existente.
      *
-     * @param id      identificador único da empresa a ser atualizada
-     * @param request corpo da requisição com os novos dados da empresa
+     * @param id        identificador único da empresa a ser atualizada
+     * @param request   corpo da requisição com os novos dados parciais da empresa
+     * @param principal dados do usuário autenticado via token JWT
      * @return resposta HTTP com status 200 (OK) e o DTO da empresa atualizada
      */
-    @Operation(summary = "Atualizar empresa", description = "Substitui integralmente todas as informações de uma empresa existente.")
+    @Operation(summary = "Atualizar empresa", description = "Atualiza parcialmente as informações de uma empresa existente.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empresa atualizada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos ou CNPJ inválido"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
             @ApiResponse(responseCode = "404", description = "Empresa ou endereço não encontrados"),
             @ApiResponse(responseCode = "409", description = "CNPJ ou e-mail já pertencem a outra empresa")
     })
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     public ResponseEntity<EnterpriseResponseDTO> updateEnterprise(
+            @Parameter(description = "Identificador único da empresa", example = "1")
             @PathVariable Long id,
-            @RequestBody @Valid EnterpriseRequestDTO request
+            @RequestBody @Valid EnterpriseUpdateDTO request,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(enterpriseService.updateEnterprise(id, request));
+        return ResponseEntity.ok(enterpriseService.updateEnterprise(id, request, principal));
     }
 }
 

@@ -2,7 +2,7 @@ package com.ourosapp.springapi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
-import com.ourosapp.springapi.dto.AddressRequestDTO;
+import com.ourosapp.springapi.dto.address.*;
 import com.ourosapp.springapi.dto.farm.FarmRequestDTO;
 import com.ourosapp.springapi.dto.farm.FarmResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmUpdateDTO;

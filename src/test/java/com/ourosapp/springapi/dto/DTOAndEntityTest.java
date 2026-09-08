@@ -1,4 +1,10 @@
 package com.ourosapp.springapi.dto;
+import com.ourosapp.springapi.dto.address.*;
+import com.ourosapp.springapi.dto.enterprise.*;
+import com.ourosapp.springapi.dto.companyemployee.*;
+import com.ourosapp.springapi.constants.ErrorMessages;
+import com.ourosapp.springapi.constants.RoleConstants;
+import com.ourosapp.springapi.security.UserPrincipal;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -184,12 +190,38 @@ class DTOAndEntityTest {
      */
     @Test
     void testAddressDTOs() {
-        AddressRequestDTO request = new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR");
+        AddressUpdateDTO request = new AddressUpdateDTO("01310-100", "SP", "São Paulo", "1000", "BR");
         assertEquals("01310-100", request.zipCode());
         assertEquals("SP", request.state());
         assertEquals("São Paulo", request.city());
         assertEquals("1000", request.number());
         assertEquals("BR", request.country());
+        assertTrue(request.hasUpdates());
+
+        // Test individual hasUpdates branches
+        assertTrue(new AddressUpdateDTO("12345", null, null, null, null).hasUpdates());
+        assertTrue(new AddressUpdateDTO(null, "SP", null, null, null).hasUpdates());
+        assertTrue(new AddressUpdateDTO(null, null, "City", null, null).hasUpdates());
+        assertTrue(new AddressUpdateDTO(null, null, null, "10", null).hasUpdates());
+        assertTrue(new AddressUpdateDTO(null, null, null, null, "BR").hasUpdates());
+
+        AddressUpdateDTO emptyUpdate = new AddressUpdateDTO(null, null, null, null, null);
+        assertFalse(emptyUpdate.hasUpdates());
+        assertNull(emptyUpdate.zipCode());
+        assertNull(emptyUpdate.state());
+        assertNull(emptyUpdate.city());
+        assertNull(emptyUpdate.number());
+        assertNull(emptyUpdate.country());
+
+        AddressUpdateDTO blankUpdate = new AddressUpdateDTO("   ", "   ", "   ", "   ", "   ");
+        assertFalse(blankUpdate.hasUpdates());
+
+        AddressUpdateDTO normalizedUpdate = new AddressUpdateDTO("  12345678  ", " sp ", "  São Paulo  ", " 1000 ", " br ");
+        assertEquals("12345678", normalizedUpdate.zipCode());
+        assertEquals("SP", normalizedUpdate.state());
+        assertEquals("São Paulo", normalizedUpdate.city());
+        assertEquals("1000", normalizedUpdate.number());
+        assertEquals("BR", normalizedUpdate.country());
 
         AddressRequestDTO normalizedRequest = new AddressRequestDTO("  01310-100  ", " sp ", "  São Paulo  ", " 1000 ", " br ");
         assertEquals("01310-100", normalizedRequest.zipCode());
@@ -224,6 +256,17 @@ class DTOAndEntityTest {
         assertEquals("BR", response.country());
 
         assertThrows(NullPointerException.class, () -> AddressResponseDTO.fromEntity(null));
+    }
+
+    /**
+     * Testa os valores das constantes de perfil e mensagens de erro centralizadas.
+     */
+    @Test
+    void testConstantsClasses() {
+        assertEquals("ADM", RoleConstants.ADM);
+        assertEquals("COMPANY_EMPLOYEE", RoleConstants.COMPANY_EMPLOYEE);
+        assertEquals("Funcionário não encontrado", ErrorMessages.EMPLOYEE_NOT_FOUND);
+        assertEquals("Usuário não autenticado", ErrorMessages.USER_NOT_AUTHENTICATED);
     }
 
     /**
@@ -281,32 +324,42 @@ class DTOAndEntityTest {
      */
     @Test
     void testEnterpriseDTOs() {
-        EnterpriseRequestDTO request = new EnterpriseRequestDTO(
-                "Agro Ouros S.A.",
-                "contato@agroouros.com.br",
-                "12345678000195",
-                "11999999999",
-                1L
-        );
+        EnterpriseRequestDTO request = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L, null);
         assertEquals("Agro Ouros S.A.", request.name());
         assertEquals("contato@agroouros.com.br", request.email());
         assertEquals("12345678000195", request.documentNumber());
         assertEquals("11999999999", request.telephone());
         assertEquals(1L, request.idAddress());
 
-        EnterpriseRequestDTO normalizedRequest = new EnterpriseRequestDTO(
-                "  Agro Ouros S.A.  ",
-                "  CONTATO@AGROOUROS.COM.BR  ",
-                "  12345678000195  ",
-                "  11999999999  ",
-                1L
-        );
+        EnterpriseRequestDTO normalizedRequest = new EnterpriseRequestDTO("  Agro Ouros S.A.  ", "  CONTATO@AGROOUROS.COM.BR  ", "  12345678000195  ", "  11999999999  ", 1L, null);
         assertEquals("Agro Ouros S.A.", normalizedRequest.name());
         assertEquals("contato@agroouros.com.br", normalizedRequest.email());
         assertEquals("12345678000195", normalizedRequest.documentNumber());
         assertEquals("11999999999", normalizedRequest.telephone());
 
-        EnterpriseRequestDTO nullRequest = new EnterpriseRequestDTO(null, null, null, null, null);
+        EnterpriseRequestDTO formattedCnpjRequest = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12.345.678/0001-95", "11999999999", 1L, null);
+        assertEquals("12345678000195", formattedCnpjRequest.documentNumber());
+        assertTrue(validator.validate(formattedCnpjRequest).isEmpty());
+
+        EnterpriseRequestDTO cnpjWithLetterRequest = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12.345.678/0001-95X", "11999999999", 1L, null);
+        assertEquals("12345678000195X", cnpjWithLetterRequest.documentNumber());
+        Set<ConstraintViolation<EnterpriseRequestDTO>> cnpjLetterViolations = validator.validate(cnpjWithLetterRequest);
+        assertFalse(cnpjLetterViolations.isEmpty());
+
+        EnterpriseRequestDTO invalidIdAddress = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", -1L, null);
+        Set<ConstraintViolation<EnterpriseRequestDTO>> violations = validator.validate(invalidIdAddress);
+        assertFalse(violations.isEmpty());
+
+        EnterpriseRequestDTO bothAddresses = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", 1L, new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        assertFalse(validator.validate(bothAddresses).isEmpty());
+
+        EnterpriseRequestDTO neitherAddress = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", null, null);
+        assertFalse(validator.validate(neitherAddress).isEmpty());
+
+        EnterpriseRequestDTO onlyEmbeddedAddress = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", null, new AddressRequestDTO("01310-100", "SP", "São Paulo", "1000", "BR"));
+        assertTrue(validator.validate(onlyEmbeddedAddress).isEmpty());
+
+        EnterpriseRequestDTO nullRequest = new EnterpriseRequestDTO(null, null, null, null, null, null);
         assertNull(nullRequest.name());
         assertNull(nullRequest.email());
         assertNull(nullRequest.documentNumber());
@@ -377,6 +430,41 @@ class DTOAndEntityTest {
     }
 
     /**
+     * Testa instanciação, normalização e método hasUpdates de {@link EnterpriseUpdateDTO}.
+     */
+    @Test
+    void testEnterpriseUpdateDTO() {
+        EnterpriseUpdateDTO updateDTO = new EnterpriseUpdateDTO(
+                "  Agro Ouros S.A.  ",
+                "  CONTATO@AGROOUROS.COM.BR  ",
+                "  12345678000195  ",
+                "  11999999999  ",
+                2L
+        );
+        assertEquals("Agro Ouros S.A.", updateDTO.name());
+        assertEquals("contato@agroouros.com.br", updateDTO.email());
+        assertEquals("12345678000195", updateDTO.documentNumber());
+        assertEquals("11999999999", updateDTO.telephone());
+        assertEquals(2L, updateDTO.idAddress());
+        assertTrue(updateDTO.hasUpdates());
+
+        EnterpriseUpdateDTO emptyDTO = new EnterpriseUpdateDTO(null, null, null, null, null);
+        assertFalse(emptyDTO.hasUpdates());
+
+        EnterpriseUpdateDTO blankDTO = new EnterpriseUpdateDTO("  ", "  ", "  ", "  ", null);
+        assertFalse(blankDTO.hasUpdates());
+
+        EnterpriseUpdateDTO formattedUpdate = new EnterpriseUpdateDTO(null, null, "12.345.678/0001-95", null, null);
+        assertEquals("12345678000195", formattedUpdate.documentNumber());
+        assertTrue(validator.validate(formattedUpdate).isEmpty());
+
+        EnterpriseUpdateDTO updateWithLetter = new EnterpriseUpdateDTO(null, null, "12.345.678/0001-95X", null, null);
+        assertEquals("12345678000195X", updateWithLetter.documentNumber());
+        Set<ConstraintViolation<EnterpriseUpdateDTO>> updateLetterViolations = validator.validate(updateWithLetter);
+        assertFalse(updateLetterViolations.isEmpty());
+    }
+
+    /**
      * Testa instanciação, normalização e conversão de entidade dos DTOs de funcionário da empresa.
      */
     @Test
@@ -409,6 +497,39 @@ class DTOAndEntityTest {
         assertEquals("carlos@empresa.com.br", normalizedRequest.email());
         assertEquals("11987654321", normalizedRequest.telephone());
         assertEquals("  Senha@123  ", normalizedRequest.password());
+
+        CompanyEmployeeRequestDTO validFormattedCpfRequest = new CompanyEmployeeRequestDTO(
+                "Carlos Pereira",
+                "123.456.789-09",
+                "carlos@empresa.com.br",
+                "11987654321",
+                "SenhaForte@123",
+                1L
+        );
+        assertEquals("12345678909", validFormattedCpfRequest.documentNumber());
+        assertTrue(validator.validate(validFormattedCpfRequest).isEmpty());
+
+        CompanyEmployeeRequestDTO cpfWithLetterRequest = new CompanyEmployeeRequestDTO(
+                "Carlos Pereira",
+                "123.456.789-09X",
+                "carlos@empresa.com.br",
+                "11987654321",
+                "SenhaForte@123",
+                1L
+        );
+        assertEquals("12345678909X", cpfWithLetterRequest.documentNumber());
+        assertFalse(validator.validate(cpfWithLetterRequest).isEmpty());
+
+        CompanyEmployeeRequestDTO invalidCheckDigitsRequest = new CompanyEmployeeRequestDTO(
+                "Carlos Pereira",
+                "123.456.789-01",
+                "carlos@empresa.com.br",
+                "11987654321",
+                "SenhaForte@123",
+                1L
+        );
+        assertEquals("12345678901", invalidCheckDigitsRequest.documentNumber());
+        assertFalse(validator.validate(invalidCheckDigitsRequest).isEmpty());
 
         CompanyEmployeeRequestDTO nullRequest = new CompanyEmployeeRequestDTO(null, null, null, null, null, null);
         assertNull(nullRequest.name());
@@ -518,44 +639,44 @@ class DTOAndEntityTest {
     void testCompanyEmployeeRequestDTOPasswordValidation() {
         // Senha válida com 8 caracteres, maiúscula, minúscula, número e caractere especial
         CompanyEmployeeRequestDTO validDto = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha@12", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "Senha@12", 1L
         );
         Set<ConstraintViolation<CompanyEmployeeRequestDTO>> violations = validator.validate(validDto);
         assertTrue(violations.isEmpty());
 
         // Senha curta (< 8)
         CompanyEmployeeRequestDTO shortPass = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Sen@12", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "Sen@12", 1L
         );
         assertFalse(validator.validate(shortPass).isEmpty());
 
         // Senha longa (> 20)
         CompanyEmployeeRequestDTO longPass = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "SenhaMuitoLongaComMaisDe20@1", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "SenhaMuitoLongaComMaisDe20@1", 1L
         );
         assertFalse(validator.validate(longPass).isEmpty());
 
         // Sem maiúscula
         CompanyEmployeeRequestDTO noUpper = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "senha@123", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "senha@123", 1L
         );
         assertFalse(validator.validate(noUpper).isEmpty());
 
         // Sem minúscula
         CompanyEmployeeRequestDTO noLower = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "SENHA@123", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "SENHA@123", 1L
         );
         assertFalse(validator.validate(noLower).isEmpty());
 
         // Sem número
         CompanyEmployeeRequestDTO noDigit = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha@abc", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "Senha@abc", 1L
         );
         assertFalse(validator.validate(noDigit).isEmpty());
 
         // Sem caractere especial
         CompanyEmployeeRequestDTO noSpecial = new CompanyEmployeeRequestDTO(
-                "Carlos", "12345678901", "carlos@empresa.com.br", "11987654321", "Senha1234", 1L
+                "Carlos", "52998224725", "carlos@empresa.com.br", "11987654321", "Senha1234", 1L
         );
         assertFalse(validator.validate(noSpecial).isEmpty());
     }

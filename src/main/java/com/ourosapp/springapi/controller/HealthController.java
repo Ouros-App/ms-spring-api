@@ -7,6 +7,9 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Controlador REST responsável por verificar a saúde e o status da aplicação (Health Check).
+ */
 @RestController
 @Tag(name = "Health Check", description = "Monitoramento da integridade e status da aplicação")
 public class HealthController {

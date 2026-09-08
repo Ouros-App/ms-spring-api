@@ -15,6 +15,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+/**
+ * Implementação do UserDetailsService do Spring Security para carregamento de usuários do banco de dados.
+ */
 @Service
 @RequiredArgsConstructor
 public class UserDetailsServiceImpl implements UserDetailsService {

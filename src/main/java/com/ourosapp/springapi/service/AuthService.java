@@ -18,6 +18,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
+/**
+ * Serviço responsável pelas regras de negócio de autenticação e login.
+ */
 @Service
 @RequiredArgsConstructor
 public class AuthService {

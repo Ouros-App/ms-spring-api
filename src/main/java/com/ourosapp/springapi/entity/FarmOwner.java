@@ -3,6 +3,9 @@ package com.ourosapp.springapi.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+/**
+ * Entidade que representa um Dono de Fazenda.
+ */
 @Entity
 @Table(name = "farm_owners")
 @Getter

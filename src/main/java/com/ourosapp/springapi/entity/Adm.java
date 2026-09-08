@@ -3,6 +3,9 @@ package com.ourosapp.springapi.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+/**
+ * Entidade que representa um Administrador do sistema.
+ */
 @Entity
 @Table(name = "adms")
 @Getter

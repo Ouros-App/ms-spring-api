@@ -2,9 +2,9 @@ package com.ourosapp.springapi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
-import com.ourosapp.springapi.dto.CompanyEmployeeRequestDTO;
-import com.ourosapp.springapi.dto.CompanyEmployeeResponseDTO;
-import com.ourosapp.springapi.dto.CompanyEmployeeUpdateDTO;
+import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeRequestDTO;
+import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeResponseDTO;
+import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeUpdateDTO;
 import com.ourosapp.springapi.security.JwtAuthFilter;
 import com.ourosapp.springapi.security.JwtUtil;
 import com.ourosapp.springapi.security.UserPrincipal;
@@ -28,6 +28,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -55,18 +56,20 @@ class CompanyEmployeeControllerMockMvcTest {
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;
 
-    /**
-     * Testa POST /company-employees esperando status 201 Created e cabeçalho Location.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
+    private final UserPrincipal defaultPrincipal = new UserPrincipal(
+            1L,
+            "carlos.pereira@empresa.com.br",
+            null,
+            "COMPANY_EMPLOYEE",
+            List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE"))
+    );
+
     @Test
-    @WithMockUser
     @DisplayName("POST /company-employees - Deve cadastrar funcionário e retornar 201 Created com cabeçalho Location")
     void testCreateCompanyEmployeeSuccess() throws Exception {
         CompanyEmployeeRequestDTO request = new CompanyEmployeeRequestDTO(
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
                 "SenhaForte@123",
@@ -75,38 +78,68 @@ class CompanyEmployeeControllerMockMvcTest {
         CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
                 1L,
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
                 10L
         );
 
-        when(companyEmployeeService.createCompanyEmployee(any(CompanyEmployeeRequestDTO.class))).thenReturn(response);
+        when(companyEmployeeService.createCompanyEmployee(any(CompanyEmployeeRequestDTO.class), eq(defaultPrincipal))).thenReturn(response);
 
         mockMvc.perform(post("/company-employees")
+                        .with(user(defaultPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/company-employees/1")))
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.name").value("Carlos Eduardo Pereira"))
-                .andExpect(jsonPath("$.document_number").value("12345678901"))
+                .andExpect(jsonPath("$.document_number").value("12345678909"))
                 .andExpect(jsonPath("$.email").value("carlos.pereira@empresa.com.br"))
                 .andExpect(jsonPath("$.telephone").value("11987654321"))
                 .andExpect(jsonPath("$.id_enterprise").value(10L));
     }
 
-    /**
-     * Testa POST /company-employees sem autenticação esperando status 401 Unauthorized.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
+    @Test
+    @DisplayName("POST /company-employees - Deve aceitar payload em formato camelCase (interoperabilidade)")
+    void testCreateCompanyEmployeeCamelCasePayloadSuccess() throws Exception {
+        String camelCasePayload = """
+                {
+                    "name": "Carlos Eduardo Pereira",
+                    "documentNumber": "12345678909",
+                    "email": "carlos.pereira@empresa.com.br",
+                    "telephone": "11987654321",
+                    "password": "SenhaForte@123",
+                    "idEnterprise": 10
+                }
+                """;
+        CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
+                1L,
+                "Carlos Eduardo Pereira",
+                "12345678909",
+                "carlos.pereira@empresa.com.br",
+                "11987654321",
+                10L
+        );
+
+        when(companyEmployeeService.createCompanyEmployee(any(CompanyEmployeeRequestDTO.class), eq(defaultPrincipal))).thenReturn(response);
+
+        mockMvc.perform(post("/company-employees")
+                        .with(user(defaultPrincipal))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(camelCasePayload))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/company-employees/1")))
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.name").value("Carlos Eduardo Pereira"));
+    }
+
     @Test
     @DisplayName("POST /company-employees - Deve retornar 401 Unauthorized quando não autenticado")
     void testCreateCompanyEmployeeUnauthorized() throws Exception {
         CompanyEmployeeRequestDTO request = new CompanyEmployeeRequestDTO(
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
                 "SenhaForte@123",
@@ -119,21 +152,16 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    /**
-     * Testa POST /company-employees com payload inválido esperando status 400 Bad Request.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
     @Test
     @WithMockUser
-    @DisplayName("POST /company-employees - Deve retornar 400 Bad Request quando payload for inválido")
+    @DisplayName("POST /company-employees - Deve retornar 400 Bad Request quando campos obrigatórios forem inválidos")
     void testCreateCompanyEmployeeInvalidPayload() throws Exception {
         CompanyEmployeeRequestDTO invalidRequest = new CompanyEmployeeRequestDTO(
                 "",
                 "123",
                 "email-invalido",
                 "123",
-                "123",
+                "fraca",
                 null
         );
 
@@ -143,13 +171,61 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isBadRequest());
     }
 
-    /**
-     * Testa GET /company-employees/me com usuário autenticado esperando status 200 OK.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
     @Test
-    @DisplayName("GET /company-employees/me - Deve retornar 200 OK com dados do usuário autenticado")
+    @DisplayName("POST /company-employees - Deve aceitar CPF formatado com pontuação e higienizar para dígitos")
+    void testCreateCompanyEmployeeFormattedCpfSuccess() throws Exception {
+        String formattedCpfPayload = """
+                {
+                    "name": "Carlos Eduardo Pereira",
+                    "document_number": "123.456.789-09",
+                    "email": "carlos.pereira@empresa.com.br",
+                    "telephone": "11987654321",
+                    "password": "SenhaForte@123",
+                    "id_enterprise": 10
+                }
+                """;
+        CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
+                1L,
+                "Carlos Eduardo Pereira",
+                "12345678909",
+                "carlos.pereira@empresa.com.br",
+                "11987654321",
+                10L
+        );
+
+        when(companyEmployeeService.createCompanyEmployee(any(CompanyEmployeeRequestDTO.class), eq(defaultPrincipal))).thenReturn(response);
+
+        mockMvc.perform(post("/company-employees")
+                        .with(user(defaultPrincipal))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(formattedCpfPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.document_number").value("12345678909"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /company-employees - Deve retornar 400 Bad Request quando CPF contiver letra ao final")
+    void testCreateCompanyEmployeeCpfWithLetter() throws Exception {
+        String jsonPayload = """
+                {
+                    "name": "Carlos Eduardo Pereira",
+                    "document_number": "123.456.789-09X",
+                    "email": "carlos.pereira@empresa.com.br",
+                    "telephone": "11987654321",
+                    "password": "SenhaForte@123",
+                    "id_enterprise": 10
+                }
+                """;
+
+        mockMvc.perform(post("/company-employees")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonPayload))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("GET /company-employees/me - Deve retornar 200 OK e dados do funcionário logado")
     void testGetLoggedInEmployeeSuccess() throws Exception {
         UserPrincipal principal = new UserPrincipal(
                 1L,
@@ -162,27 +238,21 @@ class CompanyEmployeeControllerMockMvcTest {
         CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
                 1L,
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
                 10L
         );
 
-        when(companyEmployeeService.getLoggedInEmployee(any(UserPrincipal.class))).thenReturn(response);
+        when(companyEmployeeService.getLoggedInEmployee(any())).thenReturn(response);
 
-        mockMvc.perform(get("/company-employees/me")
-                        .with(user(principal)))
+        mockMvc.perform(get("/company-employees/me").with(user(principal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.name").value("Carlos Eduardo Pereira"))
                 .andExpect(jsonPath("$.email").value("carlos.pereira@empresa.com.br"));
     }
 
-    /**
-     * Testa GET /company-employees/me sem autenticação esperando status 401 Unauthorized.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
     @Test
     @DisplayName("GET /company-employees/me - Deve retornar 401 Unauthorized quando não autenticado")
     void testGetLoggedInEmployeeUnauthorized() throws Exception {
@@ -190,59 +260,66 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    /**
-     * Testa GET /company-employees/{id} quando o funcionário existe esperando status 200 OK.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
     @Test
-    @WithMockUser
-    @DisplayName("GET /company-employees/{id} - Deve retornar 200 OK quando funcionário existir")
+    @DisplayName("GET /company-employees/me - Deve retornar 403 Forbidden quando perfil não for COMPANY_EMPLOYEE")
+    void testGetLoggedInEmployeeForbiddenForNonEmployee() throws Exception {
+        UserPrincipal admPrincipal = new UserPrincipal(
+                1L,
+                "adm@empresa.com.br",
+                null,
+                "ADM",
+                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+
+        when(companyEmployeeService.getLoggedInEmployee(any()))
+                .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso restrito a funcionários"));
+
+        mockMvc.perform(get("/company-employees/me").with(user(admPrincipal)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /company-employees/{id} - Deve retornar 200 OK e dados do funcionário quando encontrado")
     void testGetCompanyEmployeeByIdSuccess() throws Exception {
         CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
                 1L,
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
                 10L
         );
 
-        when(companyEmployeeService.getCompanyEmployeeById(1L)).thenReturn(response);
+        when(companyEmployeeService.getCompanyEmployeeById(eq(1L), eq(defaultPrincipal))).thenReturn(response);
 
-        mockMvc.perform(get("/company-employees/1"))
+        mockMvc.perform(get("/company-employees/1").with(user(defaultPrincipal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.name").value("Carlos Eduardo Pereira"))
-                .andExpect(jsonPath("$.document_number").value("12345678901"));
+                .andExpect(jsonPath("$.document_number").value("12345678909"));
     }
 
-    /**
-     * Testa GET /company-employees/{id} quando o funcionário não existe esperando status 404 Not Found.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
     @Test
-    @WithMockUser
     @DisplayName("GET /company-employees/{id} - Deve retornar 404 Not Found quando funcionário não existir")
     void testGetCompanyEmployeeByIdNotFound() throws Exception {
-        when(companyEmployeeService.getCompanyEmployeeById(99L))
+        when(companyEmployeeService.getCompanyEmployeeById(eq(99L), eq(defaultPrincipal)))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
 
-        mockMvc.perform(get("/company-employees/99"))
+        mockMvc.perform(get("/company-employees/99").with(user(defaultPrincipal)))
                 .andExpect(status().isNotFound());
     }
 
-    /**
-     * Testa PATCH /company-employees/{id} com dados válidos esperando status 200 OK.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
     @Test
-    @WithMockUser
-    @DisplayName("PATCH /company-employees/{id} - Deve atualizar parcialmente e retornar 200 OK")
+    @DisplayName("GET /company-employees/{id} - Deve retornar 401 Unauthorized quando não autenticado")
+    void testGetCompanyEmployeeByIdUnauthorized() throws Exception {
+        mockMvc.perform(get("/company-employees/1"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("PATCH /company-employees/{id} - Deve atualizar funcionário e retornar 200 OK quando válido")
     void testUpdateCompanyEmployeeSuccess() throws Exception {
-        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+        CompanyEmployeeUpdateDTO request = new CompanyEmployeeUpdateDTO(
                 "carlos.novo@empresa.com.br",
                 "11999998888",
                 "NovaSenha@123"
@@ -250,120 +327,82 @@ class CompanyEmployeeControllerMockMvcTest {
         CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
                 1L,
                 "Carlos Eduardo Pereira",
-                "12345678901",
+                "12345678909",
                 "carlos.novo@empresa.com.br",
                 "11999998888",
                 10L
         );
 
-        when(companyEmployeeService.updateCompanyEmployee(eq(1L), any(CompanyEmployeeUpdateDTO.class))).thenReturn(response);
+        when(companyEmployeeService.updateCompanyEmployee(eq(1L), any(CompanyEmployeeUpdateDTO.class), eq(defaultPrincipal))).thenReturn(response);
 
         mockMvc.perform(patch("/company-employees/1")
+                        .with(user(defaultPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateDTO)))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.email").value("carlos.novo@empresa.com.br"))
                 .andExpect(jsonPath("$.telephone").value("11999998888"));
     }
 
-    /**
-     * Testa PATCH /company-employees/{id} para funcionário inexistente esperando status 404 Not Found.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
     @Test
-    @WithMockUser
-    @DisplayName("PATCH /company-employees/{id} - Deve retornar 404 Not Found quando funcionário não existir")
+    @DisplayName("PATCH /company-employees/{id} - Deve retornar 404 Not Found ao tentar atualizar funcionário inexistente")
     void testUpdateCompanyEmployeeNotFound() throws Exception {
-        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+        CompanyEmployeeUpdateDTO request = new CompanyEmployeeUpdateDTO(
                 "carlos.novo@empresa.com.br",
-                null,
-                null
+                "11999998888",
+                "NovaSenha@123"
         );
 
-        when(companyEmployeeService.updateCompanyEmployee(eq(99L), any(CompanyEmployeeUpdateDTO.class)))
+        when(companyEmployeeService.updateCompanyEmployee(eq(99L), any(CompanyEmployeeUpdateDTO.class), eq(defaultPrincipal)))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"));
 
         mockMvc.perform(patch("/company-employees/99")
+                        .with(user(defaultPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateDTO)))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
     }
 
-    /**
-     * Testa PATCH /company-employees/{id} com e-mail duplicado de outro funcionário esperando status 409 Conflict.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
     @Test
     @WithMockUser
-    @DisplayName("PATCH /company-employees/{id} - Deve retornar 409 Conflict quando e-mail já pertencer a outro funcionário")
-    void testUpdateCompanyEmployeeConflict() throws Exception {
-        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
-                "duplicado@empresa.com.br",
-                null,
-                null
-        );
-
-        when(companyEmployeeService.updateCompanyEmployee(eq(1L), any(CompanyEmployeeUpdateDTO.class)))
-                .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Já existe outro funcionário cadastrado com este e-mail"));
-
-        mockMvc.perform(patch("/company-employees/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateDTO)))
-                .andExpect(status().isConflict());
-    }
-
-    /**
-     * Testa PATCH /company-employees/{id} com senha fora do padrão de complexidade esperando status 400 Bad Request.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
-    @Test
-    @WithMockUser
-    @DisplayName("PATCH /company-employees/{id} - Deve retornar 400 Bad Request quando senha não cumprir requisitos de complexidade")
-    void testUpdateCompanyEmployeeInvalidPassword() throws Exception {
-        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
-                null,
-                null,
-                "senha123"
+    @DisplayName("PATCH /company-employees/{id} - Deve retornar 400 Bad Request quando payload for inválido")
+    void testUpdateCompanyEmployeeInvalidPayload() throws Exception {
+        CompanyEmployeeUpdateDTO invalidRequest = new CompanyEmployeeUpdateDTO(
+                "email-invalido",
+                "123",
+                "fraca"
         );
 
         mockMvc.perform(patch("/company-employees/1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateDTO)))
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest());
     }
 
-    /**
-     * Testa DELETE /company-employees/{id} para remoção bem-sucedida esperando status 204 No Content.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
     @Test
-    @WithMockUser
-    @DisplayName("DELETE /company-employees/{id} - Deve remover funcionário e retornar 204 No Content")
+    @DisplayName("DELETE /company-employees/{id} - Deve excluir funcionário e retornar 204 No Content quando existir")
     void testDeleteCompanyEmployeeSuccess() throws Exception {
-        doNothing().when(companyEmployeeService).deleteCompanyEmployee(1L);
+        doNothing().when(companyEmployeeService).deleteCompanyEmployee(eq(1L), eq(defaultPrincipal));
 
-        mockMvc.perform(delete("/company-employees/1"))
+        mockMvc.perform(delete("/company-employees/1").with(user(defaultPrincipal)))
                 .andExpect(status().isNoContent());
     }
 
-    /**
-     * Testa DELETE /company-employees/{id} quando funcionário não existe esperando status 404 Not Found.
-     *
-     * @throws Exception se ocorrer erro na requisição MockMvc
-     */
     @Test
-    @WithMockUser
-    @DisplayName("DELETE /company-employees/{id} - Deve retornar 404 Not Found quando funcionário não existir")
+    @DisplayName("DELETE /company-employees/{id} - Deve retornar 404 Not Found ao tentar excluir funcionário inexistente")
     void testDeleteCompanyEmployeeNotFound() throws Exception {
-        org.mockito.Mockito.doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"))
-                .when(companyEmployeeService).deleteCompanyEmployee(99L);
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário não encontrado"))
+                .when(companyEmployeeService).deleteCompanyEmployee(eq(99L), eq(defaultPrincipal));
 
-        mockMvc.perform(delete("/company-employees/99"))
+        mockMvc.perform(delete("/company-employees/99").with(user(defaultPrincipal)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("DELETE /company-employees/{id} - Deve retornar 401 Unauthorized quando não autenticado")
+    void testDeleteCompanyEmployeeUnauthorized() throws Exception {
+        mockMvc.perform(delete("/company-employees/1"))
+                .andExpect(status().isUnauthorized());
     }
 }
