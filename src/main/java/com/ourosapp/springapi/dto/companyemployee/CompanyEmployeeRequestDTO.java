@@ -15,7 +15,7 @@ import org.hibernate.validator.constraints.br.CPF;
  * DTO de requisição para cadastro de Funcionário da Empresa Integradora.
  *
  * @param name           Nome completo do funcionário
- * @param documentNumber Documento/CPF do funcionário (exatamente 11 dígitos numéricos)
+ * @param documentNumber Documento/CPF do funcionário (11 dígitos numéricos ou formatado)
  * @param email          E-mail corporativo do funcionário
  * @param telephone      Telefone de contato (entre 10 e 13 dígitos numéricos)
  * @param password       Senha de acesso do funcionário (8 a 20 caracteres com requisitos de complexidade)
@@ -29,11 +29,10 @@ public record CompanyEmployeeRequestDTO(
         @Size(max = 100, message = "O nome deve ter no máximo 100 caracteres")
         String name,
 
-        @Schema(description = "Documento/CPF do funcionário (exatamente 11 dígitos numéricos)", example = "12345678901")
+        @Schema(description = "Documento/CPF do funcionário (11 dígitos numéricos ou formatado)", example = "12345678901")
         @JsonProperty("document_number")
         @JsonAlias("documentNumber")
         @NotBlank(message = "O documento/CPF não pode estar em branco")
-        @Pattern(regexp = "^\\d{11}$", message = "O documento deve conter exatamente 11 dígitos numéricos")
         @CPF(message = "O documento/CPF deve ser válido")
         String documentNumber,
 
@@ -68,7 +67,7 @@ public record CompanyEmployeeRequestDTO(
      */
     public CompanyEmployeeRequestDTO {
         name = name != null ? name.trim() : null;
-        documentNumber = documentNumber != null ? documentNumber.trim() : null;
+        documentNumber = documentNumber != null ? documentNumber.trim().replaceAll("[-.]", "") : null;
         email = email != null ? email.trim().toLowerCase() : null;
         telephone = telephone != null ? telephone.trim() : null;
     }

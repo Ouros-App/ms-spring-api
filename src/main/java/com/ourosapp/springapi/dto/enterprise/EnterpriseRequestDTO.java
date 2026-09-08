@@ -58,7 +58,7 @@ public record EnterpriseRequestDTO(
     public EnterpriseRequestDTO {
         name = name != null ? name.trim() : null;
         email = email != null ? email.trim().toLowerCase() : null;
-        documentNumber = documentNumber != null ? documentNumber.replaceAll("\\D", "") : null;
+        documentNumber = documentNumber != null ? documentNumber.trim().replaceAll("[-./]", "") : null;
         telephone = telephone != null ? telephone.trim() : null;
     }
 }

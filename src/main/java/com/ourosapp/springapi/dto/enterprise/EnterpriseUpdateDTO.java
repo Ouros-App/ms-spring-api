@@ -47,7 +47,7 @@ public record EnterpriseUpdateDTO(
     public EnterpriseUpdateDTO {
         name = name != null ? name.trim() : null;
         email = email != null ? email.trim().toLowerCase() : null;
-        documentNumber = documentNumber != null ? documentNumber.replaceAll("\\D", "") : null;
+        documentNumber = documentNumber != null ? documentNumber.trim().replaceAll("[-./]", "") : null;
         telephone = telephone != null ? telephone.trim() : null;
     }
 

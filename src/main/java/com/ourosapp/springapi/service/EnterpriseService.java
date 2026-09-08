@@ -173,58 +173,63 @@ public class EnterpriseService {
             return EnterpriseResponseDTO.fromEntity(enterprise);
         }
 
-        if (request.documentNumber() != null && !request.documentNumber().isBlank()) {
-            if (!ADM.equals(principal.getRole())) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas administradores podem alterar o CNPJ da empresa");
-            }
-            enterpriseRepository.findByDocumentNumber(request.documentNumber())
-                    .filter(existing -> !existing.getId().equals(id))
-                    .ifPresent(existing -> {
-                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Já existe outra empresa cadastrada com este CNPJ");
-                    });
-            enterprise.setDocumentNumber(request.documentNumber());
-        }
-
-        if (request.email() != null && !request.email().isBlank()) {
-            enterpriseRepository.findByEmailIgnoreCase(request.email())
-                    .filter(existing -> !existing.getId().equals(id))
-                    .ifPresent(existing -> {
-                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Já existe outra empresa cadastrada com este e-mail");
-                    });
-            enterprise.setEmail(request.email());
-        }
-
-        if (request.idAddress() != null) {
-            if (!ADM.equals(principal.getRole())) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas administradores podem alterar o endereço da empresa");
-            }
-            if (!addressRepository.existsById(request.idAddress())) {
-                throw new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Endereço não encontrado para o ID: " + request.idAddress()
-                );
-            }
-            enterprise.setIdAddress(request.idAddress());
-        }
+        applyDocumentNumberUpdate(enterprise, id, request.documentNumber(), principal);
+        applyEmailUpdate(enterprise, id, request.email());
+        applyAddressUpdate(enterprise, request.idAddress(), principal);
 
         if (request.name() != null && !request.name().isBlank()) {
             enterprise.setName(request.name());
         }
-        
+
         if (request.telephone() != null && !request.telephone().isBlank()) {
             enterprise.setTelephone(request.telephone());
         }
 
-        try {
-            Enterprise updatedEnterprise = enterpriseRepository.save(enterprise);
-            return EnterpriseResponseDTO.fromEntity(updatedEnterprise);
-        } catch (DataIntegrityViolationException ex) {
+        Enterprise updatedEnterprise = enterpriseRepository.save(enterprise);
+        return EnterpriseResponseDTO.fromEntity(updatedEnterprise);
+    }
+
+    private void applyDocumentNumberUpdate(Enterprise enterprise, Long id, String documentNumber, UserPrincipal principal) {
+        if (documentNumber == null || documentNumber.isBlank()) {
+            return;
+        }
+        if (!ADM.equals(principal.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas administradores podem alterar o CNPJ da empresa");
+        }
+        enterpriseRepository.findByDocumentNumber(documentNumber)
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Já existe outra empresa cadastrada com este CNPJ");
+                });
+        enterprise.setDocumentNumber(documentNumber);
+    }
+
+    private void applyEmailUpdate(Enterprise enterprise, Long id, String email) {
+        if (email == null || email.isBlank()) {
+            return;
+        }
+        enterpriseRepository.findByEmailIgnoreCase(email)
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Já existe outra empresa cadastrada com este e-mail");
+                });
+        enterprise.setEmail(email);
+    }
+
+    private void applyAddressUpdate(Enterprise enterprise, Long idAddress, UserPrincipal principal) {
+        if (idAddress == null) {
+            return;
+        }
+        if (!ADM.equals(principal.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas administradores podem alterar o endereço da empresa");
+        }
+        if (!addressRepository.existsById(idAddress)) {
             throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de unicidade de dados ao atualizar empresa",
-                    ex
+                    HttpStatus.NOT_FOUND,
+                    "Endereço não encontrado para o ID: " + idAddress
             );
         }
+        enterprise.setIdAddress(idAddress);
     }
 
     private void ensureAuthenticated(UserPrincipal principal) {

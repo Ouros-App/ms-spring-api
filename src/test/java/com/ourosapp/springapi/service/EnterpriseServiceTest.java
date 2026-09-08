@@ -390,7 +390,7 @@ class EnterpriseServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar ResponseStatusException 409 quando ocorrer DataIntegrityViolationException na atualização")
+    @DisplayName("Deve propagar DataIntegrityViolationException quando ocorrer erro de integridade na atualização")
     void testUpdateEnterpriseDataIntegrityViolation() {
         EnterpriseUpdateDTO updateRequest = new EnterpriseUpdateDTO("Agro Ouros Renovada S.A.", "novo-contato@agroouros.com.br", "12345678000195", "11988887777", 10L);
 
@@ -400,13 +400,10 @@ class EnterpriseServiceTest {
         when(addressRepository.existsById(10L)).thenReturn(true);
         when(enterpriseRepository.save(any(Enterprise.class))).thenThrow(new DataIntegrityViolationException("Unique constraint violation"));
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
+        assertThrows(
+                DataIntegrityViolationException.class,
                 () -> enterpriseService.updateEnterprise(1L, updateRequest, adminPrincipal)
         );
-
-        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
-        assertTrue(exception.getReason().contains("unicidade"));
     }
 
     @Test

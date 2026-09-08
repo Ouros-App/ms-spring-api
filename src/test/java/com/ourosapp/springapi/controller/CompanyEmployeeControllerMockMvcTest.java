@@ -172,6 +172,59 @@ class CompanyEmployeeControllerMockMvcTest {
     }
 
     @Test
+    @DisplayName("POST /company-employees - Deve aceitar CPF formatado com pontuação e higienizar para dígitos")
+    void testCreateCompanyEmployeeFormattedCpfSuccess() throws Exception {
+        String formattedCpfPayload = """
+                {
+                    "name": "Carlos Eduardo Pereira",
+                    "document_number": "123.456.789-09",
+                    "email": "carlos.pereira@empresa.com.br",
+                    "telephone": "11987654321",
+                    "password": "SenhaForte@123",
+                    "id_enterprise": 10
+                }
+                """;
+        CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
+                1L,
+                "Carlos Eduardo Pereira",
+                "12345678909",
+                "carlos.pereira@empresa.com.br",
+                "11987654321",
+                10L
+        );
+
+        when(companyEmployeeService.createCompanyEmployee(any(CompanyEmployeeRequestDTO.class), eq(defaultPrincipal))).thenReturn(response);
+
+        mockMvc.perform(post("/company-employees")
+                        .with(user(defaultPrincipal))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(formattedCpfPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.document_number").value("12345678909"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /company-employees - Deve retornar 400 Bad Request quando CPF contiver letra ao final")
+    void testCreateCompanyEmployeeCpfWithLetter() throws Exception {
+        String jsonPayload = """
+                {
+                    "name": "Carlos Eduardo Pereira",
+                    "document_number": "123.456.789-09X",
+                    "email": "carlos.pereira@empresa.com.br",
+                    "telephone": "11987654321",
+                    "password": "SenhaForte@123",
+                    "id_enterprise": 10
+                }
+                """;
+
+        mockMvc.perform(post("/company-employees")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonPayload))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("GET /company-employees/me - Deve retornar 200 OK e dados do funcionário logado")
     void testGetLoggedInEmployeeSuccess() throws Exception {
         UserPrincipal principal = new UserPrincipal(

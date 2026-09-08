@@ -173,6 +173,26 @@ class EnterpriseControllerMockMvcTest {
     }
 
     @Test
+    @WithMockUser
+    @DisplayName("POST /enterprises - Deve retornar 400 Bad Request quando CNPJ contiver letra ao final")
+    void testCreateEnterpriseCnpjWithLetter() throws Exception {
+        String jsonPayload = """
+                {
+                    "name": "Agro Ouros S.A.",
+                    "email": "contato@agroouros.com.br",
+                    "document_number": "12.345.678/0001-95X",
+                    "telephone": "11999999999",
+                    "id_address": 1
+                }
+                """;
+
+        mockMvc.perform(post("/enterprises")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonPayload))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("GET /enterprises - Deve retornar 200 OK e lista de empresas cadastradas")
     void testGetAllEnterprisesSuccess() throws Exception {
         EnterpriseResponseDTO response = new EnterpriseResponseDTO(
@@ -286,6 +306,22 @@ class EnterpriseControllerMockMvcTest {
         mockMvc.perform(patch("/enterprises/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PATCH /enterprises/{id} - Deve retornar 400 Bad Request quando CNPJ contiver letra ao final")
+    void testUpdateEnterpriseCnpjWithLetter() throws Exception {
+        String jsonPayload = """
+                {
+                    "document_number": "12.345.678/0001-95X"
+                }
+                """;
+
+        mockMvc.perform(patch("/enterprises/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonPayload))
                 .andExpect(status().isBadRequest());
     }
 

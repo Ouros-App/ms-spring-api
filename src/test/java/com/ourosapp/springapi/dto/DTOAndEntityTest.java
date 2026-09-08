@@ -341,6 +341,12 @@ class DTOAndEntityTest {
 
         EnterpriseRequestDTO formattedCnpjRequest = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12.345.678/0001-95", "11999999999", 1L, null);
         assertEquals("12345678000195", formattedCnpjRequest.documentNumber());
+        assertTrue(validator.validate(formattedCnpjRequest).isEmpty());
+
+        EnterpriseRequestDTO cnpjWithLetterRequest = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12.345.678/0001-95X", "11999999999", 1L, null);
+        assertEquals("12345678000195X", cnpjWithLetterRequest.documentNumber());
+        Set<ConstraintViolation<EnterpriseRequestDTO>> cnpjLetterViolations = validator.validate(cnpjWithLetterRequest);
+        assertFalse(cnpjLetterViolations.isEmpty());
 
         EnterpriseRequestDTO invalidIdAddress = new EnterpriseRequestDTO("Agro Ouros S.A.", "contato@agroouros.com.br", "12345678000195", "11999999999", -1L, null);
         Set<ConstraintViolation<EnterpriseRequestDTO>> violations = validator.validate(invalidIdAddress);
@@ -440,6 +446,15 @@ class DTOAndEntityTest {
 
         EnterpriseUpdateDTO blankDTO = new EnterpriseUpdateDTO("  ", "  ", "  ", "  ", null);
         assertFalse(blankDTO.hasUpdates());
+
+        EnterpriseUpdateDTO formattedUpdate = new EnterpriseUpdateDTO(null, null, "12.345.678/0001-95", null, null);
+        assertEquals("12345678000195", formattedUpdate.documentNumber());
+        assertTrue(validator.validate(formattedUpdate).isEmpty());
+
+        EnterpriseUpdateDTO updateWithLetter = new EnterpriseUpdateDTO(null, null, "12.345.678/0001-95X", null, null);
+        assertEquals("12345678000195X", updateWithLetter.documentNumber());
+        Set<ConstraintViolation<EnterpriseUpdateDTO>> updateLetterViolations = validator.validate(updateWithLetter);
+        assertFalse(updateLetterViolations.isEmpty());
     }
 
     /**
@@ -476,7 +491,29 @@ class DTOAndEntityTest {
         assertEquals("11987654321", normalizedRequest.telephone());
         assertEquals("  Senha@123  ", normalizedRequest.password());
 
-        CompanyEmployeeRequestDTO formattedCpfRequest = new CompanyEmployeeRequestDTO(
+        CompanyEmployeeRequestDTO validFormattedCpfRequest = new CompanyEmployeeRequestDTO(
+                "Carlos Pereira",
+                "123.456.789-09",
+                "carlos@empresa.com.br",
+                "11987654321",
+                "SenhaForte@123",
+                1L
+        );
+        assertEquals("12345678909", validFormattedCpfRequest.documentNumber());
+        assertTrue(validator.validate(validFormattedCpfRequest).isEmpty());
+
+        CompanyEmployeeRequestDTO cpfWithLetterRequest = new CompanyEmployeeRequestDTO(
+                "Carlos Pereira",
+                "123.456.789-09X",
+                "carlos@empresa.com.br",
+                "11987654321",
+                "SenhaForte@123",
+                1L
+        );
+        assertEquals("12345678909X", cpfWithLetterRequest.documentNumber());
+        assertFalse(validator.validate(cpfWithLetterRequest).isEmpty());
+
+        CompanyEmployeeRequestDTO invalidCheckDigitsRequest = new CompanyEmployeeRequestDTO(
                 "Carlos Pereira",
                 "123.456.789-01",
                 "carlos@empresa.com.br",
@@ -484,8 +521,8 @@ class DTOAndEntityTest {
                 "SenhaForte@123",
                 1L
         );
-        Set<ConstraintViolation<CompanyEmployeeRequestDTO>> cpfViolations = validator.validate(formattedCpfRequest);
-        assertFalse(cpfViolations.isEmpty());
+        assertEquals("12345678901", invalidCheckDigitsRequest.documentNumber());
+        assertFalse(validator.validate(invalidCheckDigitsRequest).isEmpty());
 
         CompanyEmployeeRequestDTO nullRequest = new CompanyEmployeeRequestDTO(null, null, null, null, null, null);
         assertNull(nullRequest.name());
