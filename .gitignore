@@ -16,7 +16,3 @@ out/
 # Local profile properties
 *application-local.properties
 !*application-local.properties.example
-
-# Antigravity local instructions
-AGENTS.md
-
