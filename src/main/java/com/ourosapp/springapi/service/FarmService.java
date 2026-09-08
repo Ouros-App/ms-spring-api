@@ -1,5 +1,7 @@
 package com.ourosapp.springapi.service;
 
+import static com.ourosapp.springapi.constants.ErrorMessages.USER_NOT_AUTHENTICATED;
+
 import com.ourosapp.springapi.dto.address.AddressResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRequestDTO;
 import com.ourosapp.springapi.dto.farm.FarmResponseDTO;
@@ -374,7 +376,7 @@ public class FarmService {
      */
     private void ensureAuthenticated(UserPrincipal principal) {
         if (principal == null || principal.getId() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, USER_NOT_AUTHENTICATED);
         }
     }
 

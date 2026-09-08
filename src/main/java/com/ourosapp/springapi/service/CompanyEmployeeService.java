@@ -1,6 +1,7 @@
 package com.ourosapp.springapi.service;
 
 import static com.ourosapp.springapi.constants.ErrorMessages.EMPLOYEE_NOT_FOUND;
+import static com.ourosapp.springapi.constants.ErrorMessages.USER_NOT_AUTHENTICATED;
 import static com.ourosapp.springapi.constants.RoleConstants.ADM;
 import static com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE;
 
@@ -178,7 +179,7 @@ public class CompanyEmployeeService {
 
     private void ensureAuthenticated(UserPrincipal principal) {
         if (principal == null || principal.getId() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário não autenticado");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, USER_NOT_AUTHENTICATED);
         }
     }
 

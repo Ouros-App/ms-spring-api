@@ -43,7 +43,6 @@ public class AddressController {
     public ResponseEntity<AddressResponseDTO> createAddress(
             @RequestBody @Valid AddressRequestDTO request
     ) {
-        // Address might not need permission checks directly, but we can pass principal if needed.
         AddressResponseDTO response = addressService.createAddress(request);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
