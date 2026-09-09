@@ -3,11 +3,17 @@ package com.ourosapp.springapi.config;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Tratador global de exceções para padronização de respostas de erro da API REST.
@@ -37,14 +43,14 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Intercepta {@link org.springframework.web.server.ResponseStatusException} lançadas pelas regras de negócio.
+     * Intercepta {@link ResponseStatusException} lançadas pelas regras de negócio.
      * Retorna o status HTTP e a mensagem descritiva do motivo do erro em formato ProblemDetail (RFC 7807).
      *
      * @param ex exceção disparada
      * @return {@link ProblemDetail} formatado com a mensagem de negócio
      */
-    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
-    public ProblemDetail handleResponseStatusException(org.springframework.web.server.ResponseStatusException ex) {
+    @ExceptionHandler(ResponseStatusException.class)
+    public ProblemDetail handleResponseStatusException(ResponseStatusException ex) {
         String reason = ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString();
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(ex.getStatusCode(), reason);
         problemDetail.setTitle(ex.getStatusCode().toString());
@@ -60,8 +66,8 @@ public class GlobalExceptionHandler {
      * @param ex exceção de validação de argumentos
      * @return {@link ProblemDetail} com status 400 e os erros de cada campo
      */
-    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
-    public ProblemDetail handleMethodArgumentNotValidException(org.springframework.web.bind.MethodArgumentNotValidException ex) {
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ProblemDetail handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST,
                 "Erro de validação nos campos da requisição"
@@ -70,11 +76,11 @@ public class GlobalExceptionHandler {
         problemDetail.setType(URI.create("about:blank"));
         problemDetail.setProperty("timestamp", Instant.now());
 
-        java.util.Map<String, String> errors = new java.util.HashMap<>();
-        for (org.springframework.validation.FieldError error : ex.getBindingResult().getFieldErrors()) {
+        Map<String, String> errors = new HashMap<>();
+        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
-        for (org.springframework.validation.ObjectError error : ex.getBindingResult().getGlobalErrors()) {
+        for (ObjectError error : ex.getBindingResult().getGlobalErrors()) {
             errors.put(error.getObjectName(), error.getDefaultMessage());
         }
         problemDetail.setProperty("errors", errors);
