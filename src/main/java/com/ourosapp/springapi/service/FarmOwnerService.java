@@ -170,8 +170,6 @@ public class FarmOwnerService {
 
         if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            List<Farm> employeeFarms = farmRepository.findAllByIdEnterprise(employee.getIdEnterprise());
-            List<Long> employeeFarmIds = employeeFarms.stream().map(Farm::getId).toList();
 
             if (farmId != null) {
                 Farm farm = farmRepository.findById(farmId)
@@ -188,6 +186,9 @@ public class FarmOwnerService {
                         .map(FarmOwnerResponseDTO::fromEntity)
                         .toList();
             }
+
+            List<Farm> employeeFarms = farmRepository.findAllByIdEnterprise(employee.getIdEnterprise());
+            List<Long> employeeFarmIds = employeeFarms.stream().map(Farm::getId).toList();
 
             if (employeeFarmIds.isEmpty()) {
                 return List.of();
@@ -397,7 +398,7 @@ public class FarmOwnerService {
 
         if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            Farm farm = farmRepository.findById(owner.getIdFarm()).orElse(null);
+            Farm farm = owner.getIdFarm() != null ? farmRepository.findById(owner.getIdFarm()).orElse(null) : null;
             if (farm != null && Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
                 return;
             }
@@ -434,7 +435,7 @@ public class FarmOwnerService {
 
         if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            Farm farm = farmRepository.findById(owner.getIdFarm()).orElse(null);
+            Farm farm = owner.getIdFarm() != null ? farmRepository.findById(owner.getIdFarm()).orElse(null) : null;
             if (farm != null && Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
                 return;
             }

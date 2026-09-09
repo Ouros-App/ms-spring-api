@@ -31,7 +31,7 @@ public record FarmOwnerRequestDTO(
 
         @Schema(description = "Documento/CPF do produtor rural (11 dígitos numéricos ou formatado)", example = "12345678901")
         @JsonProperty("document_number")
-        @JsonAlias({"documentNumber", "zip_code", "zipCode"})
+        @JsonAlias("documentNumber")
         @NotBlank(message = "O documento/CPF não pode estar em branco")
         @CPF(message = "O documento/CPF deve ser válido")
         String documentNumber,

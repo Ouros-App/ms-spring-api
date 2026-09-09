@@ -49,11 +49,12 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("Deve tratar MethodArgumentNotValidException e retornar ProblemDetail com mapa de erros de campo")
+    @DisplayName("Deve tratar MethodArgumentNotValidException e retornar ProblemDetail com mapa de erros de campo e erros globais")
     void testHandleMethodArgumentNotValidException() {
         org.springframework.validation.BeanPropertyBindingResult bindingResult =
-                new org.springframework.validation.BeanPropertyBindingResult(new Object(), "target");
-        bindingResult.addError(new org.springframework.validation.FieldError("target", "email", "O e-mail não pode estar em branco"));
+                new org.springframework.validation.BeanPropertyBindingResult(new Object(), "farmRequestDTO");
+        bindingResult.addError(new org.springframework.validation.FieldError("farmRequestDTO", "email", "O e-mail não pode estar em branco"));
+        bindingResult.addError(new org.springframework.validation.ObjectError("farmRequestDTO", "É obrigatório informar exatamente uma forma de endereço"));
 
         org.springframework.web.bind.MethodArgumentNotValidException exception =
                 new org.springframework.web.bind.MethodArgumentNotValidException(null, bindingResult);
@@ -65,5 +66,10 @@ class GlobalExceptionHandlerTest {
         assertEquals("Erro de validação nos campos da requisição", result.getDetail());
         assertNotNull(result.getProperties());
         assertTrue(result.getProperties().containsKey("errors"));
+
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, String> errors = (java.util.Map<String, String>) result.getProperties().get("errors");
+        assertEquals("O e-mail não pode estar em branco", errors.get("email"));
+        assertEquals("É obrigatório informar exatamente uma forma de endereço", errors.get("farmRequestDTO"));
     }
 }

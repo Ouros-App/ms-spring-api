@@ -74,6 +74,9 @@ public class GlobalExceptionHandler {
         for (org.springframework.validation.FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
+        for (org.springframework.validation.ObjectError error : ex.getBindingResult().getGlobalErrors()) {
+            errors.put(error.getObjectName(), error.getDefaultMessage());
+        }
         problemDetail.setProperty("errors", errors);
 
         return problemDetail;

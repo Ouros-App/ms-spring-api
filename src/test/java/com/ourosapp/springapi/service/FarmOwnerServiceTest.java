@@ -436,7 +436,6 @@ class FarmOwnerServiceTest {
     @DisplayName("Deve listar produtores de fazenda específica por Funcionário da integradora")
     void testGetFarmOwnersByCompanyEmployeeWithValidFarm() {
         when(companyEmployeeRepository.findById(200L)).thenReturn(Optional.of(sampleEmployee));
-        when(farmRepository.findAllByIdEnterprise(100L)).thenReturn(List.of(sampleFarm));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of(sampleFarmOwner));
 
@@ -445,6 +444,7 @@ class FarmOwnerServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         verify(farmOwnerRepository, times(1)).findAllByIdFarm(10L);
+        verify(farmRepository, never()).findAllByIdEnterprise(any());
     }
 
     /**
@@ -455,7 +455,6 @@ class FarmOwnerServiceTest {
     void testGetFarmOwnersByCompanyEmployeeOtherEnterpriseForbidden() {
         Farm otherEnterpriseFarm = Farm.builder().id(20L).idEnterprise(999L).build();
         when(companyEmployeeRepository.findById(200L)).thenReturn(Optional.of(sampleEmployee));
-        when(farmRepository.findAllByIdEnterprise(100L)).thenReturn(List.of(sampleFarm));
         when(farmRepository.findById(20L)).thenReturn(Optional.of(otherEnterpriseFarm));
 
         ResponseStatusException ex = assertThrows(
@@ -464,6 +463,7 @@ class FarmOwnerServiceTest {
         );
 
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(farmRepository, never()).findAllByIdEnterprise(any());
     }
 
     /**
@@ -757,5 +757,59 @@ class FarmOwnerServiceTest {
 
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
         assertTrue(ex.getReason().contains("registros vinculados"));
+    }
+
+    /**
+     * Testa retorno de lista vazia quando funcionário corporativo não possui fazendas na integradora.
+     */
+    @Test
+    @DisplayName("Deve retornar lista vazia quando funcionário não possuir fazendas na integradora")
+    void testGetFarmOwnersByCompanyEmployeeEmptyFarms() {
+        when(companyEmployeeRepository.findById(200L)).thenReturn(Optional.of(sampleEmployee));
+        when(farmRepository.findAllByIdEnterprise(100L)).thenReturn(List.of());
+
+        List<FarmOwnerResponseDTO> result = farmOwnerService.getFarmOwners(null, employeePrincipal);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(farmOwnerRepository, never()).findAllByIdFarmIn(any());
+    }
+
+    /**
+     * Testa lançamento de 403 Forbidden quando produtor não possui idFarm ao validar permissão de acesso por funcionário.
+     */
+    @Test
+    @DisplayName("Deve lançar 403 Forbidden quando produtor não tiver idFarm associado ao validar acesso por funcionário")
+    void testGetFarmOwnerByIdByCompanyEmployeeNullFarmIdForbidden() {
+        sampleFarmOwner.setIdFarm(null);
+        when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
+        when(companyEmployeeRepository.findById(200L)).thenReturn(Optional.of(sampleEmployee));
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> farmOwnerService.getFarmOwnerById(1L, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(farmRepository, never()).findById(any());
+    }
+
+    /**
+     * Testa lançamento de 403 Forbidden quando produtor não possui idFarm ao validar permissão de exclusão por funcionário.
+     */
+    @Test
+    @DisplayName("Deve lançar 403 Forbidden quando produtor não tiver idFarm associado ao validar exclusão por funcionário")
+    void testDeleteFarmOwnerByCompanyEmployeeNullFarmIdForbidden() {
+        sampleFarmOwner.setIdFarm(null);
+        when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
+        when(companyEmployeeRepository.findById(200L)).thenReturn(Optional.of(sampleEmployee));
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> farmOwnerService.deleteFarmOwner(1L, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(farmRepository, never()).findById(any());
     }
 }
