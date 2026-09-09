@@ -80,8 +80,12 @@ public class GlobalExceptionHandler {
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
+        int globalErrorIndex = 1;
         for (ObjectError error : ex.getBindingResult().getGlobalErrors()) {
-            errors.put(error.getObjectName(), error.getDefaultMessage());
+            String key = ex.getBindingResult().getGlobalErrors().size() == 1
+                    ? error.getObjectName()
+                    : error.getObjectName() + "_" + (globalErrorIndex++);
+            errors.put(key, error.getDefaultMessage());
         }
         problemDetail.setProperty("errors", errors);
 

@@ -72,4 +72,26 @@ class GlobalExceptionHandlerTest {
         assertEquals("O e-mail não pode estar em branco", errors.get("email"));
         assertEquals("É obrigatório informar exatamente uma forma de endereço", errors.get("farmRequestDTO"));
     }
+
+    @Test
+    @DisplayName("Deve tratar MethodArgumentNotValidException com múltiplos erros globais indexando as chaves")
+    void testHandleMethodArgumentNotValidExceptionWithMultipleGlobalErrors() {
+        org.springframework.validation.BeanPropertyBindingResult bindingResult =
+                new org.springframework.validation.BeanPropertyBindingResult(new Object(), "farmRequestDTO");
+        bindingResult.addError(new org.springframework.validation.ObjectError("farmRequestDTO", "Erro global 1"));
+        bindingResult.addError(new org.springframework.validation.ObjectError("farmRequestDTO", "Erro global 2"));
+
+        org.springframework.web.bind.MethodArgumentNotValidException exception =
+                new org.springframework.web.bind.MethodArgumentNotValidException(null, bindingResult);
+
+        ProblemDetail result = exceptionHandler.handleMethodArgumentNotValidException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.BAD_REQUEST.value(), result.getStatus());
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, String> errors = (java.util.Map<String, String>) result.getProperties().get("errors");
+        assertEquals(2, errors.size());
+        assertEquals("Erro global 1", errors.get("farmRequestDTO_1"));
+        assertEquals("Erro global 2", errors.get("farmRequestDTO_2"));
+    }
 }
