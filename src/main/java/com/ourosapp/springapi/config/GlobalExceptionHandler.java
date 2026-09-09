@@ -35,4 +35,47 @@ public class GlobalExceptionHandler {
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }
+
+    /**
+     * Intercepta {@link org.springframework.web.server.ResponseStatusException} lançadas pelas regras de negócio.
+     * Retorna o status HTTP e a mensagem descritiva do motivo do erro em formato ProblemDetail (RFC 7807).
+     *
+     * @param ex exceção disparada
+     * @return {@link ProblemDetail} formatado com a mensagem de negócio
+     */
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ProblemDetail handleResponseStatusException(org.springframework.web.server.ResponseStatusException ex) {
+        String reason = ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString();
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(ex.getStatusCode(), reason);
+        problemDetail.setTitle(ex.getStatusCode().toString());
+        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        return problemDetail;
+    }
+
+    /**
+     * Intercepta erros de validação de DTOs disparados pelo Jakarta Bean Validation (@Valid).
+     * Retorna a lista dos erros de campos com mensagens claras.
+     *
+     * @param ex exceção de validação de argumentos
+     * @return {@link ProblemDetail} com status 400 e os erros de cada campo
+     */
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    public ProblemDetail handleMethodArgumentNotValidException(org.springframework.web.bind.MethodArgumentNotValidException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "Erro de validação nos campos da requisição"
+        );
+        problemDetail.setTitle("Validation Failed");
+        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setProperty("timestamp", Instant.now());
+
+        java.util.Map<String, String> errors = new java.util.HashMap<>();
+        for (org.springframework.validation.FieldError error : ex.getBindingResult().getFieldErrors()) {
+            errors.put(error.getField(), error.getDefaultMessage());
+        }
+        problemDetail.setProperty("errors", errors);
+
+        return problemDetail;
+    }
 }
