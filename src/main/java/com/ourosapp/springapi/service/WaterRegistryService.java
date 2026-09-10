@@ -104,64 +104,74 @@ public class WaterRegistryService {
 
         String role = principal.getRole();
         if (FARM_OWNER.equals(role)) {
-            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-            if (owner.getIdFarm() == null) {
-                return List.of();
-            }
-            if (farmId != null && !Objects.equals(farmId, owner.getIdFarm())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Acesso negado aos registros de água de outra fazenda"
-                );
-            }
-            return waterRegistryRepository.findAllByIdFarm(owner.getIdFarm())
-                    .stream()
-                    .map(WaterRegistryResponseDTO::fromEntity)
-                    .toList();
+            return getWaterRegistriesForFarmOwner(farmId, principal.getId());
         } else if (COMPANY_EMPLOYEE.equals(role)) {
-            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            if (farmId != null) {
-                Farm farm = findFarmByIdOrThrow(farmId);
-                if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
-                    throw new ResponseStatusException(
-                            HttpStatus.FORBIDDEN,
-                            "Acesso negado aos registros de água de fazenda vinculada a outra empresa"
-                    );
-                }
-                return waterRegistryRepository.findAllByIdFarm(farmId)
-                        .stream()
-                        .map(WaterRegistryResponseDTO::fromEntity)
-                        .toList();
-            } else {
-                List<Farm> enterpriseFarms = farmRepository.findAllByIdEnterprise(employee.getIdEnterprise());
-                List<Long> farmIds = enterpriseFarms.stream().map(Farm::getId).toList();
-                if (farmIds.isEmpty()) {
-                    return List.of();
-                }
-                return waterRegistryRepository.findAllByIdFarmIn(farmIds)
-                        .stream()
-                        .map(WaterRegistryResponseDTO::fromEntity)
-                        .toList();
-            }
+            return getWaterRegistriesForCompanyEmployee(farmId, principal.getId());
         } else if (ADM.equals(role)) {
-            if (farmId != null) {
-                findFarmByIdOrThrow(farmId);
-                return waterRegistryRepository.findAllByIdFarm(farmId)
-                        .stream()
-                        .map(WaterRegistryResponseDTO::fromEntity)
-                        .toList();
-            } else {
-                return waterRegistryRepository.findAll()
-                        .stream()
-                        .map(WaterRegistryResponseDTO::fromEntity)
-                        .toList();
-            }
+            return getWaterRegistriesForAdm(farmId);
         } else {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Perfil de usuário sem permissão para listar registros de medição de água"
             );
         }
+    }
+
+    private List<WaterRegistryResponseDTO> getWaterRegistriesForFarmOwner(Long farmId, Long userId) {
+        FarmOwner owner = getFarmOwnerOrThrow(userId);
+        if (owner.getIdFarm() == null) {
+            return List.of();
+        }
+        if (farmId != null && !Objects.equals(farmId, owner.getIdFarm())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Acesso negado aos registros de água de outra fazenda"
+            );
+        }
+        return waterRegistryRepository.findAllByIdFarm(owner.getIdFarm())
+                .stream()
+                .map(WaterRegistryResponseDTO::fromEntity)
+                .toList();
+    }
+
+    private List<WaterRegistryResponseDTO> getWaterRegistriesForCompanyEmployee(Long farmId, Long userId) {
+        CompanyEmployee employee = getCompanyEmployeeOrThrow(userId);
+        if (farmId != null) {
+            Farm farm = findFarmByIdOrThrow(farmId);
+            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Acesso negado aos registros de água de fazenda vinculada a outra empresa"
+                );
+            }
+            return waterRegistryRepository.findAllByIdFarm(farmId)
+                    .stream()
+                    .map(WaterRegistryResponseDTO::fromEntity)
+                    .toList();
+        }
+        List<Farm> enterpriseFarms = farmRepository.findAllByIdEnterprise(employee.getIdEnterprise());
+        List<Long> farmIds = enterpriseFarms.stream().map(Farm::getId).toList();
+        if (farmIds.isEmpty()) {
+            return List.of();
+        }
+        return waterRegistryRepository.findAllByIdFarmIn(farmIds)
+                .stream()
+                .map(WaterRegistryResponseDTO::fromEntity)
+                .toList();
+    }
+
+    private List<WaterRegistryResponseDTO> getWaterRegistriesForAdm(Long farmId) {
+        if (farmId != null) {
+            findFarmByIdOrThrow(farmId);
+            return waterRegistryRepository.findAllByIdFarm(farmId)
+                    .stream()
+                    .map(WaterRegistryResponseDTO::fromEntity)
+                    .toList();
+        }
+        return waterRegistryRepository.findAll()
+                .stream()
+                .map(WaterRegistryResponseDTO::fromEntity)
+                .toList();
     }
 
     /**

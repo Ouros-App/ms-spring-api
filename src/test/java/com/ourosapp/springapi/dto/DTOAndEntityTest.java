@@ -1090,22 +1090,46 @@ class DTOAndEntityTest {
         assertFalse(validator.validate(negativeFarmId).isEmpty());
 
         // DTO inválido com excesso de casas decimais (> 4 casas)
-        WaterRegistryRequestDTO excessFraction = new WaterRegistryRequestDTO(
+        WaterRegistryRequestDTO excessFractionStart = new WaterRegistryRequestDTO(
                 LocalDate.of(2026, 9, 10),
                 new BigDecimal("100.12345"),
+                new BigDecimal("120.0000"),
+                1L
+        );
+        Set<ConstraintViolation<WaterRegistryRequestDTO>> startFractionViolations = validator.validate(excessFractionStart);
+        assertFalse(startFractionViolations.isEmpty());
+        assertTrue(startFractionViolations.stream().anyMatch(v -> v.getMessage().contains("A leitura inicial do hidrômetro deve ter no máximo 15 dígitos inteiros e 4 casas decimais")));
+
+        WaterRegistryRequestDTO excessFractionEnd = new WaterRegistryRequestDTO(
+                LocalDate.of(2026, 9, 10),
+                new BigDecimal("100.0000"),
                 new BigDecimal("120.12345"),
                 1L
         );
-        assertFalse(validator.validate(excessFraction).isEmpty());
+        Set<ConstraintViolation<WaterRegistryRequestDTO>> endFractionViolations = validator.validate(excessFractionEnd);
+        assertFalse(endFractionViolations.isEmpty());
+        assertTrue(endFractionViolations.stream().anyMatch(v -> v.getMessage().contains("A leitura final do hidrômetro deve ter no máximo 15 dígitos inteiros e 4 casas decimais")));
 
         // DTO inválido com excesso de dígitos inteiros (> 15 dígitos)
-        WaterRegistryRequestDTO excessInteger = new WaterRegistryRequestDTO(
+        WaterRegistryRequestDTO excessIntegerStart = new WaterRegistryRequestDTO(
                 LocalDate.of(2026, 9, 10),
                 new BigDecimal("1234567890123456.00"),
+                new BigDecimal("1234567890123456.00"),
+                1L
+        );
+        Set<ConstraintViolation<WaterRegistryRequestDTO>> startIntegerViolations = validator.validate(excessIntegerStart);
+        assertFalse(startIntegerViolations.isEmpty());
+        assertTrue(startIntegerViolations.stream().anyMatch(v -> v.getMessage().contains("A leitura inicial do hidrômetro deve ter no máximo 15 dígitos inteiros e 4 casas decimais")));
+
+        WaterRegistryRequestDTO excessIntegerEnd = new WaterRegistryRequestDTO(
+                LocalDate.of(2026, 9, 10),
+                new BigDecimal("100.0000"),
                 new BigDecimal("1234567890123457.00"),
                 1L
         );
-        assertFalse(validator.validate(excessInteger).isEmpty());
+        Set<ConstraintViolation<WaterRegistryRequestDTO>> endIntegerViolations = validator.validate(excessIntegerEnd);
+        assertFalse(endIntegerViolations.isEmpty());
+        assertTrue(endIntegerViolations.stream().anyMatch(v -> v.getMessage().contains("A leitura final do hidrômetro deve ter no máximo 15 dígitos inteiros e 4 casas decimais")));
 
         // Desserialização snake_case
         String snakeJson = """
@@ -1200,19 +1224,41 @@ class DTOAndEntityTest {
         assertFalse(validator.validate(zeroUpdateDto).isEmpty());
 
         // Validação de excesso de casas decimais (> 4 casas) e inteiros (> 15 inteiros)
-        WaterRegistryUpdateDTO excessFractionUpdate = new WaterRegistryUpdateDTO(
-                new BigDecimal("150.12345"),
+        WaterRegistryUpdateDTO excessFractionStartUpdate = new WaterRegistryUpdateDTO(
+                null,
                 new BigDecimal("100.12345"),
                 null
         );
-        assertFalse(validator.validate(excessFractionUpdate).isEmpty());
+        Set<ConstraintViolation<WaterRegistryUpdateDTO>> startFracViolations = validator.validate(excessFractionStartUpdate);
+        assertFalse(startFracViolations.isEmpty());
+        assertTrue(startFracViolations.stream().anyMatch(v -> v.getMessage().contains("A leitura inicial do hidrômetro deve ter no máximo 15 dígitos inteiros e 4 casas decimais")));
 
-        WaterRegistryUpdateDTO excessIntegerUpdate = new WaterRegistryUpdateDTO(
-                new BigDecimal("1234567890123456.00"),
+        WaterRegistryUpdateDTO excessFractionEndUpdate = new WaterRegistryUpdateDTO(
+                new BigDecimal("150.12345"),
+                null,
+                null
+        );
+        Set<ConstraintViolation<WaterRegistryUpdateDTO>> endFracViolations = validator.validate(excessFractionEndUpdate);
+        assertFalse(endFracViolations.isEmpty());
+        assertTrue(endFracViolations.stream().anyMatch(v -> v.getMessage().contains("A leitura final do hidrômetro deve ter no máximo 15 dígitos inteiros e 4 casas decimais")));
+
+        WaterRegistryUpdateDTO excessIntegerStartUpdate = new WaterRegistryUpdateDTO(
+                null,
                 new BigDecimal("1234567890123456.00"),
                 null
         );
-        assertFalse(validator.validate(excessIntegerUpdate).isEmpty());
+        Set<ConstraintViolation<WaterRegistryUpdateDTO>> startIntViolations = validator.validate(excessIntegerStartUpdate);
+        assertFalse(startIntViolations.isEmpty());
+        assertTrue(startIntViolations.stream().anyMatch(v -> v.getMessage().contains("A leitura inicial do hidrômetro deve ter no máximo 15 dígitos inteiros e 4 casas decimais")));
+
+        WaterRegistryUpdateDTO excessIntegerEndUpdate = new WaterRegistryUpdateDTO(
+                new BigDecimal("1234567890123456.00"),
+                null,
+                null
+        );
+        Set<ConstraintViolation<WaterRegistryUpdateDTO>> endIntViolations = validator.validate(excessIntegerEndUpdate);
+        assertFalse(endIntViolations.isEmpty());
+        assertTrue(endIntViolations.stream().anyMatch(v -> v.getMessage().contains("A leitura final do hidrômetro deve ter no máximo 15 dígitos inteiros e 4 casas decimais")));
 
         // Validação de data futura
         WaterRegistryUpdateDTO futureDateDto = new WaterRegistryUpdateDTO(
