@@ -571,6 +571,25 @@ class WaterRegistryServiceTest {
     }
 
     @Test
+    @DisplayName("Deve atualizar parcialmente registro com novo startHydrometer válido")
+    void testUpdateWaterRegistryStartHydrometerSuccess() {
+        when(waterRegistryRepository.findById(100L)).thenReturn(Optional.of(sampleRegistry));
+        when(waterRegistryRepository.save(any(WaterRegistry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        WaterRegistryUpdateDTO updateDTO = new WaterRegistryUpdateDTO(
+                null,
+                new BigDecimal("110.0000"),
+                null
+        );
+
+        WaterRegistryResponseDTO response = waterRegistryService.updateWaterRegistry(100L, updateDTO, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(new BigDecimal("110.0000"), response.startHydrometer());
+        verify(waterRegistryRepository).save(any(WaterRegistry.class));
+    }
+
+    @Test
     @DisplayName("Deve retornar registro inalterado quando DTO não tiver atualizações (hasUpdates = false)")
     void testUpdateWaterRegistryNoUpdates() {
         when(waterRegistryRepository.findById(100L)).thenReturn(Optional.of(sampleRegistry));

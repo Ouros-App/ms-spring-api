@@ -1089,6 +1089,24 @@ class DTOAndEntityTest {
         );
         assertFalse(validator.validate(negativeFarmId).isEmpty());
 
+        // DTO inválido com excesso de casas decimais (> 4 casas)
+        WaterRegistryRequestDTO excessFraction = new WaterRegistryRequestDTO(
+                LocalDate.of(2026, 9, 10),
+                new BigDecimal("100.12345"),
+                new BigDecimal("120.12345"),
+                1L
+        );
+        assertFalse(validator.validate(excessFraction).isEmpty());
+
+        // DTO inválido com excesso de dígitos inteiros (> 15 dígitos)
+        WaterRegistryRequestDTO excessInteger = new WaterRegistryRequestDTO(
+                LocalDate.of(2026, 9, 10),
+                new BigDecimal("1234567890123456.00"),
+                new BigDecimal("1234567890123457.00"),
+                1L
+        );
+        assertFalse(validator.validate(excessInteger).isEmpty());
+
         // Desserialização snake_case
         String snakeJson = """
                 {
@@ -1180,6 +1198,21 @@ class DTOAndEntityTest {
                 null
         );
         assertFalse(validator.validate(zeroUpdateDto).isEmpty());
+
+        // Validação de excesso de casas decimais (> 4 casas) e inteiros (> 15 inteiros)
+        WaterRegistryUpdateDTO excessFractionUpdate = new WaterRegistryUpdateDTO(
+                new BigDecimal("150.12345"),
+                new BigDecimal("100.12345"),
+                null
+        );
+        assertFalse(validator.validate(excessFractionUpdate).isEmpty());
+
+        WaterRegistryUpdateDTO excessIntegerUpdate = new WaterRegistryUpdateDTO(
+                new BigDecimal("1234567890123456.00"),
+                new BigDecimal("1234567890123456.00"),
+                null
+        );
+        assertFalse(validator.validate(excessIntegerUpdate).isEmpty());
 
         // Validação de data futura
         WaterRegistryUpdateDTO futureDateDto = new WaterRegistryUpdateDTO(
