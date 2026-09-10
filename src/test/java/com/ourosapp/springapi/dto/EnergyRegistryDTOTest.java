@@ -78,6 +78,21 @@ class EnergyRegistryDTOTest {
     }
 
     @Test
+    @DisplayName("Deve detectar erro de validação quando registrationDate for data futura no EnergyRegistryRequestDTO")
+    void deveDetectarDataFuturaNoRequestDTO() {
+        EnergyRegistryRequestDTO dto = new EnergyRegistryRequestDTO(
+                LocalDate.now().plusDays(1),
+                new BigDecimal("150.00"),
+                1L
+        );
+
+        Set<ConstraintViolation<EnergyRegistryRequestDTO>> violations = validator.validate(dto);
+
+        assertEquals(1, violations.size());
+        assertEquals("A data de registro não pode ser uma data futura", violations.iterator().next().getMessage());
+    }
+
+    @Test
     @DisplayName("Deve serializar e desserializar EnergyRegistryRequestDTO com snake_case")
     void deveSerializarEDesserializarRequestDTO() throws JsonProcessingException {
         String json = """
@@ -170,6 +185,15 @@ class EnergyRegistryDTOTest {
         EnergyRegistryUpdateDTO dto = new EnergyRegistryUpdateDTO(null, new BigDecimal("-50.00"));
         Set<ConstraintViolation<EnergyRegistryUpdateDTO>> violations = validator.validate(dto);
         assertEquals(1, violations.size());
+    }
+
+    @Test
+    @DisplayName("Deve detectar erro de validação quando registrationDate for data futura no EnergyRegistryUpdateDTO")
+    void deveDetectarDataFuturaNoUpdateDTO() {
+        EnergyRegistryUpdateDTO dto = new EnergyRegistryUpdateDTO(LocalDate.now().plusDays(1), null);
+        Set<ConstraintViolation<EnergyRegistryUpdateDTO>> violations = validator.validate(dto);
+        assertEquals(1, violations.size());
+        assertEquals("A data de registro não pode ser uma data futura", violations.iterator().next().getMessage());
     }
 
     @Test
