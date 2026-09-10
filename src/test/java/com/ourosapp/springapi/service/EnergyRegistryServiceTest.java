@@ -95,6 +95,7 @@ class EnergyRegistryServiceTest {
         );
     }
 
+    /** Verifica a criação de um registro de energia por um administrador. */
     @Test
     @DisplayName("Deve criar registro de energia com sucesso para usuário ADM")
     void deveCriarRegistroDeEnergiaComSucessoParaAdm() {
@@ -110,6 +111,7 @@ class EnergyRegistryServiceTest {
         verify(energyRegistryRepository, times(1)).save(any(EnergyRegistry.class));
     }
 
+    /** Verifica a criação de um registro por funcionário da empresa da fazenda. */
     @Test
     @DisplayName("Deve criar registro de energia com sucesso para Funcionário da mesma empresa")
     void deveCriarRegistroDeEnergiaComSucessoParaFuncionario() {
@@ -125,6 +127,7 @@ class EnergyRegistryServiceTest {
         verify(energyRegistryRepository, times(1)).save(any(EnergyRegistry.class));
     }
 
+    /** Verifica a rejeição da criação quando não há usuário autenticado. */
     @Test
     @DisplayName("Deve lançar exceção 401 quando usuário não estiver autenticado ao criar registro")
     void deveLancarExcecaoQuandoUsuarioNaoAutenticadoAoCriar() {
@@ -135,6 +138,7 @@ class EnergyRegistryServiceTest {
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
     }
 
+    /** Verifica a rejeição da criação quando a fazenda não existe. */
     @Test
     @DisplayName("Deve lançar exceção 404 quando a fazenda informada não for encontrada ao criar registro")
     void deveLancarExcecaoQuandoFazendaNaoEncontradaAoCriar() {
@@ -148,6 +152,7 @@ class EnergyRegistryServiceTest {
         assertTrue(ex.getReason().contains("Fazenda não encontrada"));
     }
 
+    /** Verifica a rejeição da criação por funcionário de outra empresa. */
     @Test
     @DisplayName("Deve lançar exceção 403 quando funcionário for de outra empresa ao criar registro")
     void deveLancarExcecaoQuandoFuncionarioDeOutraEmpresaAoCriar() {
@@ -162,6 +167,7 @@ class EnergyRegistryServiceTest {
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
 
+    /** Verifica o tratamento de conflito de integridade durante a criação. */
     @Test
     @DisplayName("Deve lançar exceção 409 quando ocorrer violação de integridade ao salvar")
     void deveLancarExcecaoQuandoViolacaoDeIntegridadeAoSalvar() {
@@ -176,6 +182,7 @@ class EnergyRegistryServiceTest {
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
+    /** Verifica a listagem de todos os registros para um administrador. */
     @Test
     @DisplayName("Deve listar todos os registros de energia para perfil ADM")
     void deveListarTodosOsRegistrosParaAdm() {
@@ -187,6 +194,7 @@ class EnergyRegistryServiceTest {
         assertEquals(1L, list.get(0).id());
     }
 
+    /** Verifica a listagem de registros das fazendas da empresa do funcionário. */
     @Test
     @DisplayName("Deve listar registros de energia para Funcionário considerando fazendas da sua empresa")
     void deveListarRegistrosParaFuncionario() {
@@ -201,6 +209,7 @@ class EnergyRegistryServiceTest {
         assertEquals(1L, list.get(0).id());
     }
 
+    /** Verifica a lista vazia para funcionário cuja empresa não possui fazendas. */
     @Test
     @DisplayName("Deve retornar lista vazia para Funcionário sem fazendas em sua empresa")
     void deveRetornarListaVaziaParaFuncionarioSemFazendas() {
@@ -213,6 +222,7 @@ class EnergyRegistryServiceTest {
         assertTrue(list.isEmpty());
     }
 
+    /** Verifica a listagem de registros da fazenda vinculada ao produtor rural. */
     @Test
     @DisplayName("Deve listar registros de energia para Produtor Rural na sua fazenda")
     void deveListarRegistrosParaProdutorRural() {
@@ -225,6 +235,7 @@ class EnergyRegistryServiceTest {
         assertEquals(1, list.size());
     }
 
+    /** Verifica a listagem filtrada por uma fazenda específica. */
     @Test
     @DisplayName("Deve filtrar registros por fazenda específica quando farmIdFilter for informado")
     void deveFiltrarRegistrosPorFazendaEspecifica() {
@@ -236,6 +247,7 @@ class EnergyRegistryServiceTest {
         assertEquals(1, list.size());
     }
 
+    /** Verifica a consulta bem-sucedida de um registro por identificador. */
     @Test
     @DisplayName("Deve buscar registro de energia por ID com sucesso")
     void deveBuscarRegistroPorIdComSucesso() {
@@ -248,6 +260,7 @@ class EnergyRegistryServiceTest {
         assertEquals(1L, response.id());
     }
 
+    /** Verifica a rejeição da consulta quando o registro não existe. */
     @Test
     @DisplayName("Deve lançar exceção 404 ao buscar registro por ID inexistente")
     void deveLancarExcecaoAoBuscarPorIdInexistente() {
@@ -260,6 +273,7 @@ class EnergyRegistryServiceTest {
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 
+    /** Verifica a inferência da fazenda ao criar um registro como produtor rural. */
     @Test
     @DisplayName("Deve criar registro de energia com sucesso para Produtor Rural sem id_farm no request")
     void deveCriarRegistroDeEnergiaComSucessoParaProdutorRuralSemIdFarm() {
@@ -280,6 +294,7 @@ class EnergyRegistryServiceTest {
         verify(energyRegistryRepository, times(1)).save(any(EnergyRegistry.class));
     }
 
+    /** Verifica a rejeição da criação sem fazenda por um administrador. */
     @Test
     @DisplayName("Deve lançar exceção 400 quando ADM tentar criar registro sem id_farm")
     void deveLancarExcecao400QuandoAdmCriarSemIdFarm() {
@@ -297,6 +312,7 @@ class EnergyRegistryServiceTest {
         assertTrue(ex.getReason().contains("O ID da fazenda é obrigatório"));
     }
 
+    /** Verifica a rejeição da criação por produtor sem fazenda vinculada. */
     @Test
     @DisplayName("Deve lançar exceção 400 quando Produtor Rural tentar criar registro sem fazenda vinculada")
     void deveLancarExcecao400QuandoProdutorSemFazendaVinculada() {
@@ -316,6 +332,7 @@ class EnergyRegistryServiceTest {
         assertTrue(ex.getReason().contains("Produtor rural logado não possui fazenda vinculada"));
     }
 
+    /** Verifica a rejeição da criação em outra fazenda por um produtor rural. */
     @Test
     @DisplayName("Deve lançar exceção 403 quando Produtor Rural tentar criar registro para outra fazenda")
     void deveLancarExcecao403QuandoProdutorTentarCriarEmOutraFazenda() {
@@ -337,6 +354,7 @@ class EnergyRegistryServiceTest {
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
 
+    /** Verifica a rejeição da listagem para um perfil desconhecido. */
     @Test
     @DisplayName("Deve lançar exceção 403 quando perfil for desconhecido ao listar")
     void deveLancarExcecao403QuandoPerfilDesconhecidoListar() {
@@ -349,6 +367,7 @@ class EnergyRegistryServiceTest {
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
 
+    /** Verifica a rejeição da exclusão por funcionário de outra empresa. */
     @Test
     @DisplayName("Deve lançar exceção 403 quando funcionário de outra empresa tentar deletar registro")
     void deveLancarExcecao403QuandoFuncionarioDeOutraEmpresaDeletar() {
@@ -364,6 +383,7 @@ class EnergyRegistryServiceTest {
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
 
+    /** Verifica a exclusão bem-sucedida de um registro de energia. */
     @Test
     @DisplayName("Deve deletar registro de energia com sucesso")
     void deveDeletarRegistroDeEnergiaComSucesso() {
@@ -375,6 +395,7 @@ class EnergyRegistryServiceTest {
         verify(energyRegistryRepository, times(1)).delete(energyRegistry);
     }
 
+    /** Verifica a atualização bem-sucedida de data e consumo do registro. */
     @Test
     @DisplayName("Deve atualizar registro de energia com sucesso")
     void deveAtualizarRegistroDeEnergiaComSucesso() {
@@ -395,6 +416,7 @@ class EnergyRegistryServiceTest {
         assertEquals(new BigDecimal("520.00"), energyRegistry.getEnergyConsumption());
     }
 
+    /** Verifica que uma atualização vazia não persiste alterações. */
     @Test
     @DisplayName("Deve retornar registro sem salvar quando hasUpdates for false")
     void deveRetornarRegistroSemSalvarQuandoSemUpdates() {
@@ -409,6 +431,7 @@ class EnergyRegistryServiceTest {
         verify(energyRegistryRepository, never()).save(any());
     }
 
+    /** Verifica a rejeição da atualização sem usuário autenticado. */
     @Test
     @DisplayName("Deve lançar exceção 401 quando usuário não estiver autenticado ao atualizar")
     void deveLancarExcecao401QuandoNaoAutenticadoAoAtualizar() {
@@ -421,6 +444,7 @@ class EnergyRegistryServiceTest {
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
     }
 
+    /** Verifica a rejeição da atualização quando o registro não existe. */
     @Test
     @DisplayName("Deve lançar exceção 404 quando registro não for encontrado ao atualizar")
     void deveLancarExcecao404QuandoRegistroNaoEncontradoAoAtualizar() {
@@ -434,6 +458,7 @@ class EnergyRegistryServiceTest {
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 
+    /** Verifica a rejeição da atualização por produtor de outra fazenda. */
     @Test
     @DisplayName("Deve lançar exceção 403 quando Produtor Rural tentar atualizar registro de outra fazenda")
     void deveLancarExcecao403QuandoProdutorTentarAtualizarOutraFazenda() {
@@ -451,6 +476,7 @@ class EnergyRegistryServiceTest {
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
 
+    /** Verifica o tratamento de conflito de integridade durante a atualização. */
     @Test
     @DisplayName("Deve lançar exceção 409 quando ocorrer DataIntegrityViolationException ao atualizar")
     void deveLancarExcecao409QuandoErroIntegridadeAoAtualizar() {

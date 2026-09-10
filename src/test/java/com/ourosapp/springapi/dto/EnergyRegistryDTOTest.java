@@ -35,6 +35,7 @@ class EnergyRegistryDTOTest {
         validator = Validation.buildDefaultValidatorFactory().getValidator();
     }
 
+    /** Verifica que um DTO de criação válido não produz violações de validação. */
     @Test
     @DisplayName("Deve validar com sucesso DTO de requisição válido")
     void deveValidarDtoDeRequisicaoValido() {
@@ -49,6 +50,7 @@ class EnergyRegistryDTOTest {
         assertTrue(violations.isEmpty());
     }
 
+    /** Verifica que o identificador da fazenda pode ser omitido no DTO de criação. */
     @Test
     @DisplayName("Deve validar com sucesso DTO de requisição válido sem id_farm (para produtor rural)")
     void deveValidarDtoDeRequisicaoValidoSemIdFarm() {
@@ -63,6 +65,7 @@ class EnergyRegistryDTOTest {
         assertTrue(violations.isEmpty());
     }
 
+    /** Verifica as violações produzidas por campos obrigatórios ou inválidos. */
     @Test
     @DisplayName("Deve detectar violações quando campos obrigatórios forem nulos ou inválidos")
     void deveDetectarViolacoesEmCamposInvalidos() {
@@ -77,6 +80,7 @@ class EnergyRegistryDTOTest {
         assertEquals(3, violations.size());
     }
 
+    /** Verifica a violação produzida por uma data futura no DTO de criação. */
     @Test
     @DisplayName("Deve detectar erro de validação quando registrationDate for data futura no EnergyRegistryRequestDTO")
     void deveDetectarDataFuturaNoRequestDTO() {
@@ -92,6 +96,7 @@ class EnergyRegistryDTOTest {
         assertEquals("A data de registro não pode ser uma data futura", violations.iterator().next().getMessage());
     }
 
+    /** Verifica a desserialização dos campos em snake_case do DTO de criação. */
     @Test
     @DisplayName("Deve serializar e desserializar EnergyRegistryRequestDTO com snake_case")
     void deveSerializarEDesserializarRequestDTO() throws JsonProcessingException {
@@ -111,6 +116,7 @@ class EnergyRegistryDTOTest {
         assertEquals(5L, dto.idFarm());
     }
 
+    /** Verifica a conversão de uma entidade para o DTO de resposta. */
     @Test
     @DisplayName("Deve converter entidade EnergyRegistry em EnergyRegistryResponseDTO")
     void deveConverterEntidadeEmResponseDTO() {
@@ -130,6 +136,7 @@ class EnergyRegistryDTOTest {
         assertEquals(2L, response.idFarm());
     }
 
+    /** Verifica a rejeição de uma entidade nula durante a conversão para DTO. */
     @Test
     @DisplayName("Deve lançar NullPointerException ao passar entidade nula para fromEntity")
     void deveLancarExcecaoParaEntidadeNula() {
@@ -140,6 +147,7 @@ class EnergyRegistryDTOTest {
         assertEquals("EnergyRegistry não pode ser nulo", ex.getMessage());
     }
 
+    /** Verifica os métodos gerados e os construtores da entidade de registro de energia. */
     @Test
     @DisplayName("Deve testar getters, setters, builder e toString da entidade EnergyRegistry")
     void deveTestarEntidadeEnergyRegistry() {
@@ -163,6 +171,7 @@ class EnergyRegistryDTOTest {
         assertEquals(20L, allArgs.getIdFarm());
     }
 
+    /** Verifica a detecção de campos presentes no DTO de atualização. */
     @Test
     @DisplayName("Deve testar hasUpdates() do EnergyRegistryUpdateDTO")
     void deveTestarHasUpdatesNoUpdateDTO() {
@@ -179,6 +188,7 @@ class EnergyRegistryDTOTest {
         assertTrue(completo.hasUpdates());
     }
 
+    /** Verifica a violação produzida por consumo negativo no DTO de atualização. */
     @Test
     @DisplayName("Deve detectar erro de validação quando consumo for negativo no EnergyRegistryUpdateDTO")
     void deveDetectarConsumoNegativoNoUpdateDTO() {
@@ -187,6 +197,7 @@ class EnergyRegistryDTOTest {
         assertEquals(1, violations.size());
     }
 
+    /** Verifica a violação produzida por uma data futura no DTO de atualização. */
     @Test
     @DisplayName("Deve detectar erro de validação quando registrationDate for data futura no EnergyRegistryUpdateDTO")
     void deveDetectarDataFuturaNoUpdateDTO() {
@@ -196,6 +207,7 @@ class EnergyRegistryDTOTest {
         assertEquals("A data de registro não pode ser uma data futura", violations.iterator().next().getMessage());
     }
 
+    /** Verifica a desserialização dos campos em snake_case do DTO de atualização. */
     @Test
     @DisplayName("Deve serializar e desserializar EnergyRegistryUpdateDTO com snake_case")
     void deveSerializarEDesserializarUpdateDTO() throws JsonProcessingException {
