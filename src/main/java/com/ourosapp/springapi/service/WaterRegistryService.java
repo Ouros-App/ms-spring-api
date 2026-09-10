@@ -1,6 +1,9 @@
 package com.ourosapp.springapi.service;
 
 import static com.ourosapp.springapi.constants.ErrorMessages.USER_NOT_AUTHENTICATED;
+import static com.ourosapp.springapi.constants.RoleConstants.ADM;
+import static com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE;
+import static com.ourosapp.springapi.constants.RoleConstants.FARM_OWNER;
 
 import com.ourosapp.springapi.dto.waterregistry.WaterRegistryRequestDTO;
 import com.ourosapp.springapi.dto.waterregistry.WaterRegistryResponseDTO;
@@ -100,7 +103,7 @@ public class WaterRegistryService {
         ensureAuthenticated(principal);
 
         String role = principal.getRole();
-        if ("FARM_OWNER".equals(role)) {
+        if (FARM_OWNER.equals(role)) {
             FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
             if (owner.getIdFarm() == null) {
                 return List.of();
@@ -115,7 +118,7 @@ public class WaterRegistryService {
                     .stream()
                     .map(WaterRegistryResponseDTO::fromEntity)
                     .toList();
-        } else if ("COMPANY_EMPLOYEE".equals(role)) {
+        } else if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
             if (farmId != null) {
                 Farm farm = findFarmByIdOrThrow(farmId);
@@ -140,7 +143,7 @@ public class WaterRegistryService {
                         .map(WaterRegistryResponseDTO::fromEntity)
                         .toList();
             }
-        } else if ("ADM".equals(role)) {
+        } else if (ADM.equals(role)) {
             if (farmId != null) {
                 findFarmByIdOrThrow(farmId);
                 return waterRegistryRepository.findAllByIdFarm(farmId)
@@ -267,7 +270,7 @@ public class WaterRegistryService {
     private Long resolveAndValidateFarmForCreation(Long requestedFarmId, UserPrincipal principal) {
         String role = principal.getRole();
 
-        if ("ADM".equals(role)) {
+        if (ADM.equals(role)) {
             if (requestedFarmId == null) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
@@ -278,7 +281,7 @@ public class WaterRegistryService {
             return requestedFarmId;
         }
 
-        if ("COMPANY_EMPLOYEE".equals(role)) {
+        if (COMPANY_EMPLOYEE.equals(role)) {
             if (requestedFarmId == null) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
@@ -296,7 +299,7 @@ public class WaterRegistryService {
             return requestedFarmId;
         }
 
-        if ("FARM_OWNER".equals(role)) {
+        if (FARM_OWNER.equals(role)) {
             FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
             if (owner.getIdFarm() == null) {
                 throw new ResponseStatusException(
@@ -326,40 +329,7 @@ public class WaterRegistryService {
      * @param principal     dados do usuário logado
      */
     private void validateWaterRegistryAccess(WaterRegistry waterRegistry, UserPrincipal principal) {
-        ensureAuthenticated(principal);
-
-        String role = principal.getRole();
-        if ("ADM".equals(role)) {
-            return;
-        }
-
-        if ("COMPANY_EMPLOYEE".equals(role)) {
-            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            Farm farm = findFarmByIdOrThrow(waterRegistry.getIdFarm());
-            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Acesso negado a este registro de água"
-                );
-            }
-            return;
-        }
-
-        if ("FARM_OWNER".equals(role)) {
-            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-            if (!Objects.equals(waterRegistry.getIdFarm(), owner.getIdFarm())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Acesso negado a este registro de água"
-                );
-            }
-            return;
-        }
-
-        throw new ResponseStatusException(
-                HttpStatus.FORBIDDEN,
-                "Perfil de usuário sem permissão para acessar este registro de água"
-        );
+        validateWaterRegistryMutation(waterRegistry, principal, "acessar");
     }
 
     /**
@@ -373,11 +343,11 @@ public class WaterRegistryService {
         ensureAuthenticated(principal);
 
         String role = principal.getRole();
-        if ("ADM".equals(role)) {
+        if (ADM.equals(role)) {
             return;
         }
 
-        if ("COMPANY_EMPLOYEE".equals(role)) {
+        if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
             Farm farm = findFarmByIdOrThrow(waterRegistry.getIdFarm());
             if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
@@ -389,7 +359,7 @@ public class WaterRegistryService {
             return;
         }
 
-        if ("FARM_OWNER".equals(role)) {
+        if (FARM_OWNER.equals(role)) {
             FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
             if (!Objects.equals(waterRegistry.getIdFarm(), owner.getIdFarm())) {
                 throw new ResponseStatusException(

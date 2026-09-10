@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
@@ -16,8 +17,8 @@ import java.time.LocalDate;
  * DTO de requisição para cadastro de Registro de Medição de Água (POST /water-registries).
  *
  * @param registrationDate Data da leitura do hidrômetro
- * @param startHydrometer  Leitura inicial do hidrômetro em metros cúbicos (não negativa)
- * @param endHydrometer    Leitura final do hidrômetro em metros cúbicos (opcional no cadastro, não negativa)
+ * @param startHydrometer  Leitura inicial do hidrômetro em metros cúbicos (maior que zero)
+ * @param endHydrometer    Leitura final do hidrômetro em metros cúbicos (maior que zero e maior ou igual à leitura inicial)
  * @param idFarm           Identificador da fazenda vinculada (obrigatório para ADM e COMPANY_EMPLOYEE; inferido para FARM_OWNER caso omitido)
  */
 @Schema(description = "Dados para cadastro de um novo registro de medição de água")
@@ -36,6 +37,7 @@ public record WaterRegistryRequestDTO(
         @JsonAlias("startHydrometer")
         @NotNull(message = "A leitura inicial do hidrômetro é obrigatória")
         @Positive(message = "A leitura inicial do hidrômetro deve ser maior que zero")
+        @Digits(integer = 15, fraction = 4, message = "A leitura inicial do hidrômetro deve ter no máximo 15 dígitos inteiros e 4 casas decimais")
         BigDecimal startHydrometer,
 
         @Schema(description = "Leitura final do hidrômetro (m³)", example = "135.8000")
@@ -43,6 +45,7 @@ public record WaterRegistryRequestDTO(
         @JsonAlias("endHydrometer")
         @NotNull(message = "A leitura final do hidrômetro é obrigatória")
         @Positive(message = "A leitura final do hidrômetro deve ser maior que zero")
+        @Digits(integer = 15, fraction = 4, message = "A leitura final do hidrômetro deve ter no máximo 15 dígitos inteiros e 4 casas decimais")
         BigDecimal endHydrometer,
 
         @Schema(description = "Identificador da fazenda vinculada", example = "1")
