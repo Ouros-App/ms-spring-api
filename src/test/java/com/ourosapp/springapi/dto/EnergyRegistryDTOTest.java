@@ -131,7 +131,7 @@ class EnergyRegistryDTOTest {
     }
 
     @Test
-    @DisplayName("Deve lançar NullPointerException ao passar entidade nula para daEntity")
+    @DisplayName("Deve lançar NullPointerException ao passar entidade nula para fromEntity")
     void deveLancarExcecaoParaEntidadeNula() {
         NullPointerException ex = assertThrows(
                 NullPointerException.class,
