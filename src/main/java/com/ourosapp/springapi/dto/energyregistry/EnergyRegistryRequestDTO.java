@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
@@ -23,6 +24,7 @@ public record EnergyRegistryRequestDTO(
         @JsonProperty("registration_date")
         @JsonAlias("registrationDate")
         @NotNull(message = "A data de registro é obrigatória")
+        @PastOrPresent(message = "A data de registro não pode ser uma data futura")
         LocalDate registrationDate,
 
         @Schema(description = "Consumo de energia registrado (deve ser maior que zero)", example = "450.75")

@@ -3,6 +3,7 @@ package com.ourosapp.springapi.dto.energyregistry;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
@@ -20,6 +21,7 @@ public record EnergyRegistryUpdateDTO(
         @Schema(description = "Data do registro de consumo de energia", example = "2026-09-10")
         @JsonProperty("registration_date")
         @JsonAlias("registrationDate")
+        @PastOrPresent(message = "A data de registro não pode ser uma data futura")
         LocalDate registrationDate,
 
         @Schema(description = "Consumo de energia registrado (deve ser maior que zero)", example = "480.00")

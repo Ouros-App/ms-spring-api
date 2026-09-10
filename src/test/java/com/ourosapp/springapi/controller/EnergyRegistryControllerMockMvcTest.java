@@ -66,14 +66,15 @@ class EnergyRegistryControllerMockMvcTest {
     @Test
     @DisplayName("POST /energy-registries - Deve retornar 201 Created ao cadastrar registro de energia com sucesso")
     void deveRetornar201AoCriarRegistroDeEnergia() throws Exception {
+        LocalDate date = LocalDate.now();
         EnergyRegistryRequestDTO requestDTO = new EnergyRegistryRequestDTO(
-                LocalDate.of(2026, 9, 9),
+                date,
                 new BigDecimal("450.75"),
                 1L
         );
         EnergyRegistryResponseDTO responseDTO = new EnergyRegistryResponseDTO(
                 10L,
-                LocalDate.of(2026, 9, 9),
+                date,
                 new BigDecimal("450.75"),
                 1L
         );
@@ -105,6 +106,22 @@ class EnergyRegistryControllerMockMvcTest {
                         .with(user(mockPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /energy-registries - Deve retornar 400 Bad Request quando data for futura")
+    void deveRetornar400AoCriarRegistroComDataFutura() throws Exception {
+        EnergyRegistryRequestDTO futureDateRequest = new EnergyRegistryRequestDTO(
+                LocalDate.now().plusDays(1),
+                new BigDecimal("100.00"),
+                1L
+        );
+
+        mockMvc.perform(post("/energy-registries")
+                        .with(user(mockPrincipal))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(futureDateRequest)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -232,13 +249,14 @@ class EnergyRegistryControllerMockMvcTest {
     @Test
     @DisplayName("PATCH /energy-registries/{id} - Deve retornar 200 OK ao atualizar registro de energia com sucesso")
     void deveRetornar200AoAtualizarRegistroDeEnergia() throws Exception {
+        LocalDate date = LocalDate.now();
         EnergyRegistryUpdateDTO updateDTO = new EnergyRegistryUpdateDTO(
-                LocalDate.of(2026, 9, 10),
+                date,
                 new BigDecimal("500.00")
         );
         EnergyRegistryResponseDTO responseDTO = new EnergyRegistryResponseDTO(
                 10L,
-                LocalDate.of(2026, 9, 10),
+                date,
                 new BigDecimal("500.00"),
                 1L
         );
@@ -252,7 +270,7 @@ class EnergyRegistryControllerMockMvcTest {
                         .content(objectMapper.writeValueAsString(updateDTO)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(10))
-                .andExpect(jsonPath("$.registration_date").value("2026-09-10"))
+                .andExpect(jsonPath("$.registration_date").value(date.toString()))
                 .andExpect(jsonPath("$.energy_consumption").value(500.00));
     }
 
@@ -268,6 +286,21 @@ class EnergyRegistryControllerMockMvcTest {
                         .with(user(mockPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidUpdate)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PATCH /energy-registries/{id} - Deve retornar 400 Bad Request quando data for futura")
+    void deveRetornar400AoAtualizarComDataFutura() throws Exception {
+        EnergyRegistryUpdateDTO futureDateUpdate = new EnergyRegistryUpdateDTO(
+                LocalDate.now().plusDays(1),
+                new BigDecimal("500.00")
+        );
+
+        mockMvc.perform(patch("/energy-registries/10")
+                        .with(user(mockPrincipal))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(futureDateUpdate)))
                 .andExpect(status().isBadRequest());
     }
 
