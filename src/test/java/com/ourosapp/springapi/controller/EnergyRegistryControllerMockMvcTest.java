@@ -63,6 +63,7 @@ class EnergyRegistryControllerMockMvcTest {
             List.of(new SimpleGrantedAuthority("ROLE_ADM"))
     );
 
+    /** Verifica a criação de um registro de energia com resposta HTTP 201. */
     @Test
     @DisplayName("POST /energy-registries - Deve retornar 201 Created ao cadastrar registro de energia com sucesso")
     void deveRetornar201AoCriarRegistroDeEnergia() throws Exception {
@@ -93,6 +94,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(jsonPath("$.id_farm").value(1));
     }
 
+    /** Verifica a rejeição de um payload de criação inválido com resposta HTTP 400. */
     @Test
     @DisplayName("POST /energy-registries - Deve retornar 400 Bad Request quando payload for inválido")
     void deveRetornar400AoCriarRegistroComPayloadInvalido() throws Exception {
@@ -109,6 +111,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /** Verifica a rejeição de uma data de registro futura com resposta HTTP 400. */
     @Test
     @DisplayName("POST /energy-registries - Deve retornar 400 Bad Request quando data for futura")
     void deveRetornar400AoCriarRegistroComDataFutura() throws Exception {
@@ -125,6 +128,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /** Verifica a listagem de registros de energia com resposta HTTP 200. */
     @Test
     @DisplayName("GET /energy-registries - Deve retornar 200 OK com a lista de registros de energia")
     void deveRetornar200AoListarRegistros() throws Exception {
@@ -145,6 +149,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(jsonPath("$[0].energy_consumption").value(450.75));
     }
 
+    /** Verifica a consulta de um registro de energia por ID com resposta HTTP 200. */
     @Test
     @DisplayName("GET /energy-registries/{id} - Deve retornar 200 OK ao buscar registro por ID")
     void deveRetornar200AoBuscarRegistroPorId() throws Exception {
@@ -165,6 +170,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(jsonPath("$.energy_consumption").value(450.75));
     }
 
+    /** Verifica a resposta HTTP 404 ao consultar um registro inexistente. */
     @Test
     @DisplayName("GET /energy-registries/{id} - Deve retornar 404 Not Found se registro não for encontrado")
     void deveRetornar404AoBuscarPorIdInexistente() throws Exception {
@@ -176,6 +182,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(status().isNotFound());
     }
 
+    /** Verifica a exclusão de um registro de energia com resposta HTTP 204. */
     @Test
     @DisplayName("DELETE /energy-registries/{id} - Deve retornar 204 No Content ao remover registro")
     void deveRetornar204AoDeletarRegistro() throws Exception {
@@ -186,6 +193,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(status().isNoContent());
     }
 
+    /** Verifica a resposta HTTP 401 ao criar um registro sem autenticação. */
     @Test
     @DisplayName("POST /energy-registries - Deve retornar 401 Unauthorized quando requisição não autenticada")
     void deveRetornar401AoCriarRegistroSemAutenticacao() throws Exception {
@@ -195,6 +203,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    /** Verifica a resposta HTTP 403 ao criar um registro sem permissão. */
     @Test
     @DisplayName("POST /energy-registries - Deve retornar 403 Forbidden quando usuário não tem permissão para a fazenda")
     void deveRetornar403AoCriarRegistroSemPermissao() throws Exception {
@@ -214,6 +223,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(status().isForbidden());
     }
 
+    /** Verifica a listagem filtrada pelo identificador da fazenda. */
     @Test
     @DisplayName("GET /energy-registries - Deve retornar 200 OK ao filtrar por farm_id")
     void deveRetornar200AoListarRegistrosComFiltroFarmId() throws Exception {
@@ -235,6 +245,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(jsonPath("$[0].id_farm").value(1));
     }
 
+    /** Verifica a resposta HTTP 403 ao excluir um registro sem permissão. */
     @Test
     @DisplayName("DELETE /energy-registries/{id} - Deve retornar 403 Forbidden quando usuário não tiver permissão")
     void deveRetornar403AoDeletarRegistroSemPermissao() throws Exception {
@@ -246,6 +257,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(status().isForbidden());
     }
 
+    /** Verifica a atualização de um registro de energia com resposta HTTP 200. */
     @Test
     @DisplayName("PATCH /energy-registries/{id} - Deve retornar 200 OK ao atualizar registro de energia com sucesso")
     void deveRetornar200AoAtualizarRegistroDeEnergia() throws Exception {
@@ -274,6 +286,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(jsonPath("$.energy_consumption").value(500.00));
     }
 
+    /** Verifica a rejeição de consumo negativo na atualização com resposta HTTP 400. */
     @Test
     @DisplayName("PATCH /energy-registries/{id} - Deve retornar 400 Bad Request quando payload for inválido")
     void deveRetornar400AoAtualizarComConsumoNegativo() throws Exception {
@@ -289,6 +302,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /** Verifica a rejeição de data futura na atualização com resposta HTTP 400. */
     @Test
     @DisplayName("PATCH /energy-registries/{id} - Deve retornar 400 Bad Request quando data for futura")
     void deveRetornar400AoAtualizarComDataFutura() throws Exception {
@@ -304,6 +318,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /** Verifica a resposta HTTP 401 ao atualizar um registro sem autenticação. */
     @Test
     @DisplayName("PATCH /energy-registries/{id} - Deve retornar 401 Unauthorized quando requisição não autenticada")
     void deveRetornar401AoAtualizarSemAutenticacao() throws Exception {
@@ -313,6 +328,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    /** Verifica a resposta HTTP 403 ao atualizar um registro sem permissão. */
     @Test
     @DisplayName("PATCH /energy-registries/{id} - Deve retornar 403 Forbidden quando usuário não tiver permissão")
     void deveRetornar403AoAtualizarSemPermissao() throws Exception {
@@ -328,6 +344,7 @@ class EnergyRegistryControllerMockMvcTest {
                 .andExpect(status().isForbidden());
     }
 
+    /** Verifica a resposta HTTP 404 ao atualizar um registro inexistente. */
     @Test
     @DisplayName("PATCH /energy-registries/{id} - Deve retornar 404 Not Found quando registro não for encontrado")
     void deveRetornar404AoAtualizarRegistroInexistente() throws Exception {
