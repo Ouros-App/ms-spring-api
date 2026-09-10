@@ -2,6 +2,9 @@ package com.ourosapp.springapi.dto;
 import com.ourosapp.springapi.dto.address.*;
 import com.ourosapp.springapi.dto.enterprise.*;
 import com.ourosapp.springapi.dto.companyemployee.*;
+import com.ourosapp.springapi.dto.waterregistry.*;
+import com.ourosapp.springapi.entity.WaterRegistry;
+import java.time.LocalDate;
 import com.ourosapp.springapi.constants.ErrorMessages;
 import com.ourosapp.springapi.constants.RoleConstants;
 import com.ourosapp.springapi.security.UserPrincipal;
@@ -37,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class DTOAndEntityTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     /**
@@ -974,6 +977,231 @@ class DTOAndEntityTest {
         assertEquals(new BigDecimal("300.00"), fromCamel.areaProperty());
         assertEquals(75000, fromCamel.poultryCapacity());
     }
+
+    /**
+     * Testa getters, setters, builder e toString da entidade {@link WaterRegistry}.
+     */
+    @Test
+    void testWaterRegistryEntity() {
+        WaterRegistry registry = new WaterRegistry();
+        registry.setId(1L);
+        registry.setRegistrationDate(LocalDate.of(2026, 9, 10));
+        registry.setStartHydrometer(new BigDecimal("100.5000"));
+        registry.setEndHydrometer(new BigDecimal("120.8000"));
+        registry.setIdFarm(5L);
+
+        assertEquals(1L, registry.getId());
+        assertEquals(LocalDate.of(2026, 9, 10), registry.getRegistrationDate());
+        assertEquals(new BigDecimal("100.5000"), registry.getStartHydrometer());
+        assertEquals(new BigDecimal("120.8000"), registry.getEndHydrometer());
+        assertEquals(5L, registry.getIdFarm());
+
+        WaterRegistry built = WaterRegistry.builder()
+                .id(2L)
+                .registrationDate(LocalDate.of(2026, 9, 11))
+                .startHydrometer(new BigDecimal("200.0000"))
+                .endHydrometer(new BigDecimal("250.0000"))
+                .idFarm(10L)
+                .build();
+
+        assertEquals(2L, built.getId());
+        assertTrue(built.toString().contains("startHydrometer=200.0000"));
+    }
+
+    /**
+     * Testa instanciação, sanitização, validação cruzada e interoperabilidade JSON de {@link WaterRegistryRequestDTO}.
+     */
+    @Test
+    void testWaterRegistryRequestDTO() throws JsonProcessingException {
+        WaterRegistryRequestDTO validDto = new WaterRegistryRequestDTO(
+                LocalDate.of(2026, 9, 10),
+                new BigDecimal("100.5000"),
+                new BigDecimal("120.8000"),
+                1L
+        );
+        assertEquals(LocalDate.of(2026, 9, 10), validDto.registrationDate());
+        assertEquals(new BigDecimal("100.5000"), validDto.startHydrometer());
+        assertEquals(new BigDecimal("120.8000"), validDto.endHydrometer());
+        assertEquals(1L, validDto.idFarm());
+        assertTrue(validDto.hasValidReadings());
+        assertTrue(validator.validate(validDto).isEmpty());
+
+        // DTO inválido sem endHydrometer (NOT NULL no schema)
+        WaterRegistryRequestDTO invalidWithoutEnd = new WaterRegistryRequestDTO(
+                LocalDate.of(2026, 9, 10),
+                new BigDecimal("100.5000"),
+                null,
+                1L
+        );
+        assertFalse(validator.validate(invalidWithoutEnd).isEmpty());
+
+        // DTO inválido com endHydrometer < startHydrometer (CHECK end_hydrometer >= start_hydrometer)
+        WaterRegistryRequestDTO invalidReadings = new WaterRegistryRequestDTO(
+                LocalDate.of(2026, 9, 10),
+                new BigDecimal("100.5000"),
+                new BigDecimal("90.0000"),
+                1L
+        );
+        assertFalse(invalidReadings.hasValidReadings());
+        assertFalse(validator.validate(invalidReadings).isEmpty());
+
+        // DTO inválido com valores zero (CHECK > 0)
+        WaterRegistryRequestDTO zeroStart = new WaterRegistryRequestDTO(
+                LocalDate.of(2026, 9, 10),
+                BigDecimal.ZERO,
+                new BigDecimal("120.8000"),
+                1L
+        );
+        assertFalse(validator.validate(zeroStart).isEmpty());
+
+        WaterRegistryRequestDTO zeroEnd = new WaterRegistryRequestDTO(
+                LocalDate.of(2026, 9, 10),
+                new BigDecimal("100.0000"),
+                BigDecimal.ZERO,
+                1L
+        );
+        assertFalse(validator.validate(zeroEnd).isEmpty());
+
+        // DTO inválido com valores negativos
+        WaterRegistryRequestDTO negativeStart = new WaterRegistryRequestDTO(
+                LocalDate.of(2026, 9, 10),
+                new BigDecimal("-10.0000"),
+                new BigDecimal("120.8000"),
+                1L
+        );
+        assertFalse(validator.validate(negativeStart).isEmpty());
+
+        // DTO inválido com data futura
+        WaterRegistryRequestDTO futureDate = new WaterRegistryRequestDTO(
+                LocalDate.now().plusDays(5),
+                new BigDecimal("100.0000"),
+                new BigDecimal("120.0000"),
+                1L
+        );
+        assertFalse(validator.validate(futureDate).isEmpty());
+
+        // DTO inválido com idFarm negativo ou zero
+        WaterRegistryRequestDTO negativeFarmId = new WaterRegistryRequestDTO(
+                LocalDate.of(2026, 9, 10),
+                new BigDecimal("100.0000"),
+                new BigDecimal("120.0000"),
+                -1L
+        );
+        assertFalse(validator.validate(negativeFarmId).isEmpty());
+
+        // Desserialização snake_case
+        String snakeJson = """
+                {
+                    "registration_date": "2026-09-10",
+                    "start_hydrometer": 100.50,
+                    "end_hydrometer": 120.80,
+                    "id_farm": 1
+                }
+                """;
+        WaterRegistryRequestDTO fromSnake = objectMapper.readValue(snakeJson, WaterRegistryRequestDTO.class);
+        assertEquals(LocalDate.of(2026, 9, 10), fromSnake.registrationDate());
+        assertEquals(new BigDecimal("100.50"), fromSnake.startHydrometer());
+        assertEquals(new BigDecimal("120.80"), fromSnake.endHydrometer());
+        assertEquals(1L, fromSnake.idFarm());
+
+        // Desserialização camelCase
+        String camelJson = """
+                {
+                    "registrationDate": "2026-09-10",
+                    "startHydrometer": 100.50,
+                    "endHydrometer": 120.80,
+                    "idFarm": 1
+                }
+                """;
+        WaterRegistryRequestDTO fromCamel = objectMapper.readValue(camelJson, WaterRegistryRequestDTO.class);
+        assertEquals(LocalDate.of(2026, 9, 10), fromCamel.registrationDate());
+        assertEquals(new BigDecimal("100.50"), fromCamel.startHydrometer());
+    }
+
+    /**
+     * Testa instanciação, serialização e conversão de entidade para {@link WaterRegistryResponseDTO}.
+     */
+    @Test
+    void testWaterRegistryResponseDTO() throws JsonProcessingException {
+        WaterRegistry entity = WaterRegistry.builder()
+                .id(1L)
+                .registrationDate(LocalDate.of(2026, 9, 10))
+                .startHydrometer(new BigDecimal("100.5000"))
+                .endHydrometer(new BigDecimal("120.8000"))
+                .idFarm(5L)
+                .build();
+
+        WaterRegistryResponseDTO dto = WaterRegistryResponseDTO.fromEntity(entity);
+        assertEquals(1L, dto.id());
+        assertEquals(LocalDate.of(2026, 9, 10), dto.registrationDate());
+        assertEquals(new BigDecimal("100.5000"), dto.startHydrometer());
+        assertEquals(new BigDecimal("120.8000"), dto.endHydrometer());
+        assertEquals(5L, dto.idFarm());
+
+        String json = objectMapper.writeValueAsString(dto);
+        assertTrue(json.contains("\"registration_date\":\"2026-09-10\""));
+        assertTrue(json.contains("\"start_hydrometer\":100.5000"));
+        assertTrue(json.contains("\"end_hydrometer\":120.8000"));
+        assertTrue(json.contains("\"id_farm\":5"));
+
+        assertThrows(NullPointerException.class, () -> WaterRegistryResponseDTO.fromEntity(null));
+    }
+
+    /**
+     * Testa comportamento, validação e método hasUpdates de {@link WaterRegistryUpdateDTO}.
+     */
+    @Test
+    void testWaterRegistryUpdateDTO() throws JsonProcessingException {
+        WaterRegistryUpdateDTO updateWithAll = new WaterRegistryUpdateDTO(
+                new BigDecimal("150.0000"),
+                new BigDecimal("100.0000"),
+                LocalDate.of(2026, 9, 10)
+        );
+        assertEquals(new BigDecimal("150.0000"), updateWithAll.endHydrometer());
+        assertEquals(new BigDecimal("100.0000"), updateWithAll.startHydrometer());
+        assertEquals(LocalDate.of(2026, 9, 10), updateWithAll.registrationDate());
+        assertTrue(updateWithAll.hasUpdates());
+        assertTrue(validator.validate(updateWithAll).isEmpty());
+
+        WaterRegistryUpdateDTO emptyDto = new WaterRegistryUpdateDTO(null, null, null);
+        assertFalse(emptyDto.hasUpdates());
+
+        // Validação de leituras negativas ou zero (CHECK > 0)
+        WaterRegistryUpdateDTO negativeDto = new WaterRegistryUpdateDTO(
+                new BigDecimal("-5.0000"),
+                new BigDecimal("-1.0000"),
+                null
+        );
+        assertFalse(validator.validate(negativeDto).isEmpty());
+
+        WaterRegistryUpdateDTO zeroUpdateDto = new WaterRegistryUpdateDTO(
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                null
+        );
+        assertFalse(validator.validate(zeroUpdateDto).isEmpty());
+
+        // Validação de data futura
+        WaterRegistryUpdateDTO futureDateDto = new WaterRegistryUpdateDTO(
+                null,
+                null,
+                LocalDate.now().plusDays(10)
+        );
+        assertFalse(validator.validate(futureDateDto).isEmpty());
+
+        // Desserialização snake_case
+        String snakeJson = "{\"end_hydrometer\": 150.00, \"start_hydrometer\": 100.00, \"registration_date\": \"2026-09-10\"}";
+        WaterRegistryUpdateDTO fromSnake = objectMapper.readValue(snakeJson, WaterRegistryUpdateDTO.class);
+        assertEquals(new BigDecimal("150.00"), fromSnake.endHydrometer());
+        assertEquals(new BigDecimal("100.00"), fromSnake.startHydrometer());
+
+        // Desserialização camelCase
+        String camelJson = "{\"endHydrometer\": 160.00, \"startHydrometer\": 110.00, \"registrationDate\": \"2026-09-10\"}";
+        WaterRegistryUpdateDTO fromCamel = objectMapper.readValue(camelJson, WaterRegistryUpdateDTO.class);
+        assertEquals(new BigDecimal("160.00"), fromCamel.endHydrometer());
+        assertEquals(new BigDecimal("110.00"), fromCamel.startHydrometer());
+    }
 }
+
 
 
