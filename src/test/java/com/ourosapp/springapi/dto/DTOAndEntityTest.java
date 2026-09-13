@@ -30,8 +30,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.cors.CorsConfigurationSource;
-
+import com.ourosapp.springapi.dto.lot.LotRequestDTO;
+import com.ourosapp.springapi.dto.lot.LotResponseDTO;
+import com.ourosapp.springapi.dto.lot.LotUpdateDTO;
+import com.ourosapp.springapi.entity.Lot;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -980,6 +985,7 @@ class DTOAndEntityTest {
     }
 
     /**
+<<<<<<< HEAD
      * Testa instanciação, normalização, conversão de entidade e validações de DTOs de Produtor Rural.
      */
     @Test
@@ -1377,6 +1383,208 @@ class DTOAndEntityTest {
         WaterRegistryUpdateDTO fromCamel = objectMapper.readValue(camelJson, WaterRegistryUpdateDTO.class);
         assertEquals(new BigDecimal("160.00"), fromCamel.endHydrometer());
         assertEquals(new BigDecimal("110.00"), fromCamel.startHydrometer());
+    }
+
+    /**
+     * Testa getters, setters, builder e toString da entidade {@link Lot}.
+     */
+    @Test
+    void testLotEntity() {
+        Lot lot = new Lot();
+        lot.setId(1L);
+        lot.setReceivedChickens(50000);
+        lot.setDeliveredChickens(48500);
+        lot.setDateBirth(LocalDate.of(2026, 9, 1));
+        lot.setDeliveryDate(LocalDate.of(2026, 10, 15));
+        lot.setGain(new BigDecimal("2.8500"));
+        lot.setLosts(1500);
+        lot.setCost(12500.50);
+        lot.setIdEnterprise(10L);
+        lot.setIdFarm(20L);
+
+        assertEquals(1L, lot.getId());
+        assertEquals(50000, lot.getReceivedChickens());
+        assertEquals(48500, lot.getDeliveredChickens());
+        assertEquals(LocalDate.of(2026, 9, 1), lot.getDateBirth());
+        assertEquals(LocalDate.of(2026, 10, 15), lot.getDeliveryDate());
+        assertEquals(new BigDecimal("2.8500"), lot.getGain());
+        assertEquals(1500, lot.getLosts());
+        assertEquals(12500.50, lot.getCost());
+        assertEquals(10L, lot.getIdEnterprise());
+        assertEquals(20L, lot.getIdFarm());
+
+        Lot built = Lot.builder()
+                .id(2L)
+                .receivedChickens(60000)
+                .deliveredChickens(59000)
+                .dateBirth(LocalDate.of(2026, 8, 1))
+                .deliveryDate(LocalDate.of(2026, 9, 15))
+                .gain(new BigDecimal("3.1000"))
+                .losts(1000)
+                .cost(15000.0)
+                .idEnterprise(11L)
+                .idFarm(21L)
+                .build();
+
+        assertEquals(2L, built.getId());
+        assertTrue(built.toString().contains("60000"));
+    }
+
+    /**
+     * Testa instanciação, validações cruzadas e desserialização de {@link LotRequestDTO}.
+     */
+    @Test
+    void testLotRequestDTO() throws JsonProcessingException {
+        LotRequestDTO valid = new LotRequestDTO(
+                50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
+                new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+        );
+        assertTrue(validator.validate(valid).isEmpty());
+        assertTrue(valid.isDeliveredChickensValid());
+        assertTrue(valid.isDeliveryDateValid());
+
+        // Aves entregues maior que recebidas
+        LotRequestDTO invalidChickens = new LotRequestDTO(
+                1000, 2000, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
+                BigDecimal.ZERO, 0, 0.0, 1L, 2L
+        );
+        assertFalse(validator.validate(invalidChickens).isEmpty());
+        assertFalse(invalidChickens.isDeliveredChickensValid());
+
+        // Data de entrega anterior ao nascimento
+        LotRequestDTO invalidDates = new LotRequestDTO(
+                1000, 900, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 9, 1),
+                BigDecimal.ZERO, 0, 0.0, 1L, 2L
+        );
+        assertFalse(validator.validate(invalidDates).isEmpty());
+        assertFalse(invalidDates.isDeliveryDateValid());
+
+        // Valores nulos nos campos opcionais (incluindo id_enterprise que é opcional)
+        LotRequestDTO nullOptionals = new LotRequestDTO(
+                1000, null, LocalDate.of(2026, 9, 1), null,
+                null, null, null, null, 2L
+        );
+        assertTrue(validator.validate(nullOptionals).isEmpty());
+        assertTrue(nullOptionals.isDeliveredChickensValid());
+        assertTrue(nullOptionals.isDeliveryDateValid());
+        assertNull(nullOptionals.idEnterprise());
+        assertEquals(2L, nullOptionals.idFarm());
+
+        // Desserialização snake_case
+        String snakeJson = """
+                {
+                    "received_chickens": 50000,
+                    "delivered_chickens": 48500,
+                    "date_birth": "2026-09-01",
+                    "delivery_date": "2026-10-15",
+                    "gain": 2.8500,
+                    "losts": 1500,
+                    "cost": 12500.50,
+                    "id_enterprise": 1,
+                    "id_farm": 2
+                }
+                """;
+        LotRequestDTO fromSnake = objectMapper.readValue(snakeJson, LotRequestDTO.class);
+        assertEquals(50000, fromSnake.receivedChickens());
+        assertEquals(48500, fromSnake.deliveredChickens());
+        assertEquals(1L, fromSnake.idEnterprise());
+        assertEquals(2L, fromSnake.idFarm());
+
+        // Desserialização camelCase
+        String camelJson = """
+                {
+                    "receivedChickens": 50000,
+                    "deliveredChickens": 48500,
+                    "dateBirth": "2026-09-01",
+                    "deliveryDate": "2026-10-15",
+                    "gain": 2.8500,
+                    "losts": 1500,
+                    "cost": 12500.50,
+                    "idEnterprise": 1,
+                    "idFarm": 2
+                }
+                """;
+        LotRequestDTO fromCamel = objectMapper.readValue(camelJson, LotRequestDTO.class);
+        assertEquals(50000, fromCamel.receivedChickens());
+        assertEquals(1L, fromCamel.idEnterprise());
+        assertEquals(2L, fromCamel.idFarm());
+    }
+
+    /**
+     * Testa instanciação, serialização e conversão de entidade para {@link LotResponseDTO}.
+     */
+    @Test
+    void testLotResponseDTO() throws JsonProcessingException {
+        Lot lot = Lot.builder()
+                .id(1L)
+                .receivedChickens(50000)
+                .deliveredChickens(48500)
+                .dateBirth(LocalDate.of(2026, 9, 1))
+                .deliveryDate(LocalDate.of(2026, 10, 15))
+                .gain(new BigDecimal("2.8500"))
+                .losts(1500)
+                .cost(12500.50)
+                .idEnterprise(10L)
+                .idFarm(20L)
+                .build();
+
+        LotResponseDTO dto = LotResponseDTO.fromEntity(lot);
+        assertEquals(1L, dto.id());
+        assertEquals(50000, dto.receivedChickens());
+        assertEquals(48500, dto.deliveredChickens());
+        assertEquals(LocalDate.of(2026, 9, 1), dto.dateBirth());
+        assertEquals(LocalDate.of(2026, 10, 15), dto.deliveryDate());
+        assertEquals(new BigDecimal("2.8500"), dto.gain());
+        assertEquals(1500, dto.losts());
+        assertEquals(12500.50, dto.cost());
+        assertEquals(10L, dto.idEnterprise());
+        assertEquals(20L, dto.idFarm());
+
+        String json = objectMapper.writeValueAsString(dto);
+        assertTrue(json.contains("\"received_chickens\":50000"));
+        assertTrue(json.contains("\"delivered_chickens\":48500"));
+        assertTrue(json.contains("\"id_enterprise\":10"));
+        assertTrue(json.contains("\"id_farm\":20"));
+
+        assertThrows(NullPointerException.class, () -> LotResponseDTO.fromEntity(null));
+    }
+
+    /**
+     * Testa comportamento, validações e método hasUpdates de {@link LotUpdateDTO}.
+     */
+    @Test
+    void testLotUpdateDTO() {
+        LotUpdateDTO dtoWithUpdates = new LotUpdateDTO(
+                50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
+                new BigDecimal("2.8500"), 1500, 12500.50
+        );
+        assertTrue(dtoWithUpdates.hasUpdates());
+        assertTrue(validator.validate(dtoWithUpdates).isEmpty());
+        assertTrue(dtoWithUpdates.isDeliveredChickensValid());
+        assertTrue(dtoWithUpdates.isDeliveryDateValid());
+
+        LotUpdateDTO emptyDto = new LotUpdateDTO(null, null, null, null, null, null, null);
+        assertFalse(emptyDto.hasUpdates());
+
+        // Validação de valores negativos
+        LotUpdateDTO invalidNegatives = new LotUpdateDTO(-10, -5, null, null, new BigDecimal("-1.0"), -1, -50.0);
+        assertFalse(validator.validate(invalidNegatives).isEmpty());
+
+        // Validação de entregues > recebidos no DTO
+        LotUpdateDTO invalidAmounts = new LotUpdateDTO(100, 200, null, null, null, null, null);
+        assertFalse(validator.validate(invalidAmounts).isEmpty());
+        assertFalse(invalidAmounts.isDeliveredChickensValid());
+
+        // Validação de data de entrega < nascimento
+        LotUpdateDTO invalidDateOrder = new LotUpdateDTO(null, null, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 9, 1), null, null, null);
+        assertFalse(validator.validate(invalidDateOrder).isEmpty());
+        assertFalse(invalidDateOrder.isDeliveryDateValid());
+
+        // Jackson deserialization
+        String snakeJson = "{\"delivered_chickens\": 49000, \"gain\": 2.9500}";
+        LotUpdateDTO fromSnake = assertDoesNotThrow(() -> objectMapper.readValue(snakeJson, LotUpdateDTO.class));
+        assertEquals(49000, fromSnake.deliveredChickens());
+        assertEquals(new BigDecimal("2.9500"), fromSnake.gain());
     }
 }
 
