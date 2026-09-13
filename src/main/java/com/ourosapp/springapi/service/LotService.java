@@ -65,66 +65,10 @@ public class LotService {
                         "Fazenda não encontrada para o ID: " + request.idFarm()
                 ));
 
-        Long resolvedEnterpriseId = request.idEnterprise();
+        Long resolvedEnterpriseId = resolveEnterpriseIdForCreation(request, farm, principal);
+        validateEnterpriseForFarm(farm, resolvedEnterpriseId);
 
-        String role = principal.getRole();
-        if (RoleConstants.COMPANY_EMPLOYEE.equals(role)) {
-            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            if (resolvedEnterpriseId == null) {
-                resolvedEnterpriseId = employee.getIdEnterprise();
-            } else if (!Objects.equals(resolvedEnterpriseId, employee.getIdEnterprise())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Funcionário não tem permissão para cadastrar lotes em outra empresa integradora"
-                );
-            }
-        } else if (RoleConstants.ADM.equals(role)) {
-            if (resolvedEnterpriseId == null) {
-                resolvedEnterpriseId = farm.getIdEnterprise();
-            }
-        } else if (RoleConstants.FARM_OWNER.equals(role)) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Produtor rural não possui permissão para cadastrar lotes"
-            );
-        } else {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Perfil de usuário sem permissão para cadastrar lotes"
-            );
-        }
-
-        if (resolvedEnterpriseId == null || !enterpriseRepository.existsById(resolvedEnterpriseId)) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Empresa integradora não encontrada para o ID: " + resolvedEnterpriseId
-            );
-        }
-
-        if (!Objects.equals(farm.getIdEnterprise(), resolvedEnterpriseId)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "A fazenda informada não pertence à empresa integradora especificada"
-            );
-        }
-
-        Integer deliveredChickens = request.deliveredChickens() != null ? request.deliveredChickens() : 0;
-        LocalDate deliveryDate = request.deliveryDate() != null ? request.deliveryDate() : request.dateBirth();
-        BigDecimal gain = request.gain() != null ? request.gain() : BigDecimal.ZERO;
-        Integer losts = request.losts() != null ? request.losts() : 0;
-        Double cost = request.cost() != null ? request.cost() : 0.0;
-
-        Lot lot = Lot.builder()
-                .receivedChickens(request.receivedChickens())
-                .deliveredChickens(deliveredChickens)
-                .dateBirth(request.dateBirth())
-                .deliveryDate(deliveryDate)
-                .gain(gain)
-                .losts(losts)
-                .cost(cost)
-                .idEnterprise(resolvedEnterpriseId)
-                .idFarm(request.idFarm())
-                .build();
+        Lot lot = buildLotFromRequest(request, resolvedEnterpriseId);
 
         try {
             Lot savedLot = lotRepository.save(lot);
@@ -155,81 +99,163 @@ public class LotService {
 
         String role = principal.getRole();
         if (RoleConstants.ADM.equals(role)) {
-            if (idEnterprise != null && idFarm != null) {
-                return lotRepository.findAllByIdEnterpriseAndIdFarm(idEnterprise, idFarm)
-                        .stream()
-                        .map(LotResponseDTO::fromEntity)
-                        .toList();
-            } else if (idEnterprise != null) {
-                return lotRepository.findAllByIdEnterprise(idEnterprise)
-                        .stream()
-                        .map(LotResponseDTO::fromEntity)
-                        .toList();
-            } else if (idFarm != null) {
-                return lotRepository.findAllByIdFarm(idFarm)
-                        .stream()
-                        .map(LotResponseDTO::fromEntity)
-                        .toList();
-            } else {
-                return lotRepository.findAll()
-                        .stream()
-                        .map(LotResponseDTO::fromEntity)
-                        .toList();
-            }
-        } else if (RoleConstants.COMPANY_EMPLOYEE.equals(role)) {
+            return getLotsForAdm(idFarm, idEnterprise);
+        }
+        if (RoleConstants.COMPANY_EMPLOYEE.equals(role)) {
+            return getLotsForCompanyEmployee(idFarm, idEnterprise, principal.getId());
+        }
+        if (RoleConstants.FARM_OWNER.equals(role)) {
+            return getLotsForFarmOwner(idFarm, idEnterprise, principal.getId());
+        }
+
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Perfil de usuário sem permissão para listar lotes"
+        );
+    }
+
+    private Long resolveEnterpriseIdForCreation(LotRequestDTO request, Farm farm, UserPrincipal principal) {
+        String role = principal.getRole();
+        Long requestedEnterpriseId = request.idEnterprise();
+
+        if (RoleConstants.COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            if (idEnterprise != null && !Objects.equals(idEnterprise, employee.getIdEnterprise())) {
+            if (requestedEnterpriseId != null && !Objects.equals(requestedEnterpriseId, employee.getIdEnterprise())) {
                 throw new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
-                        "Funcionário não tem permissão para visualizar lotes de outra empresa integradora"
+                        "Funcionário não tem permissão para cadastrar lotes em outra empresa integradora"
                 );
             }
+            return employee.getIdEnterprise();
+        }
 
-            if (idFarm != null) {
-                Farm farm = farmRepository.findById(idFarm)
-                        .orElseThrow(() -> new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Fazenda não encontrada para o ID: " + idFarm
-                        ));
-                if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
-                    throw new ResponseStatusException(
-                            HttpStatus.FORBIDDEN,
-                            "Acesso negado a lotes de fazenda pertencente a outra integradora"
-                    );
-                }
-                return lotRepository.findAllByIdEnterpriseAndIdFarm(employee.getIdEnterprise(), idFarm)
-                        .stream()
-                        .map(LotResponseDTO::fromEntity)
-                        .toList();
-            }
+        if (RoleConstants.ADM.equals(role)) {
+            return requestedEnterpriseId != null ? requestedEnterpriseId : farm.getIdEnterprise();
+        }
 
-            return lotRepository.findAllByIdEnterprise(employee.getIdEnterprise())
-                    .stream()
-                    .map(LotResponseDTO::fromEntity)
-                    .toList();
-        } else if (RoleConstants.FARM_OWNER.equals(role)) {
-            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-            if (owner.getIdFarm() == null) {
-                return List.of();
-            }
-
-            if (idFarm != null && !Objects.equals(idFarm, owner.getIdFarm())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Produtor rural não tem permissão para visualizar lotes de outra fazenda"
-                );
-            }
-
-            return lotRepository.findAllByIdFarm(owner.getIdFarm())
-                    .stream()
-                    .map(LotResponseDTO::fromEntity)
-                    .toList();
-        } else {
+        if (RoleConstants.FARM_OWNER.equals(role)) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "Perfil de usuário sem permissão para listar lotes"
+                    "Produtor rural não possui permissão para cadastrar lotes"
             );
         }
+
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Perfil de usuário sem permissão para cadastrar lotes"
+        );
+    }
+
+    private void validateEnterpriseForFarm(Farm farm, Long resolvedEnterpriseId) {
+        if (resolvedEnterpriseId == null || !enterpriseRepository.existsById(resolvedEnterpriseId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Empresa integradora não encontrada para o ID: " + resolvedEnterpriseId
+            );
+        }
+
+        if (!Objects.equals(farm.getIdEnterprise(), resolvedEnterpriseId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "A fazenda informada não pertence à empresa integradora especificada"
+            );
+        }
+    }
+
+    private Lot buildLotFromRequest(LotRequestDTO request, Long resolvedEnterpriseId) {
+        Integer deliveredChickens = request.deliveredChickens() != null ? request.deliveredChickens() : 0;
+        LocalDate deliveryDate = request.deliveryDate() != null ? request.deliveryDate() : request.dateBirth();
+        BigDecimal gain = request.gain() != null ? request.gain() : BigDecimal.ZERO;
+        Integer losts = request.losts() != null ? request.losts() : 0;
+        Double cost = request.cost() != null ? request.cost() : 0.0;
+
+        return Lot.builder()
+                .receivedChickens(request.receivedChickens())
+                .deliveredChickens(deliveredChickens)
+                .dateBirth(request.dateBirth())
+                .deliveryDate(deliveryDate)
+                .gain(gain)
+                .losts(losts)
+                .cost(cost)
+                .idEnterprise(resolvedEnterpriseId)
+                .idFarm(request.idFarm())
+                .build();
+    }
+
+    private List<LotResponseDTO> getLotsForAdm(Long idFarm, Long idEnterprise) {
+        List<Lot> lots;
+        if (idEnterprise != null && idFarm != null) {
+            lots = lotRepository.findAllByIdEnterpriseAndIdFarm(idEnterprise, idFarm);
+        } else if (idEnterprise != null) {
+            lots = lotRepository.findAllByIdEnterprise(idEnterprise);
+        } else if (idFarm != null) {
+            lots = lotRepository.findAllByIdFarm(idFarm);
+        } else {
+            lots = lotRepository.findAll();
+        }
+        return lots.stream().map(LotResponseDTO::fromEntity).toList();
+    }
+
+    private List<LotResponseDTO> getLotsForCompanyEmployee(Long idFarm, Long idEnterprise, Long employeeId) {
+        CompanyEmployee employee = getCompanyEmployeeOrThrow(employeeId);
+        if (idEnterprise != null && !Objects.equals(idEnterprise, employee.getIdEnterprise())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Funcionário não tem permissão para visualizar lotes de outra empresa integradora"
+            );
+        }
+
+        if (idFarm != null) {
+            Farm farm = farmRepository.findById(idFarm)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Fazenda não encontrada para o ID: " + idFarm
+                    ));
+            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Acesso negado a lotes de fazenda pertencente a outra integradora"
+                );
+            }
+            return lotRepository.findAllByIdEnterpriseAndIdFarm(employee.getIdEnterprise(), idFarm)
+                    .stream()
+                    .map(LotResponseDTO::fromEntity)
+                    .toList();
+        }
+
+        return lotRepository.findAllByIdEnterprise(employee.getIdEnterprise())
+                .stream()
+                .map(LotResponseDTO::fromEntity)
+                .toList();
+    }
+
+    private List<LotResponseDTO> getLotsForFarmOwner(Long idFarm, Long idEnterprise, Long ownerId) {
+        FarmOwner owner = getFarmOwnerOrThrow(ownerId);
+        if (owner.getIdFarm() == null) {
+            return List.of();
+        }
+
+        if (idFarm != null && !Objects.equals(idFarm, owner.getIdFarm())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Produtor rural não tem permissão para visualizar lotes de outra fazenda"
+            );
+        }
+
+        if (idEnterprise != null) {
+            Farm farm = farmRepository.findById(owner.getIdFarm()).orElse(null);
+            if (farm != null && !Objects.equals(idEnterprise, farm.getIdEnterprise())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Produtor rural não tem permissão para visualizar lotes de outra empresa integradora"
+                );
+            }
+        }
+
+        return lotRepository.findAllByIdFarm(owner.getIdFarm())
+                .stream()
+                .map(LotResponseDTO::fromEntity)
+                .toList();
     }
 
     /**

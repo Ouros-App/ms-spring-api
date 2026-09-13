@@ -447,6 +447,54 @@ class LotServiceTest {
     }
 
     @Test
+    @DisplayName("Deve listar lotes para FARM_OWNER filtrando por empresa integradora correspondente à sua fazenda")
+    void deveListarLotesParaProdutorRuralComFiltroEmpresaValida() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(lotRepository.findAllByIdFarm(10L)).thenReturn(List.of(lot));
+
+        List<LotResponseDTO> result = lotService.getLotsForUser(null, 1L, ownerPrincipal);
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando FARM_OWNER filtrar por empresa integradora diferente da sua fazenda")
+    void deveLancar403QuandoProdutorFiltrarPorOutraEmpresa() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
+
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getLotsForUser(null, 2L, ownerPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Produtor rural não tem permissão para visualizar lotes de outra empresa integradora"));
+    }
+
+    @Test
+    @DisplayName("Deve listar lotes para FARM_OWNER com filtros de fazenda e empresa válidos")
+    void deveListarLotesParaProdutorRuralComFiltrosValidos() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(lotRepository.findAllByIdFarm(10L)).thenReturn(List.of(lot));
+
+        List<LotResponseDTO> result = lotService.getLotsForUser(10L, 1L, ownerPrincipal);
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
     @DisplayName("Deve lançar 403 para perfil desconhecido na listagem")
     void deveLancar403ParaPerfilDesconhecidoNaListagem() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->

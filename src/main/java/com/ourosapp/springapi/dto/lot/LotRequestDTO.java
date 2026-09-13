@@ -47,7 +47,7 @@ public record LotRequestDTO(
         @NotNull(message = "A data de nascimento/alojamento é obrigatória")
         LocalDate dateBirth,
 
-        @Schema(description = "Data de entrega para abate ou finalização do ciclo (opcional no início)", example = "2026-10-15")
+        @Schema(description = "Data de entrega para abate ou finalização do ciclo (opcional no início; quando omitida, é inicializada com o mesmo valor de date_birth)", example = "2026-10-15")
         @JsonProperty("delivery_date")
         @JsonAlias("deliveryDate")
         LocalDate deliveryDate,
