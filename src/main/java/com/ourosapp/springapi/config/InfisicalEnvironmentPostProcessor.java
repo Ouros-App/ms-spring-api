@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
@@ -22,18 +23,28 @@ public class InfisicalEnvironmentPostProcessor implements EnvironmentPostProcess
 
     private static final String PROPERTY_SOURCE = "infisicalSecrets";
     private static final String DEFAULT_PATH = "/ms-spring-api";
-    private final Supplier<InfisicalSdk> sdkFactory;
+    private final Function<String, InfisicalSdk> sdkFactory;
     private final Path dotenvPath;
 
     public InfisicalEnvironmentPostProcessor() {
-        this(() -> new InfisicalSdk(new SdkConfig.Builder().build()), Path.of(".env"));
+        this(siteUrl -> {
+            var builder = new SdkConfig.Builder();
+            if (siteUrl != null && !siteUrl.isBlank()) {
+                builder.withSiteUrl(siteUrl);
+            }
+            return new InfisicalSdk(builder.build());
+        }, Path.of(".env"));
     }
 
     InfisicalEnvironmentPostProcessor(Supplier<InfisicalSdk> sdkFactory) {
-        this(sdkFactory, null);
+        this(siteUrl -> sdkFactory.get(), null);
     }
 
     InfisicalEnvironmentPostProcessor(Supplier<InfisicalSdk> sdkFactory, Path dotenvPath) {
+        this(siteUrl -> sdkFactory.get(), dotenvPath);
+    }
+
+    InfisicalEnvironmentPostProcessor(Function<String, InfisicalSdk> sdkFactory, Path dotenvPath) {
         this.sdkFactory = sdkFactory;
         this.dotenvPath = dotenvPath;
     }
@@ -58,7 +69,7 @@ public class InfisicalEnvironmentPostProcessor implements EnvironmentPostProcess
         }
 
         try {
-            var sdk = sdkFactory.get();
+            var sdk = sdkFactory.apply(environment.getProperty("INFISICAL_SITE_URL"));
             sdk.Auth().UniversalAuthLogin(clientId, clientSecret);
             List<Secret> secrets = sdk.Secrets().ListSecrets(projectId, environmentSlug, secretPath, false, false, false, false);
             Map<String, Object> values = new HashMap<>();

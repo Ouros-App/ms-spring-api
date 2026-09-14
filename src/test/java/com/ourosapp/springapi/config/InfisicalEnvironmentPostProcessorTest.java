@@ -13,6 +13,7 @@ import com.infisical.sdk.resources.SecretsClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.core.env.MapPropertySource;
@@ -95,6 +96,7 @@ class InfisicalEnvironmentPostProcessorTest {
                 INFISICAL_PROJECT_ID=project
                 INFISICAL_ENVIRONMENT=prod
                 INFISICAL_SECRET_PATH='/ms-spring-api'
+                INFISICAL_SITE_URL=https://infisical.example.com
                 # comentário ignorado
                 INVALID_LINE
                 """);
@@ -102,15 +104,20 @@ class InfisicalEnvironmentPostProcessorTest {
         var sdk = mock(InfisicalSdk.class);
         var auth = mock(AuthClient.class);
         var secretsClient = mock(SecretsClient.class);
+        var siteUrl = new AtomicReference<String>();
         when(sdk.Auth()).thenReturn(auth);
         when(sdk.Secrets()).thenReturn(secretsClient);
         when(secretsClient.ListSecrets("project", "prod", "/ms-spring-api", false, false, false, false))
                 .thenReturn(List.of());
 
-        new InfisicalEnvironmentPostProcessor(() -> sdk, dotenv).postProcessEnvironment(environment, null);
+        new InfisicalEnvironmentPostProcessor(configuredSiteUrl -> {
+            siteUrl.set(configuredSiteUrl);
+            return sdk;
+        }, dotenv).postProcessEnvironment(environment, null);
 
         verify(auth).UniversalAuthLogin("client", "secret");
         assertThat(environment.getProperty("INFISICAL_PROJECT_ID")).isEqualTo("project");
+        assertThat(siteUrl).hasValue("https://infisical.example.com");
     }
 
     @Test
