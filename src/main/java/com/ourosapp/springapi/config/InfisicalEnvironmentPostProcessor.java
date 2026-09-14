@@ -7,6 +7,7 @@ import com.infisical.sdk.util.InfisicalException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.Ordered;
@@ -17,6 +18,15 @@ public class InfisicalEnvironmentPostProcessor implements EnvironmentPostProcess
 
     private static final String PROPERTY_SOURCE = "infisicalSecrets";
     private static final String DEFAULT_PATH = "/ms-spring-api";
+    private final Supplier<InfisicalSdk> sdkFactory;
+
+    public InfisicalEnvironmentPostProcessor() {
+        this(() -> new InfisicalSdk(new SdkConfig.Builder().build()));
+    }
+
+    InfisicalEnvironmentPostProcessor(Supplier<InfisicalSdk> sdkFactory) {
+        this.sdkFactory = sdkFactory;
+    }
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
@@ -27,14 +37,17 @@ public class InfisicalEnvironmentPostProcessor implements EnvironmentPostProcess
         }
 
         String projectId = environment.getProperty("INFISICAL_PROJECT_ID");
-        String environmentSlug = environment.getProperty("INFISICAL_ENVIRONMENT", "dev");
+        String environmentSlug = environment.getProperty("INFISICAL_ENVIRONMENT");
+        if (environmentSlug == null || environmentSlug.isBlank()) {
+            throw new IllegalStateException("INFISICAL_ENVIRONMENT deve ser informado");
+        }
         String secretPath = environment.getProperty("INFISICAL_SECRET_PATH", DEFAULT_PATH);
         if (projectId == null) {
             return;
         }
 
         try {
-            var sdk = new InfisicalSdk(new SdkConfig.Builder().build());
+            var sdk = sdkFactory.get();
             sdk.Auth().UniversalAuthLogin(clientId, clientSecret);
             List<Secret> secrets = sdk.Secrets().ListSecrets(projectId, environmentSlug, secretPath, false, false, false, false);
             Map<String, Object> values = new HashMap<>();
