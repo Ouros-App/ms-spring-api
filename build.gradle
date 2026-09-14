@@ -19,6 +19,7 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'com.infisical:sdk:3.0.7'
     runtimeOnly 'org.postgresql:postgresql'
 
     // Lombok
