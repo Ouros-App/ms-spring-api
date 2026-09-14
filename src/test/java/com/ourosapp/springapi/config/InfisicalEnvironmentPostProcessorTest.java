@@ -62,7 +62,8 @@ class InfisicalEnvironmentPostProcessorTest {
                 .withProperty("INFISICAL_CLIENT_SECRET", "secret")
                 .withProperty("INFISICAL_PROJECT_ID", "project")
                 .withProperty("INFISICAL_ENVIRONMENT", "prod")
-                .withProperty("INFISICAL_SECRET_PATH", "/ms-spring-api");
+                .withProperty("INFISICAL_SECRET_PATH", "/ms-spring-api")
+                .withProperty("spring.datasource.url", "jdbc:stale");
         var sdk = mock(InfisicalSdk.class);
         var auth = mock(AuthClient.class);
         var secretsClient = mock(SecretsClient.class);
@@ -85,6 +86,6 @@ class InfisicalEnvironmentPostProcessorTest {
     @Test
     void deveUsarOrdemDePrioridadeMaxima() {
         assertThat(new InfisicalEnvironmentPostProcessor().getOrder())
-                .isEqualTo(Integer.MIN_VALUE);
+                .isEqualTo(Integer.MIN_VALUE + 20);
     }
 }
