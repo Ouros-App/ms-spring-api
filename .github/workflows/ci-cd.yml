@@ -140,7 +140,7 @@ jobs:
           DISCLOUD_TOKEN: ${{ secrets.DISCLOUD_TOKEN }}
         run: |
           test -n "$DISCLOUD_TOKEN"
-          ../node_modules/.bin/discloud app upload
+          ../node_modules/.bin/discloud app commit ms-spring-api
 
   sonarcloud:
     name: sonarcloud
