@@ -109,6 +109,18 @@ public class AuthService {
         return authenticate(id, email, rawPassword, encodedPassword, role, null);
     }
 
+    /**
+     * Valida as credenciais e gera a resposta de login com o status de primeiro acesso.
+     *
+     * @param id identificador do usuário autenticado
+     * @param email e-mail do usuário autenticado
+     * @param rawPassword senha informada no login
+     * @param encodedPassword senha criptografada armazenada
+     * @param role perfil de acesso do usuário
+     * @param firstAccess indicador opcional de primeiro acesso
+     * @return DTO com o token JWT e o indicador de primeiro acesso
+     * @throws ResponseStatusException HTTP 401 se a senha for inválida
+     */
     private LoginResponseDTO authenticate(Long id, String email, String rawPassword, String encodedPassword, String role, Boolean firstAccess) {
         if (!passwordEncoder.matches(rawPassword, encodedPassword)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
