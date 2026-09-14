@@ -20,6 +20,7 @@ import org.hibernate.validator.constraints.br.CPF;
  * @param telephone      Telefone de contato (entre 10 e 13 dígitos numéricos)
  * @param password       Senha de acesso (8 a 20 caracteres com requisitos de complexidade)
  * @param idFarm         Identificador da fazenda vinculada
+ * @param fotoUrl        URL da foto de perfil do produtor rural (opcional)
  */
 @Schema(description = "Dados para cadastro de um novo produtor rural vinculado a uma fazenda")
 public record FarmOwnerRequestDTO(
