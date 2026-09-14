@@ -38,6 +38,13 @@ public class Farm {
     @Column(name = "place", nullable = false, length = 50)
     private String place;
 
+    @Builder.Default
+    @Column(name = "chickens_now", nullable = false)
+    private Integer chickensNow = 0;
+
+    @Column(name = "foto_url")
+    private String fotoUrl;
+
     @Column(name = "id_address", nullable = false)
     private Long idAddress;
 

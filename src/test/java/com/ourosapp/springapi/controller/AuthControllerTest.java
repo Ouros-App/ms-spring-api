@@ -54,12 +54,13 @@ class AuthControllerTest {
     @Test
     void testLoginFarmOwner() {
         LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "senha123");
-        when(authService.loginFarmOwner(request)).thenReturn(new LoginResponseDTO("farmer-token"));
+        when(authService.loginFarmOwner(request)).thenReturn(new LoginResponseDTO("farmer-token", true));
 
         ResponseEntity<LoginResponseDTO> response = authController.loginFarmOwner(request);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("farmer-token", response.getBody().token());
+        assertTrue(response.getBody().firstAccess());
     }
 }

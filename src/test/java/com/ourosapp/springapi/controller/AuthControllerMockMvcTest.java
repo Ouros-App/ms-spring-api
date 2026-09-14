@@ -55,7 +55,8 @@ class AuthControllerMockMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("jwt-token-adm"));
+                .andExpect(jsonPath("$.token").value("jwt-token-adm"))
+                .andExpect(jsonPath("$.first_access").doesNotExist());
     }
 
     @Test
@@ -67,19 +68,21 @@ class AuthControllerMockMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("jwt-token-employee"));
+                .andExpect(jsonPath("$.token").value("jwt-token-employee"))
+                .andExpect(jsonPath("$.first_access").doesNotExist());
     }
 
     @Test
     void testLoginFarmOwnerSuccess() throws Exception {
         LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "senha123");
-        when(authService.loginFarmOwner(any(LoginRequestDTO.class))).thenReturn(new LoginResponseDTO("jwt-token-farmer"));
+        when(authService.loginFarmOwner(any(LoginRequestDTO.class))).thenReturn(new LoginResponseDTO("jwt-token-farmer", true));
 
         mockMvc.perform(post("/farm-owners/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("jwt-token-farmer"));
+                .andExpect(jsonPath("$.token").value("jwt-token-farmer"))
+                .andExpect(jsonPath("$.first_access").value(true));
     }
 
     @Test

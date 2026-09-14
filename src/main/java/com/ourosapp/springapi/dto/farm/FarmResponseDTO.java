@@ -46,6 +46,14 @@ public record FarmResponseDTO(
         @JsonProperty("id_address")
         Long idAddress,
 
+        @Schema(description = "Quantidade atual de aves alojadas na fazenda", example = "3200")
+        @JsonProperty("chickens_now")
+        Integer chickensNow,
+
+        @Schema(description = "URL da foto da fazenda", example = "https://ouros.com/fotos/granja1.jpg")
+        @JsonProperty("foto_url")
+        String fotoUrl,
+
         @Schema(description = "Identificador da empresa integradora vinculada", example = "1")
         @JsonProperty("id_enterprise")
         Long idEnterprise
@@ -67,6 +75,8 @@ public record FarmResponseDTO(
                 farm.getPoultryCapacity(),
                 farm.getPlace(),
                 farm.getIdAddress(),
+                farm.getChickensNow(),
+                farm.getFotoUrl(),
                 farm.getIdEnterprise()
         );
     }
