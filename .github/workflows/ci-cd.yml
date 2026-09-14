@@ -95,6 +95,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -130,7 +132,7 @@ jobs:
           } > deploy/.env
 
       - name: Install Discloud CLI
-        run: npm install --global discloud-cli
+        run: npm ci --ignore-scripts
 
       - name: Deploy to Discloud
         working-directory: deploy
@@ -138,7 +140,7 @@ jobs:
           DISCLOUD_TOKEN: ${{ secrets.DISCLOUD_TOKEN }}
         run: |
           test -n "$DISCLOUD_TOKEN"
-          discloud app upload
+          ../node_modules/.bin/discloud app upload
 
   sonarcloud:
     name: sonarcloud
