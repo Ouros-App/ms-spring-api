@@ -29,4 +29,69 @@ class GlobalExceptionHandlerTest {
         assertNotNull(result.getProperties());
         assertTrue(result.getProperties().containsKey("timestamp"));
     }
+
+    @Test
+    @DisplayName("Deve tratar ResponseStatusException e retornar ProblemDetail com status e mensagem da regra")
+    void testHandleResponseStatusException() {
+        org.springframework.web.server.ResponseStatusException exception =
+                new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Funcionário não tem permissão para cadastrar produtor rural em fazenda de outra empresa integradora"
+                );
+
+        ProblemDetail result = exceptionHandler.handleResponseStatusException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.FORBIDDEN.value(), result.getStatus());
+        assertEquals("Funcionário não tem permissão para cadastrar produtor rural em fazenda de outra empresa integradora", result.getDetail());
+        assertNotNull(result.getProperties());
+        assertTrue(result.getProperties().containsKey("timestamp"));
+    }
+
+    @Test
+    @DisplayName("Deve tratar MethodArgumentNotValidException e retornar ProblemDetail com mapa de erros de campo e erros globais")
+    void testHandleMethodArgumentNotValidException() {
+        org.springframework.validation.BeanPropertyBindingResult bindingResult =
+                new org.springframework.validation.BeanPropertyBindingResult(new Object(), "farmRequestDTO");
+        bindingResult.addError(new org.springframework.validation.FieldError("farmRequestDTO", "email", "O e-mail não pode estar em branco"));
+        bindingResult.addError(new org.springframework.validation.ObjectError("farmRequestDTO", "É obrigatório informar exatamente uma forma de endereço"));
+
+        org.springframework.web.bind.MethodArgumentNotValidException exception =
+                new org.springframework.web.bind.MethodArgumentNotValidException(null, bindingResult);
+
+        ProblemDetail result = exceptionHandler.handleMethodArgumentNotValidException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.BAD_REQUEST.value(), result.getStatus());
+        assertEquals("Erro de validação nos campos da requisição", result.getDetail());
+        assertNotNull(result.getProperties());
+        assertTrue(result.getProperties().containsKey("errors"));
+
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, String> errors = (java.util.Map<String, String>) result.getProperties().get("errors");
+        assertEquals("O e-mail não pode estar em branco", errors.get("email"));
+        assertEquals("É obrigatório informar exatamente uma forma de endereço", errors.get("farmRequestDTO"));
+    }
+
+    @Test
+    @DisplayName("Deve tratar MethodArgumentNotValidException com múltiplos erros globais indexando as chaves")
+    void testHandleMethodArgumentNotValidExceptionWithMultipleGlobalErrors() {
+        org.springframework.validation.BeanPropertyBindingResult bindingResult =
+                new org.springframework.validation.BeanPropertyBindingResult(new Object(), "farmRequestDTO");
+        bindingResult.addError(new org.springframework.validation.ObjectError("farmRequestDTO", "Erro global 1"));
+        bindingResult.addError(new org.springframework.validation.ObjectError("farmRequestDTO", "Erro global 2"));
+
+        org.springframework.web.bind.MethodArgumentNotValidException exception =
+                new org.springframework.web.bind.MethodArgumentNotValidException(null, bindingResult);
+
+        ProblemDetail result = exceptionHandler.handleMethodArgumentNotValidException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.BAD_REQUEST.value(), result.getStatus());
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, String> errors = (java.util.Map<String, String>) result.getProperties().get("errors");
+        assertEquals(2, errors.size());
+        assertEquals("Erro global 1", errors.get("farmRequestDTO_1"));
+        assertEquals("Erro global 2", errors.get("farmRequestDTO_2"));
+    }
 }

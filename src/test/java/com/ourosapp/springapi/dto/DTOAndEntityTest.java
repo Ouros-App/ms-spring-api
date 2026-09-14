@@ -2,6 +2,7 @@ package com.ourosapp.springapi.dto;
 import com.ourosapp.springapi.dto.address.*;
 import com.ourosapp.springapi.dto.enterprise.*;
 import com.ourosapp.springapi.dto.companyemployee.*;
+import com.ourosapp.springapi.dto.farmowner.*;
 import com.ourosapp.springapi.constants.ErrorMessages;
 import com.ourosapp.springapi.constants.RoleConstants;
 import com.ourosapp.springapi.security.UserPrincipal;
@@ -973,6 +974,103 @@ class DTOAndEntityTest {
         FarmUpdateDTO fromCamel = assertDoesNotThrow(() -> objectMapper.readValue(camelJson, FarmUpdateDTO.class));
         assertEquals(new BigDecimal("300.00"), fromCamel.areaProperty());
         assertEquals(75000, fromCamel.poultryCapacity());
+    }
+
+    /**
+     * Testa instanciação, normalização, conversão de entidade e validações de DTOs de Produtor Rural.
+     */
+    @Test
+    void testFarmOwnerDTOs() throws JsonProcessingException {
+        FarmOwnerRequestDTO request = new FarmOwnerRequestDTO(
+                "Sebastião Silva",
+                "12345678909",
+                "sebastiao@fazenda.com.br",
+                "11987654321",
+                "SenhaForte@123",
+                10L
+        );
+        assertEquals("Sebastião Silva", request.name());
+        assertEquals("12345678909", request.documentNumber());
+        assertEquals("sebastiao@fazenda.com.br", request.email());
+        assertEquals("11987654321", request.telephone());
+        assertEquals("SenhaForte@123", request.password());
+        assertEquals(10L, request.idFarm());
+        assertTrue(validator.validate(request).isEmpty());
+
+        // Sanitização e formatação de CPF
+        FarmOwnerRequestDTO formattedCpf = new FarmOwnerRequestDTO(
+                "  Sebastião Silva  ",
+                "123.456.789-09",
+                "  SEBASTIAO@FAZENDA.COM.BR  ",
+                "  11987654321  ",
+                "SenhaForte@123",
+                10L
+        );
+        assertEquals("Sebastião Silva", formattedCpf.name());
+        assertEquals("12345678909", formattedCpf.documentNumber());
+        assertEquals("sebastiao@fazenda.com.br", formattedCpf.email());
+        assertEquals("11987654321", formattedCpf.telephone());
+        assertTrue(validator.validate(formattedCpf).isEmpty());
+
+        // Desserialização Jackson snake_case e camelCase com aliases
+        String json = """
+                {
+                    "name": "Sebastião Silva",
+                    "document_number": "12345678909",
+                    "email": "sebastiao@fazenda.com.br",
+                    "telephone": "11987654321",
+                    "password": "SenhaForte@123",
+                    "id_farm": 10
+                }
+                """;
+        FarmOwnerRequestDTO fromJson = objectMapper.readValue(json, FarmOwnerRequestDTO.class);
+        assertEquals("12345678909", fromJson.documentNumber());
+        assertEquals(10L, fromJson.idFarm());
+
+        String camelJson = """
+                {
+                    "name": "Sebastião Silva",
+                    "documentNumber": "12345678909",
+                    "email": "sebastiao@fazenda.com.br",
+                    "telephone": "11987654321",
+                    "password": "SenhaForte@123",
+                    "idFarm": 10
+                }
+                """;
+        FarmOwnerRequestDTO fromCamelJson = objectMapper.readValue(camelJson, FarmOwnerRequestDTO.class);
+        assertEquals("12345678909", fromCamelJson.documentNumber());
+        assertEquals(10L, fromCamelJson.idFarm());
+
+        // FarmOwnerResponseDTO
+        FarmOwner entity = FarmOwner.builder()
+                .id(1L)
+                .name("Sebastião Silva")
+                .documentNumber("12345678909")
+                .email("sebastiao@fazenda.com.br")
+                .telephone("11987654321")
+                .password("encoded_pass")
+                .idFarm(10L)
+                .build();
+
+        FarmOwnerResponseDTO response = FarmOwnerResponseDTO.fromEntity(entity);
+        assertEquals(1L, response.id());
+        assertEquals("Sebastião Silva", response.name());
+        assertEquals("12345678909", response.documentNumber());
+        assertEquals("sebastiao@fazenda.com.br", response.email());
+        assertEquals("11987654321", response.telephone());
+        assertEquals(10L, response.idFarm());
+        assertThrows(NullPointerException.class, () -> FarmOwnerResponseDTO.fromEntity(null));
+
+        // FarmOwnerUpdateDTO
+        FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO("  NOVO@FAZENDA.COM.BR  ", "  11999998888  ", "NovaSenha@123");
+        assertEquals("novo@fazenda.com.br", updateDTO.email());
+        assertEquals("11999998888", updateDTO.telephone());
+        assertEquals("NovaSenha@123", updateDTO.password());
+        assertTrue(updateDTO.hasUpdates());
+        assertTrue(validator.validate(updateDTO).isEmpty());
+
+        FarmOwnerUpdateDTO emptyUpdate = new FarmOwnerUpdateDTO(null, null, null);
+        assertFalse(emptyUpdate.hasUpdates());
     }
 }
 
