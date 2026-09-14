@@ -3,10 +3,12 @@ package com.ourosapp.springapi.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.infisical.sdk.InfisicalSdk;
+import com.infisical.sdk.config.SdkConfig;
 import com.infisical.sdk.models.Secret;
 import com.infisical.sdk.resources.AuthClient;
 import com.infisical.sdk.resources.SecretsClient;
@@ -101,23 +103,42 @@ class InfisicalEnvironmentPostProcessorTest {
                 INVALID_LINE
                 """);
         var environment = new MockEnvironment().withProperty("INFISICAL_CLIENT_ID", "client");
-        var sdk = mock(InfisicalSdk.class);
         var auth = mock(AuthClient.class);
         var secretsClient = mock(SecretsClient.class);
-        var siteUrl = new AtomicReference<String>();
-        when(sdk.Auth()).thenReturn(auth);
-        when(sdk.Secrets()).thenReturn(secretsClient);
+        var sdkConfig = new AtomicReference<SdkConfig>();
         when(secretsClient.ListSecrets("project", "prod", "/ms-spring-api", false, false, false, false))
                 .thenReturn(List.of());
 
-        new InfisicalEnvironmentPostProcessor(configuredSiteUrl -> {
-            siteUrl.set(configuredSiteUrl);
-            return sdk;
-        }, dotenv).postProcessEnvironment(environment, null);
+        try (var constructions = mockConstruction(InfisicalSdk.class, (sdk, context) -> {
+            sdkConfig.set((SdkConfig) context.arguments().get(0));
+            when(sdk.Auth()).thenReturn(auth);
+            when(sdk.Secrets()).thenReturn(secretsClient);
+        })) {
+            new InfisicalEnvironmentPostProcessor(dotenv).postProcessEnvironment(environment, null);
+
+            assertThat(constructions.constructed()).hasSize(1);
+        }
 
         verify(auth).UniversalAuthLogin("client", "secret");
         assertThat(environment.getProperty("INFISICAL_PROJECT_ID")).isEqualTo("project");
-        assertThat(siteUrl).hasValue("https://infisical.example.com");
+        assertThat(sdkConfig).hasValueSatisfying(config ->
+                assertThat(config.getSiteUrl()).isEqualTo("https://infisical.example.com"));
+    }
+
+    @Test
+    void deveUsarUrlPadraoQuandoSiteUrlNaoConfigurada() {
+        var sdkConfig = new AtomicReference<SdkConfig>();
+
+        try (var constructions = mockConstruction(InfisicalSdk.class, (sdk, context) ->
+                sdkConfig.set((SdkConfig) context.arguments().get(0)))) {
+            InfisicalEnvironmentPostProcessor.createSdk(null);
+            InfisicalEnvironmentPostProcessor.createSdk(" ");
+
+            assertThat(constructions.constructed()).hasSize(2);
+        }
+
+        assertThat(sdkConfig).hasValueSatisfying(config ->
+                assertThat(config.getSiteUrl()).isEqualTo("https://app.infisical.com"));
     }
 
     @Test

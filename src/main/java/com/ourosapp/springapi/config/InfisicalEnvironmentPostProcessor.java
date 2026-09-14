@@ -27,26 +27,28 @@ public class InfisicalEnvironmentPostProcessor implements EnvironmentPostProcess
     private final Path dotenvPath;
 
     public InfisicalEnvironmentPostProcessor() {
-        this(siteUrl -> {
-            var builder = new SdkConfig.Builder();
-            if (siteUrl != null && !siteUrl.isBlank()) {
-                builder.withSiteUrl(siteUrl);
-            }
-            return new InfisicalSdk(builder.build());
-        }, Path.of(".env"));
+        this(Path.of(".env"));
+    }
+
+    InfisicalEnvironmentPostProcessor(Path dotenvPath) {
+        this(InfisicalEnvironmentPostProcessor::createSdk, dotenvPath);
     }
 
     InfisicalEnvironmentPostProcessor(Supplier<InfisicalSdk> sdkFactory) {
         this(siteUrl -> sdkFactory.get(), null);
     }
 
-    InfisicalEnvironmentPostProcessor(Supplier<InfisicalSdk> sdkFactory, Path dotenvPath) {
-        this(siteUrl -> sdkFactory.get(), dotenvPath);
-    }
-
     InfisicalEnvironmentPostProcessor(Function<String, InfisicalSdk> sdkFactory, Path dotenvPath) {
         this.sdkFactory = sdkFactory;
         this.dotenvPath = dotenvPath;
+    }
+
+    static InfisicalSdk createSdk(String siteUrl) {
+        var builder = new SdkConfig.Builder();
+        if (siteUrl != null && !siteUrl.isBlank()) {
+            builder.withSiteUrl(siteUrl);
+        }
+        return new InfisicalSdk(builder.build());
     }
 
     @Override
