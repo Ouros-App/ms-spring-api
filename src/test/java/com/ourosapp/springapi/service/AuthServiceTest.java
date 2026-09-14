@@ -66,6 +66,7 @@ class AuthServiceTest {
 
         assertNotNull(response);
         assertEquals("fake-jwt-token", response.token());
+        assertNull(response.firstAccess());
     }
 
     @Test
@@ -105,6 +106,7 @@ class AuthServiceTest {
 
         assertNotNull(response);
         assertEquals("emp-token", response.token());
+        assertNull(response.firstAccess());
     }
 
     @Test
@@ -134,7 +136,7 @@ class AuthServiceTest {
     @Test
     void testLoginFarmOwnerSuccess() {
         LoginRequestDTO request = new LoginRequestDTO("Farmer@Ouros.COM", "senha123");
-        FarmOwner owner = FarmOwner.builder().id(3L).email("farmer@ouros.com").password("hashedSenha").build();
+        FarmOwner owner = FarmOwner.builder().id(3L).email("farmer@ouros.com").password("hashedSenha").firstAccess(true).build();
 
         when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.of(owner));
         when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
@@ -144,6 +146,23 @@ class AuthServiceTest {
 
         assertNotNull(response);
         assertEquals("farmer-token", response.token());
+        assertTrue(response.firstAccess());
+    }
+
+    @Test
+    void testLoginFarmOwnerSuccessWithFirstAccessFalse() {
+        LoginRequestDTO request = new LoginRequestDTO("Farmer@Ouros.COM", "senha123");
+        FarmOwner owner = FarmOwner.builder().id(3L).email("farmer@ouros.com").password("hashedSenha").firstAccess(false).build();
+
+        when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.of(owner));
+        when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
+        when(jwtUtil.generateToken(3L, "farmer@ouros.com", "FARM_OWNER")).thenReturn("farmer-token");
+
+        LoginResponseDTO response = authService.loginFarmOwner(request);
+
+        assertNotNull(response);
+        assertEquals("farmer-token", response.token());
+        assertFalse(response.firstAccess());
     }
 
     @Test

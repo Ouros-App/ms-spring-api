@@ -37,7 +37,15 @@ public record FarmOwnerResponseDTO(
 
         @Schema(description = "Identificador da fazenda vinculada", example = "1")
         @JsonProperty("id_farm")
-        Long idFarm
+        Long idFarm,
+
+        @Schema(description = "Indica se é o primeiro acesso do produtor rural ao sistema", example = "true")
+        @JsonProperty("first_access")
+        Boolean firstAccess,
+
+        @Schema(description = "URL da foto de perfil do produtor rural", example = "https://ouros.com/fotos/produtor1.jpg")
+        @JsonProperty("foto_url")
+        String fotoUrl
 ) {
 
     /**
@@ -55,7 +63,9 @@ public record FarmOwnerResponseDTO(
                 farmOwner.getDocumentNumber(),
                 farmOwner.getEmail(),
                 farmOwner.getTelephone(),
-                farmOwner.getIdFarm()
+                farmOwner.getIdFarm(),
+                farmOwner.getFirstAccess(),
+                farmOwner.getFotoUrl()
         );
     }
 }

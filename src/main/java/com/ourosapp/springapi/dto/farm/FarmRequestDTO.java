@@ -70,6 +70,18 @@ public record FarmRequestDTO(
         @Valid
         AddressRequestDTO address,
 
+        @Schema(description = "Quantidade atual de aves alojadas na fazenda", example = "3200")
+        @JsonProperty("chickens_now")
+        @JsonAlias("chickensNow")
+        @Min(value = 0, message = "A quantidade atual de aves não pode ser negativa")
+        Integer chickensNow,
+
+        @Schema(description = "URL da foto da fazenda", example = "https://ouros.com/fotos/granja1.jpg")
+        @JsonProperty("foto_url")
+        @JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
+        @Size(max = 2048, message = "A URL da foto deve ter no máximo 2048 caracteres")
+        String fotoUrl,
+
         @Schema(description = "Identificador da empresa integradora vinculada", example = "1")
         @JsonProperty("id_enterprise")
         @JsonAlias("idEnterprise")
@@ -84,6 +96,7 @@ public record FarmRequestDTO(
         name = name != null ? name.trim() : null;
         region = region != null ? region.trim() : null;
         place = place != null ? place.trim() : null;
+        fotoUrl = fotoUrl != null ? fotoUrl.trim() : null;
     }
 
     /**

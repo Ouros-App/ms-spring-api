@@ -60,7 +60,13 @@ public record FarmOwnerRequestDTO(
         @JsonAlias("idFarm")
         @NotNull(message = "O ID da fazenda é obrigatório")
         @Positive(message = "O ID da fazenda deve ser maior que zero")
-        Long idFarm
+        Long idFarm,
+
+        @Schema(description = "URL da foto de perfil do produtor rural", example = "https://ouros.com/fotos/produtor1.jpg")
+        @JsonProperty("foto_url")
+        @JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
+        @Size(max = 2048, message = "A URL da foto deve ter no máximo 2048 caracteres")
+        String fotoUrl
 ) {
     /**
      * Construtor compacto para sanitização automática de espaços em branco e normalização de e-mail e CPF.
@@ -70,5 +76,6 @@ public record FarmOwnerRequestDTO(
         documentNumber = documentNumber != null ? documentNumber.trim().replaceAll("[-.]", "") : null;
         email = email != null ? email.trim().toLowerCase() : null;
         telephone = telephone != null ? telephone.trim() : null;
+        fotoUrl = fotoUrl != null ? fotoUrl.trim() : null;
     }
 }

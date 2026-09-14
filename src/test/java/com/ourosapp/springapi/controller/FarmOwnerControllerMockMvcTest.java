@@ -71,7 +71,8 @@ class FarmOwnerControllerMockMvcTest {
                 "sebastiao.silva@fazenda.com.br",
                 "11987654321",
                 "SenhaForte@123",
-                10L
+                10L,
+                "https://storage.ourosapp.com/profiles/1.jpg"
         );
         FarmOwnerResponseDTO response = new FarmOwnerResponseDTO(
                 1L,
@@ -79,7 +80,9 @@ class FarmOwnerControllerMockMvcTest {
                 "12345678909",
                 "sebastiao.silva@fazenda.com.br",
                 "11987654321",
-                10L
+                10L,
+                true,
+                "https://storage.ourosapp.com/profiles/1.jpg"
         );
 
         when(farmOwnerService.createFarmOwner(any(FarmOwnerRequestDTO.class), any())).thenReturn(response);
@@ -94,6 +97,8 @@ class FarmOwnerControllerMockMvcTest {
                 .andExpect(jsonPath("$.document_number").value("12345678909"))
                 .andExpect(jsonPath("$.email").value("sebastiao.silva@fazenda.com.br"))
                 .andExpect(jsonPath("$.telephone").value("11987654321"))
+                .andExpect(jsonPath("$.first_access").value(true))
+                .andExpect(jsonPath("$.foto_url").value("https://storage.ourosapp.com/profiles/1.jpg"))
                 .andExpect(jsonPath("$.id_farm").value(10L));
     }
 
@@ -111,7 +116,8 @@ class FarmOwnerControllerMockMvcTest {
                 "sebastiao.silva@fazenda.com.br",
                 "11987654321",
                 "SenhaForte@123",
-                10L
+                10L,
+                null
         );
 
         mockMvc.perform(post("/farm-owners")
@@ -135,6 +141,7 @@ class FarmOwnerControllerMockMvcTest {
                 "email-invalido",
                 "123",
                 "123",
+                null,
                 null
         );
 
@@ -166,7 +173,9 @@ class FarmOwnerControllerMockMvcTest {
                 "12345678909",
                 "sebastiao.silva@fazenda.com.br",
                 "11987654321",
-                10L
+                10L,
+                true,
+                "https://storage.ourosapp.com/profiles/1.jpg"
         );
 
         when(farmOwnerService.getLoggedInFarmOwner(any(UserPrincipal.class))).thenReturn(response);
@@ -178,6 +187,8 @@ class FarmOwnerControllerMockMvcTest {
                 .andExpect(jsonPath("$.name").value("Sebastião da Silva"))
                 .andExpect(jsonPath("$.document_number").value("12345678909"))
                 .andExpect(jsonPath("$.email").value("sebastiao.silva@fazenda.com.br"))
+                .andExpect(jsonPath("$.first_access").value(true))
+                .andExpect(jsonPath("$.foto_url").value("https://storage.ourosapp.com/profiles/1.jpg"))
                 .andExpect(jsonPath("$.id_farm").value(10L));
     }
 
@@ -208,7 +219,9 @@ class FarmOwnerControllerMockMvcTest {
                 "12345678909",
                 "sebastiao.silva@fazenda.com.br",
                 "11987654321",
-                10L
+                10L,
+                true,
+                null
         );
 
         when(farmOwnerService.getFarmOwners(eq(null), any())).thenReturn(List.of(response));
@@ -235,7 +248,9 @@ class FarmOwnerControllerMockMvcTest {
                 "12345678909",
                 "sebastiao.silva@fazenda.com.br",
                 "11987654321",
-                10L
+                10L,
+                true,
+                null
         );
 
         when(farmOwnerService.getFarmOwners(eq(10L), any())).thenReturn(List.of(response));
@@ -261,7 +276,9 @@ class FarmOwnerControllerMockMvcTest {
                 "12345678909",
                 "sebastiao.silva@fazenda.com.br",
                 "11987654321",
-                10L
+                10L,
+                true,
+                null
         );
 
         when(farmOwnerService.getFarmOwnerById(eq(1L), any())).thenReturn(response);
@@ -301,7 +318,9 @@ class FarmOwnerControllerMockMvcTest {
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
                 "sebastiao.novo@fazenda.com.br",
                 "11999998888",
-                "NovaSenha@123"
+                "NovaSenha@123",
+                false,
+                "https://storage.ourosapp.com/profiles/1-updated.jpg"
         );
         FarmOwnerResponseDTO response = new FarmOwnerResponseDTO(
                 1L,
@@ -309,7 +328,9 @@ class FarmOwnerControllerMockMvcTest {
                 "12345678909",
                 "sebastiao.novo@fazenda.com.br",
                 "11999998888",
-                10L
+                10L,
+                false,
+                "https://storage.ourosapp.com/profiles/1-updated.jpg"
         );
 
         when(farmOwnerService.updateFarmOwner(eq(1L), any(FarmOwnerUpdateDTO.class), any())).thenReturn(response);
@@ -320,7 +341,9 @@ class FarmOwnerControllerMockMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.email").value("sebastiao.novo@fazenda.com.br"))
-                .andExpect(jsonPath("$.telephone").value("11999998888"));
+                .andExpect(jsonPath("$.telephone").value("11999998888"))
+                .andExpect(jsonPath("$.first_access").value(false))
+                .andExpect(jsonPath("$.foto_url").value("https://storage.ourosapp.com/profiles/1-updated.jpg"));
     }
 
     /**
@@ -334,6 +357,8 @@ class FarmOwnerControllerMockMvcTest {
     void testUpdateFarmOwnerNotFound() throws Exception {
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
                 "sebastiao.novo@fazenda.com.br",
+                null,
+                null,
                 null,
                 null
         );
@@ -358,6 +383,8 @@ class FarmOwnerControllerMockMvcTest {
     void testUpdateFarmOwnerConflict() throws Exception {
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
                 "duplicado@fazenda.com.br",
+                null,
+                null,
                 null,
                 null
         );

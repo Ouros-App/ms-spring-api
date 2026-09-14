@@ -91,7 +91,7 @@ public class AuthService {
      * Realiza a autenticação de produtores rurais e proprietários de fazendas.
      *
      * @param request payload com e-mail e senha
-     * @return DTO com o token JWT gerado
+     * @return DTO com o token JWT gerado e o status de primeiro acesso
      * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
      */
     public LoginResponseDTO loginFarmOwner(LoginRequestDTO request) {
@@ -102,14 +102,18 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
         }
         FarmOwner owner = ownerOpt.get();
-        return authenticate(owner.getId(), owner.getEmail(), request.password(), owner.getPassword(), "FARM_OWNER");
+        return authenticate(owner.getId(), owner.getEmail(), request.password(), owner.getPassword(), "FARM_OWNER", owner.getFirstAccess());
     }
 
     private LoginResponseDTO authenticate(Long id, String email, String rawPassword, String encodedPassword, String role) {
+        return authenticate(id, email, rawPassword, encodedPassword, role, null);
+    }
+
+    private LoginResponseDTO authenticate(Long id, String email, String rawPassword, String encodedPassword, String role, Boolean firstAccess) {
         if (!passwordEncoder.matches(rawPassword, encodedPassword)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
         }
         String token = jwtUtil.generateToken(id, email, role);
-        return new LoginResponseDTO(token);
+        return new LoginResponseDTO(token, firstAccess);
     }
 }

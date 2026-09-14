@@ -30,7 +30,18 @@ public record FarmOwnerUpdateDTO(
                 regexp = "^$|^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).{8,20}$",
                 message = "A senha deve ter entre 8 e 20 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial"
         )
-        String password
+        String password,
+
+        @Schema(description = "Indicador de primeiro acesso do produtor rural", example = "false")
+        @com.fasterxml.jackson.annotation.JsonProperty("first_access")
+        @com.fasterxml.jackson.annotation.JsonAlias({"firstAccess", "first_acess", "firstAcess"})
+        Boolean firstAccess,
+
+        @Schema(description = "Nova URL da foto de perfil do produtor rural", example = "https://ouros.com/fotos/produtor1_nova.jpg")
+        @com.fasterxml.jackson.annotation.JsonProperty("foto_url")
+        @com.fasterxml.jackson.annotation.JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
+        @Size(max = 2048, message = "A URL da foto deve ter no máximo 2048 caracteres")
+        String fotoUrl
 ) {
 
     /**
@@ -39,6 +50,7 @@ public record FarmOwnerUpdateDTO(
     public FarmOwnerUpdateDTO {
         email = email != null ? email.trim().toLowerCase() : null;
         telephone = telephone != null ? telephone.trim() : null;
+        fotoUrl = fotoUrl != null ? fotoUrl.trim() : null;
     }
 
     /**
@@ -49,6 +61,8 @@ public record FarmOwnerUpdateDTO(
     public boolean hasUpdates() {
         return (email != null && !email.isBlank())
                 || (telephone != null && !telephone.isBlank())
-                || (password != null && !password.isBlank());
+                || (password != null && !password.isBlank())
+                || firstAccess != null
+                || (fotoUrl != null && !fotoUrl.isBlank());
     }
 }
