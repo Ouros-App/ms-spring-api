@@ -3,6 +3,7 @@ package com.ourosapp.springapi.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.infisical.sdk.InfisicalSdk;
@@ -75,6 +76,7 @@ class InfisicalEnvironmentPostProcessorTest {
 
         new InfisicalEnvironmentPostProcessor(() -> sdk).postProcessEnvironment(environment, null);
 
+        verify(auth).UniversalAuthLogin("client", "secret");
         assertThat(environment.getProperty("spring.datasource.url")).isEqualTo("jdbc:test");
         assertThat(environment.getPropertySources().get("infisicalSecrets"))
                 .isInstanceOf(MapPropertySource.class);
