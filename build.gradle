@@ -50,6 +50,10 @@ tasks.named('test') {
     systemProperty 'file.encoding', 'UTF-8'
 }
 
+tasks.named('bootJar') {
+    archiveFileName = 'app.jar'
+}
+
 tasks.named('jacocoTestReport') {
     dependsOn tasks.named('test')
     reports {
