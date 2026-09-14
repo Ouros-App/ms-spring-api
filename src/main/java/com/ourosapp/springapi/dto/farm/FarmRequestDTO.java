@@ -25,6 +25,8 @@ import java.math.BigDecimal;
  * @param place           Localização ou identificação do sítio/granja
  * @param idAddress       Identificador do endereço cadastrado (opcional se {@code address} for informado)
  * @param address         Dados para cadastro de novo endereço na mesma requisição (opcional se {@code id_address} for informado)
+ * @param chickensNow     Quantidade atual de aves alojadas na fazenda (opcional, padrão 0)
+ * @param fotoUrl         URL da foto da fazenda (opcional)
  * @param idEnterprise    Identificador da empresa integradora vinculada
  */
 @Schema(description = "Dados para cadastro de uma nova fazenda")

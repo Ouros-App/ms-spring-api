@@ -18,6 +18,8 @@ import java.math.BigDecimal;
  * @param region          Nova região da fazenda (opcional)
  * @param poultryCapacity Nova capacidade de alojamento de aves (opcional, não negativa)
  * @param place           Novo local ou sítio/granja (opcional)
+ * @param chickensNow     Nova quantidade atual de aves alojadas na fazenda (opcional, não negativa)
+ * @param fotoUrl         Nova URL da foto da fazenda (opcional)
  */
 @Schema(description = "Dados para atualização parcial da fazenda")
 public record FarmUpdateDTO(

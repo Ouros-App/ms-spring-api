@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,6 +19,7 @@ public record LoginResponseDTO(
 
         @Schema(description = "Indica se é o primeiro acesso do usuário ao sistema (aplicável a produtores rurais)", example = "true")
         @JsonProperty("first_access")
+        @JsonAlias({"firstAccess", "first_acess", "firstAcess"})
         Boolean firstAccess
 ) {
     /**

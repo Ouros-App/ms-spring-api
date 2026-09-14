@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
@@ -58,6 +59,7 @@ public class AuthService {
      * @return DTO com o token JWT gerado
      * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
      */
+    @Transactional(readOnly = true)
     public LoginResponseDTO loginAdm(LoginRequestDTO request) {
         String normalizedEmail = normalizeEmail(request.email());
         Optional<Adm> admOpt = admRepository.findByEmailIgnoreCase(normalizedEmail);
@@ -76,6 +78,7 @@ public class AuthService {
      * @return DTO com o token JWT gerado
      * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
      */
+    @Transactional(readOnly = true)
     public LoginResponseDTO loginEmployee(LoginRequestDTO request) {
         String normalizedEmail = normalizeEmail(request.email());
         Optional<CompanyEmployee> employeeOpt = companyEmployeeRepository.findByEmailIgnoreCase(normalizedEmail);
@@ -94,6 +97,7 @@ public class AuthService {
      * @return DTO com o token JWT gerado e o status de primeiro acesso
      * @throws ResponseStatusException HTTP 401 se credenciais forem inválidas
      */
+    @Transactional(readOnly = true)
     public LoginResponseDTO loginFarmOwner(LoginRequestDTO request) {
         String normalizedEmail = normalizeEmail(request.email());
         Optional<FarmOwner> ownerOpt = farmOwnerRepository.findByEmailIgnoreCase(normalizedEmail);

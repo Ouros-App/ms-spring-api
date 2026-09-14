@@ -1,5 +1,7 @@
 package com.ourosapp.springapi.dto.farmowner;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
@@ -9,9 +11,11 @@ import jakarta.validation.constraints.Size;
  * DTO de requisição para atualização parcial de Produtor Rural (PATCH /farm-owners/{id}).
  * Todos os campos são opcionais, permitindo atualizar apenas o que for fornecido.
  *
- * @param email     Novo e-mail de acesso (opcional)
- * @param telephone Novo telefone de contato (opcional, entre 10 e 13 dígitos)
- * @param password  Nova senha de acesso (opcional, entre 8 e 20 caracteres com requisitos de complexidade)
+ * @param email       Novo e-mail de acesso (opcional)
+ * @param telephone   Novo telefone de contato (opcional, entre 10 e 13 dígitos)
+ * @param password    Nova senha de acesso (opcional, entre 8 e 20 caracteres com requisitos de complexidade)
+ * @param firstAccess Indicador de primeiro acesso do produtor rural (opcional)
+ * @param fotoUrl     Nova URL da foto de perfil do produtor rural (opcional)
  */
 @Schema(description = "Dados para atualização parcial do produtor rural")
 public record FarmOwnerUpdateDTO(
@@ -33,13 +37,13 @@ public record FarmOwnerUpdateDTO(
         String password,
 
         @Schema(description = "Indicador de primeiro acesso do produtor rural", example = "false")
-        @com.fasterxml.jackson.annotation.JsonProperty("first_access")
-        @com.fasterxml.jackson.annotation.JsonAlias({"firstAccess", "first_acess", "firstAcess"})
+        @JsonProperty("first_access")
+        @JsonAlias({"firstAccess", "first_acess", "firstAcess"})
         Boolean firstAccess,
 
         @Schema(description = "Nova URL da foto de perfil do produtor rural", example = "https://ouros.com/fotos/produtor1_nova.jpg")
-        @com.fasterxml.jackson.annotation.JsonProperty("foto_url")
-        @com.fasterxml.jackson.annotation.JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
+        @JsonProperty("foto_url")
+        @JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
         @Size(max = 2048, message = "A URL da foto deve ter no máximo 2048 caracteres")
         String fotoUrl
 ) {
