@@ -479,6 +479,21 @@ class LotServiceTest {
     }
 
     @Test
+    @DisplayName("Deve lançar 404 quando fazenda vinculada ao FARM_OWNER não existir ao filtrar por empresa integradora")
+    void deveLancar404QuandoFazendaDoProdutorNaoExistirAoFiltrarPorEmpresa() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(farmRepository.findById(10L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getLotsForUser(null, 1L, ownerPrincipal));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Fazenda vinculada ao produtor rural não encontrada para o ID: 10"));
+    }
+
+    @Test
     @DisplayName("Deve listar lotes para FARM_OWNER com filtros de fazenda e empresa válidos")
     void deveListarLotesParaProdutorRuralComFiltrosValidos() {
         FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();

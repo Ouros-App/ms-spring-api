@@ -243,8 +243,12 @@ public class LotService {
         }
 
         if (idEnterprise != null) {
-            Farm farm = farmRepository.findById(owner.getIdFarm()).orElse(null);
-            if (farm != null && !Objects.equals(idEnterprise, farm.getIdEnterprise())) {
+            Farm farm = farmRepository.findById(owner.getIdFarm())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Fazenda vinculada ao produtor rural não encontrada para o ID: " + owner.getIdFarm()
+                    ));
+            if (!Objects.equals(idEnterprise, farm.getIdEnterprise())) {
                 throw new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
                         "Produtor rural não tem permissão para visualizar lotes de outra empresa integradora"
