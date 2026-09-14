@@ -10,8 +10,11 @@ import com.infisical.sdk.InfisicalSdk;
 import com.infisical.sdk.models.Secret;
 import com.infisical.sdk.resources.AuthClient;
 import com.infisical.sdk.resources.SecretsClient;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -81,6 +84,33 @@ class InfisicalEnvironmentPostProcessorTest {
         assertThat(environment.getProperty("spring.datasource.url")).isEqualTo("jdbc:test");
         assertThat(environment.getPropertySources().get("infisicalSecrets"))
                 .isInstanceOf(MapPropertySource.class);
+    }
+
+    @Test
+    void deveCarregarCredenciaisDoArquivoDotenv(@TempDir Path tempDir) throws Exception {
+        Path dotenv = tempDir.resolve(".env");
+        Files.writeString(dotenv, """
+                INFISICAL_CLIENT_ID=from-file
+                INFISICAL_CLIENT_SECRET="secret"
+                INFISICAL_PROJECT_ID=project
+                INFISICAL_ENVIRONMENT=prod
+                INFISICAL_SECRET_PATH='/ms-spring-api'
+                # comentário ignorado
+                INVALID_LINE
+                """);
+        var environment = new MockEnvironment().withProperty("INFISICAL_CLIENT_ID", "client");
+        var sdk = mock(InfisicalSdk.class);
+        var auth = mock(AuthClient.class);
+        var secretsClient = mock(SecretsClient.class);
+        when(sdk.Auth()).thenReturn(auth);
+        when(sdk.Secrets()).thenReturn(secretsClient);
+        when(secretsClient.ListSecrets("project", "prod", "/ms-spring-api", false, false, false, false))
+                .thenReturn(List.of());
+
+        new InfisicalEnvironmentPostProcessor(() -> sdk, dotenv).postProcessEnvironment(environment, null);
+
+        verify(auth).UniversalAuthLogin("client", "secret");
+        assertThat(environment.getProperty("INFISICAL_PROJECT_ID")).isEqualTo("project");
     }
 
     @Test
