@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.service;
 
+import com.ourosapp.springapi.constants.RoleConstants;
 import com.ourosapp.springapi.dto.LoginRequestDTO;
 import com.ourosapp.springapi.dto.LoginResponseDTO;
 import com.ourosapp.springapi.entity.Adm;
@@ -68,7 +69,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
         }
         Adm adm = admOpt.get();
-        return authenticate(adm.getId(), adm.getEmail(), request.password(), adm.getPassword(), "ADM");
+        return authenticate(adm.getId(), adm.getEmail(), request.password(), adm.getPassword(), RoleConstants.ADM);
     }
 
     /**
@@ -87,7 +88,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
         }
         CompanyEmployee employee = employeeOpt.get();
-        return authenticate(employee.getId(), employee.getEmail(), request.password(), employee.getPassword(), "COMPANY_EMPLOYEE");
+        return authenticate(employee.getId(), employee.getEmail(), request.password(), employee.getPassword(), RoleConstants.COMPANY_EMPLOYEE);
     }
 
     /**
@@ -106,7 +107,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS_MSG);
         }
         FarmOwner owner = ownerOpt.get();
-        return authenticate(owner.getId(), owner.getEmail(), request.password(), owner.getPassword(), "FARM_OWNER", owner.getFirstAccess());
+        return authenticate(owner.getId(), owner.getEmail(), request.password(), owner.getPassword(), RoleConstants.FARM_OWNER, owner.getFirstAccess());
     }
 
     private LoginResponseDTO authenticate(Long id, String email, String rawPassword, String encodedPassword, String role) {
