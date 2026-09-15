@@ -67,6 +67,8 @@ class FarmControllerTest {
                     "Gleba 4 - Setor Sul",
                     10L,
                     null,
+                    15000,
+                    "https://photo.com/farm.jpg",
                     20L
             );
             FarmResponseDTO expectedResponse = new FarmResponseDTO(
@@ -77,6 +79,8 @@ class FarmControllerTest {
                     50000,
                     "Gleba 4 - Setor Sul",
                     10L,
+                    15000,
+                    "https://photo.com/farm.jpg",
                     20L
             );
 
@@ -88,6 +92,8 @@ class FarmControllerTest {
             assertNotNull(response.getBody());
             assertEquals(1L, response.getBody().id());
             assertEquals("Fazenda Ouro Verde", response.getBody().name());
+            assertEquals(15000, response.getBody().chickensNow());
+            assertEquals("https://photo.com/farm.jpg", response.getBody().fotoUrl());
             assertNotNull(response.getHeaders().getLocation());
             assertTrue(response.getHeaders().getLocation().getPath().endsWith("/1"));
             verify(farmService, times(1)).createFarm(request, principal);
@@ -118,6 +124,8 @@ class FarmControllerTest {
                 50000,
                 "Gleba 4 - Setor Sul",
                 10L,
+                15000,
+                "https://photo.com/farm.jpg",
                 20L
         );
 
@@ -153,6 +161,8 @@ class FarmControllerTest {
                 50000,
                 "Gleba 4 - Setor Sul",
                 10L,
+                15000,
+                "https://photo.com/farm.jpg",
                 20L
         );
 
@@ -185,7 +195,9 @@ class FarmControllerTest {
                 new BigDecimal("200.00"),
                 null,
                 60000,
-                null
+                null,
+                18000,
+                "https://photo.com/updated.jpg"
         );
 
         FarmResponseDTO expectedResponse = new FarmResponseDTO(
@@ -196,6 +208,8 @@ class FarmControllerTest {
                 60000,
                 "Gleba 4 - Setor Sul",
                 10L,
+                18000,
+                "https://photo.com/updated.jpg",
                 20L
         );
 
@@ -207,6 +221,8 @@ class FarmControllerTest {
         assertNotNull(response.getBody());
         assertEquals("Fazenda Ouro Verde Atualizada", response.getBody().name());
         assertEquals(60000, response.getBody().poultryCapacity());
+        assertEquals(18000, response.getBody().chickensNow());
+        assertEquals("https://photo.com/updated.jpg", response.getBody().fotoUrl());
         verify(farmService, times(1)).updateFarm(1L, request, principal);
     }
 

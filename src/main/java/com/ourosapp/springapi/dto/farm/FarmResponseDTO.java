@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.dto.farm;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ourosapp.springapi.entity.Farm;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,6 +18,8 @@ import java.util.Objects;
  * @param poultryCapacity Capacidade de alojamento de aves
  * @param place           Localização ou denominação do sítio/granja
  * @param idAddress       Identificador do endereço vinculado
+ * @param chickensNow     Quantidade atual de aves alojadas na fazenda
+ * @param fotoUrl         URL da foto da fazenda
  * @param idEnterprise    Identificador da empresa integradora vinculada
  */
 @Schema(description = "Resposta contendo os dados da Fazenda")
@@ -30,6 +33,7 @@ public record FarmResponseDTO(
 
         @Schema(description = "Área da propriedade", example = "150.50")
         @JsonProperty("area_property")
+        @JsonAlias("areaProperty")
         BigDecimal areaProperty,
 
         @Schema(description = "Região da fazenda", example = "Sudeste")
@@ -37,6 +41,7 @@ public record FarmResponseDTO(
 
         @Schema(description = "Capacidade de alojamento de aves", example = "50000")
         @JsonProperty("poultry_capacity")
+        @JsonAlias("poultryCapacity")
         Integer poultryCapacity,
 
         @Schema(description = "Local ou denominação do sítio/granja", example = "Gleba 4 - Setor Sul")
@@ -44,10 +49,22 @@ public record FarmResponseDTO(
 
         @Schema(description = "Identificador do endereço vinculado", example = "1")
         @JsonProperty("id_address")
+        @JsonAlias("idAddress")
         Long idAddress,
+
+        @Schema(description = "Quantidade atual de aves alojadas na fazenda", example = "3200")
+        @JsonProperty("chickens_now")
+        @JsonAlias("chickensNow")
+        Integer chickensNow,
+
+        @Schema(description = "URL da foto da fazenda", example = "https://ouros.com/fotos/granja1.jpg")
+        @JsonProperty("foto_url")
+        @JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
+        String fotoUrl,
 
         @Schema(description = "Identificador da empresa integradora vinculada", example = "1")
         @JsonProperty("id_enterprise")
+        @JsonAlias("idEnterprise")
         Long idEnterprise
 ) {
     /**
@@ -67,6 +84,8 @@ public record FarmResponseDTO(
                 farm.getPoultryCapacity(),
                 farm.getPlace(),
                 farm.getIdAddress(),
+                farm.getChickensNow(),
+                farm.getFotoUrl(),
                 farm.getIdEnterprise()
         );
     }

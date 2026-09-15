@@ -79,6 +79,8 @@ class FarmControllerMockMvcTest {
                 "Gleba 4",
                 1L,
                 null,
+                15000,
+                "https://storage.ourosapp.com/farms/1.jpg",
                 2L
         );
         FarmResponseDTO response = new FarmResponseDTO(
@@ -89,6 +91,8 @@ class FarmControllerMockMvcTest {
                 50000,
                 "Gleba 4",
                 1L,
+                15000,
+                "https://storage.ourosapp.com/farms/1.jpg",
                 2L
         );
 
@@ -106,6 +110,8 @@ class FarmControllerMockMvcTest {
                 .andExpect(jsonPath("$.region").value("Sudeste"))
                 .andExpect(jsonPath("$.poultry_capacity").value(50000))
                 .andExpect(jsonPath("$.place").value("Gleba 4"))
+                .andExpect(jsonPath("$.chickens_now").value(15000))
+                .andExpect(jsonPath("$.foto_url").value("https://storage.ourosapp.com/farms/1.jpg"))
                 .andExpect(jsonPath("$.id_address").value(1L))
                 .andExpect(jsonPath("$.id_enterprise").value(2L));
     }
@@ -127,6 +133,8 @@ class FarmControllerMockMvcTest {
                 "Gleba 4",
                 null,
                 address,
+                null,
+                null,
                 2L
         );
         FarmResponseDTO response = new FarmResponseDTO(
@@ -137,6 +145,8 @@ class FarmControllerMockMvcTest {
                 50000,
                 "Gleba 4",
                 5L,
+                0,
+                null,
                 2L
         );
 
@@ -166,12 +176,14 @@ class FarmControllerMockMvcTest {
                     "region": "Sul",
                     "poultryCapacity": 30000,
                     "place": "Setor A",
+                    "chickensNow": 10000,
+                    "photoUrl": "https://photo.com/farm.jpg",
                     "idAddress": 1,
                     "idEnterprise": 2
                 }
                 """;
         FarmResponseDTO response = new FarmResponseDTO(
-                1L, "Fazenda Camel", new BigDecimal("120.00"), "Sul", 30000, "Setor A", 1L, 2L
+                1L, "Fazenda Camel", new BigDecimal("120.00"), "Sul", 30000, "Setor A", 1L, 10000, "https://photo.com/farm.jpg", 2L
         );
 
         when(farmService.createFarm(any(FarmRequestDTO.class), eq(mockPrincipal))).thenReturn(response);
@@ -181,7 +193,9 @@ class FarmControllerMockMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(camelCasePayload))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.name").value("Fazenda Camel"));
+                .andExpect(jsonPath("$.name").value("Fazenda Camel"))
+                .andExpect(jsonPath("$.chickens_now").value(10000))
+                .andExpect(jsonPath("$.foto_url").value("https://photo.com/farm.jpg"));
 
         verify(farmService).createFarm(argThat(dto ->
                 "Fazenda Camel".equals(dto.name())
@@ -227,7 +241,7 @@ class FarmControllerMockMvcTest {
     @DisplayName("POST /farms - Deve retornar 401 Unauthorized quando não autenticado")
     void testCreateFarmUnauthorized() throws Exception {
         FarmRequestDTO request = new FarmRequestDTO(
-                "Fazenda", new BigDecimal("100"), "Sul", 1000, "Local", 1L, null, 2L
+                "Fazenda", new BigDecimal("100"), "Sul", 1000, "Local", 1L, null, null, null, 2L
         );
 
         mockMvc.perform(post("/farms")
@@ -237,18 +251,19 @@ class FarmControllerMockMvcTest {
     }
 
     /**
-     * Testa POST /farms quando ocorre conflito de integridade de dados esperando 409 Conflict.
+     * Testa POST /farms quando ocorre conflito (ex: nome duplicado) esperando 409 Conflict.
      *
      * @throws Exception se ocorrer erro no MockMvc
      */
     @Test
-    @DisplayName("POST /farms - Deve retornar 409 Conflict quando ocorre violação de integridade de dados")
+    @DisplayName("POST /farms - Deve retornar 409 Conflict quando houver duplicidade ou conflito")
     void testCreateFarmConflict() throws Exception {
         FarmRequestDTO request = new FarmRequestDTO(
-                "Fazenda", new BigDecimal("100"), "Sul", 1000, "Local", 1L, null, 2L
+                "Fazenda Duplicada", new BigDecimal("100"), "Sul", 1000, "Local", 1L, null, null, null, 2L
         );
+
         when(farmService.createFarm(any(FarmRequestDTO.class), eq(mockPrincipal)))
-                .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Conflito de integridade de dados ao cadastrar fazenda"));
+                .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Já existe uma fazenda cadastrada com este nome nesta empresa"));
 
         mockMvc.perform(post("/farms")
                         .with(user(mockPrincipal))
@@ -266,7 +281,7 @@ class FarmControllerMockMvcTest {
     @DisplayName("GET /farms - Deve retornar lista de fazendas com status 200 OK")
     void testGetFarmsForUserSuccess() throws Exception {
         FarmResponseDTO farm1 = new FarmResponseDTO(
-                1L, "Fazenda 1", new BigDecimal("100.00"), "Sul", 10000, "Local 1", 1L, 2L
+                1L, "Fazenda 1", new BigDecimal("100.00"), "Sul", 10000, "Local 1", 1L, 5000, "https://storage.ourosapp.com/farms/1.jpg", 2L
         );
         when(farmService.getFarmsForUser(eq(mockPrincipal))).thenReturn(List.of(farm1));
 
@@ -274,7 +289,9 @@ class FarmControllerMockMvcTest {
                         .with(user(mockPrincipal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1L))
-                .andExpect(jsonPath("$[0].name").value("Fazenda 1"));
+                .andExpect(jsonPath("$[0].name").value("Fazenda 1"))
+                .andExpect(jsonPath("$[0].chickens_now").value(5000))
+                .andExpect(jsonPath("$[0].foto_url").value("https://storage.ourosapp.com/farms/1.jpg"));
     }
 
     /**
@@ -298,7 +315,7 @@ class FarmControllerMockMvcTest {
     @DisplayName("GET /farms/{id} - Deve retornar fazenda com status 200 OK")
     void testGetFarmByIdSuccess() throws Exception {
         FarmResponseDTO farm = new FarmResponseDTO(
-                1L, "Fazenda 1", new BigDecimal("100.00"), "Sul", 10000, "Local 1", 1L, 2L
+                1L, "Fazenda 1", new BigDecimal("100.00"), "Sul", 10000, "Local 1", 1L, 5000, "https://storage.ourosapp.com/farms/1.jpg", 2L
         );
         when(farmService.getFarmById(eq(1L), eq(mockPrincipal))).thenReturn(farm);
 
@@ -306,7 +323,9 @@ class FarmControllerMockMvcTest {
                         .with(user(mockPrincipal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.name").value("Fazenda 1"));
+                .andExpect(jsonPath("$.name").value("Fazenda 1"))
+                .andExpect(jsonPath("$.chickens_now").value(5000))
+                .andExpect(jsonPath("$.foto_url").value("https://storage.ourosapp.com/farms/1.jpg"));
     }
 
     /**
@@ -332,9 +351,9 @@ class FarmControllerMockMvcTest {
     @Test
     @DisplayName("PATCH /farms/{id} - Deve atualizar parcialmente a fazenda com status 200 OK")
     void testUpdateFarmSuccess() throws Exception {
-        FarmUpdateDTO request = new FarmUpdateDTO("Novo Nome", new BigDecimal("200.00"), null, null, null);
+        FarmUpdateDTO request = new FarmUpdateDTO("Novo Nome", new BigDecimal("200.00"), null, null, null, 12000, "https://storage.ourosapp.com/farms/updated.jpg");
         FarmResponseDTO response = new FarmResponseDTO(
-                1L, "Novo Nome", new BigDecimal("200.00"), "Sul", 10000, "Local 1", 1L, 2L
+                1L, "Novo Nome", new BigDecimal("200.00"), "Sul", 10000, "Local 1", 1L, 12000, "https://storage.ourosapp.com/farms/updated.jpg", 2L
         );
 
         when(farmService.updateFarm(eq(1L), any(FarmUpdateDTO.class), eq(mockPrincipal))).thenReturn(response);
@@ -345,7 +364,9 @@ class FarmControllerMockMvcTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Novo Nome"))
-                .andExpect(jsonPath("$.area_property").value(200.00));
+                .andExpect(jsonPath("$.area_property").value(200.00))
+                .andExpect(jsonPath("$.chickens_now").value(12000))
+                .andExpect(jsonPath("$.foto_url").value("https://storage.ourosapp.com/farms/updated.jpg"));
     }
 
     /**
@@ -458,7 +479,7 @@ class FarmControllerMockMvcTest {
     @DisplayName("POST /farms - Deve retornar 403 Forbidden quando usuário não puder criar fazenda na empresa")
     void testCreateFarmForbidden() throws Exception {
         FarmRequestDTO request = new FarmRequestDTO(
-                "Fazenda", new BigDecimal("100"), "Sul", 1000, "Local", 1L, null, 2L
+                "Fazenda", new BigDecimal("100"), "Sul", 1000, "Local", 1L, null, null, null, 2L
         );
         when(farmService.createFarm(any(FarmRequestDTO.class), eq(mockPrincipal)))
                 .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado"));

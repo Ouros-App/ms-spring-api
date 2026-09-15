@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.dto.farmowner;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ourosapp.springapi.entity.FarmOwner;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -15,6 +16,8 @@ import java.util.Objects;
  * @param email          E-mail de acesso do produtor
  * @param telephone      Telefone de contato
  * @param idFarm         Identificador da fazenda vinculada (serializado como id_farm)
+ * @param firstAccess    Indica se é o primeiro acesso do produtor rural ao sistema
+ * @param fotoUrl        URL da foto de perfil do produtor rural
  */
 @Schema(description = "Resposta contendo os dados do Produtor Rural")
 public record FarmOwnerResponseDTO(
@@ -27,6 +30,7 @@ public record FarmOwnerResponseDTO(
 
         @Schema(description = "Documento/CPF do produtor rural", example = "12345678901")
         @JsonProperty("document_number")
+        @JsonAlias("documentNumber")
         String documentNumber,
 
         @Schema(description = "E-mail de acesso do produtor rural", example = "sebastiao.silva@fazenda.com.br")
@@ -37,7 +41,18 @@ public record FarmOwnerResponseDTO(
 
         @Schema(description = "Identificador da fazenda vinculada", example = "1")
         @JsonProperty("id_farm")
-        Long idFarm
+        @JsonAlias("idFarm")
+        Long idFarm,
+
+        @Schema(description = "Indica se é o primeiro acesso do produtor rural ao sistema", example = "true")
+        @JsonProperty("first_access")
+        @JsonAlias({"firstAccess", "first_acess", "firstAcess"})
+        Boolean firstAccess,
+
+        @Schema(description = "URL da foto de perfil do produtor rural", example = "https://ouros.com/fotos/produtor1.jpg")
+        @JsonProperty("foto_url")
+        @JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
+        String fotoUrl
 ) {
 
     /**
@@ -55,7 +70,9 @@ public record FarmOwnerResponseDTO(
                 farmOwner.getDocumentNumber(),
                 farmOwner.getEmail(),
                 farmOwner.getTelephone(),
-                farmOwner.getIdFarm()
+                farmOwner.getIdFarm(),
+                farmOwner.getFirstAccess(),
+                farmOwner.getFotoUrl()
         );
     }
 }

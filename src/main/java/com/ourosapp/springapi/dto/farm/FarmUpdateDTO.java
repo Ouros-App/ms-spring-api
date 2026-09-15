@@ -18,6 +18,8 @@ import java.math.BigDecimal;
  * @param region          Nova região da fazenda (opcional)
  * @param poultryCapacity Nova capacidade de alojamento de aves (opcional, não negativa)
  * @param place           Novo local ou sítio/granja (opcional)
+ * @param chickensNow     Nova quantidade atual de aves alojadas na fazenda (opcional, não negativa)
+ * @param fotoUrl         Nova URL da foto da fazenda (opcional)
  */
 @Schema(description = "Dados para atualização parcial da fazenda")
 public record FarmUpdateDTO(
@@ -44,7 +46,19 @@ public record FarmUpdateDTO(
 
         @Schema(description = "Novo local ou denominação do sítio/granja", example = "Gleba 5 - Setor Norte")
         @Size(min = 1, max = 50, message = "O local deve ter entre 1 e 50 caracteres")
-        String place
+        String place,
+
+        @Schema(description = "Nova quantidade atual de aves alojadas na fazenda", example = "3500")
+        @JsonProperty("chickens_now")
+        @JsonAlias("chickensNow")
+        @Min(value = 0, message = "A quantidade atual de aves não pode ser negativa")
+        Integer chickensNow,
+
+        @Schema(description = "Nova URL da foto da fazenda", example = "https://ouros.com/fotos/granja1_nova.jpg")
+        @JsonProperty("foto_url")
+        @JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
+        @Size(max = 2048, message = "A URL da foto deve ter no máximo 2048 caracteres")
+        String fotoUrl
 ) {
 
     /**
@@ -54,6 +68,7 @@ public record FarmUpdateDTO(
         name = name != null ? name.trim() : null;
         region = region != null ? region.trim() : null;
         place = place != null ? place.trim() : null;
+        fotoUrl = fotoUrl != null ? fotoUrl.trim() : null;
     }
 
     /**
@@ -66,6 +81,8 @@ public record FarmUpdateDTO(
                 || areaProperty != null
                 || (region != null && !region.isBlank())
                 || poultryCapacity != null
-                || (place != null && !place.isBlank());
+                || (place != null && !place.isBlank())
+                || chickensNow != null
+                || (fotoUrl != null && !fotoUrl.isBlank());
     }
 }

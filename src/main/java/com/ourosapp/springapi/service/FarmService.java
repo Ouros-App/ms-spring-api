@@ -91,12 +91,16 @@ public class FarmService {
             );
         }
 
+        Integer chickensNow = request.chickensNow() != null ? request.chickensNow() : 0;
+
         Farm farm = Farm.builder()
                 .name(request.name())
                 .areaProperty(request.areaProperty())
                 .region(request.region())
                 .poultryCapacity(request.poultryCapacity())
                 .place(request.place())
+                .chickensNow(chickensNow)
+                .fotoUrl(request.fotoUrl())
                 .idAddress(resolvedAddressId)
                 .idEnterprise(request.idEnterprise())
                 .build();
@@ -214,6 +218,12 @@ public class FarmService {
         }
         if (request.place() != null && !request.place().isBlank()) {
             farm.setPlace(request.place());
+        }
+        if (request.chickensNow() != null) {
+            farm.setChickensNow(request.chickensNow());
+        }
+        if (request.fotoUrl() != null && !request.fotoUrl().isBlank()) {
+            farm.setFotoUrl(request.fotoUrl());
         }
 
         Farm updatedFarm = farmRepository.save(farm);
