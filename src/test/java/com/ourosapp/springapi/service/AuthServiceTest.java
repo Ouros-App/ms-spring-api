@@ -1,9 +1,6 @@
 package com.ourosapp.springapi.service;
-import com.ourosapp.springapi.dto.address.*;
-import com.ourosapp.springapi.dto.enterprise.*;
-import com.ourosapp.springapi.dto.companyemployee.*;
-import com.ourosapp.springapi.security.UserPrincipal;
 
+import com.ourosapp.springapi.constants.RoleConstants;
 import com.ourosapp.springapi.dto.LoginRequestDTO;
 import com.ourosapp.springapi.dto.LoginResponseDTO;
 import com.ourosapp.springapi.entity.Adm;
@@ -60,7 +57,7 @@ class AuthServiceTest {
 
         when(admRepository.findByEmailIgnoreCase("adm@ouros.com")).thenReturn(Optional.of(adm));
         when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
-        when(jwtUtil.generateToken(1L, "adm@ouros.com", "ADM")).thenReturn("fake-jwt-token");
+        when(jwtUtil.generateToken(1L, "adm@ouros.com", RoleConstants.ADM)).thenReturn("fake-jwt-token");
 
         LoginResponseDTO response = authService.loginAdm(request);
 
@@ -100,7 +97,7 @@ class AuthServiceTest {
 
         when(companyEmployeeRepository.findByEmailIgnoreCase("employee@ouros.com")).thenReturn(Optional.of(employee));
         when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
-        when(jwtUtil.generateToken(2L, "emp@ouros.com", "COMPANY_EMPLOYEE")).thenReturn("emp-token");
+        when(jwtUtil.generateToken(2L, "emp@ouros.com", RoleConstants.COMPANY_EMPLOYEE)).thenReturn("emp-token");
 
         LoginResponseDTO response = authService.loginEmployee(request);
 
@@ -140,7 +137,7 @@ class AuthServiceTest {
 
         when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.of(owner));
         when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
-        when(jwtUtil.generateToken(3L, "farmer@ouros.com", "FARM_OWNER")).thenReturn("farmer-token");
+        when(jwtUtil.generateToken(3L, "farmer@ouros.com", RoleConstants.FARM_OWNER)).thenReturn("farmer-token");
 
         LoginResponseDTO response = authService.loginFarmOwner(request);
 
@@ -156,7 +153,7 @@ class AuthServiceTest {
 
         when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.of(owner));
         when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
-        when(jwtUtil.generateToken(3L, "farmer@ouros.com", "FARM_OWNER")).thenReturn("farmer-token");
+        when(jwtUtil.generateToken(3L, "farmer@ouros.com", RoleConstants.FARM_OWNER)).thenReturn("farmer-token");
 
         LoginResponseDTO response = authService.loginFarmOwner(request);
 

@@ -714,6 +714,30 @@ class FarmServiceTest {
     }
 
     /**
+     * Testa atualização ignorando campos em branco de texto como fotoUrl, name, region e place.
+     */
+    @Test
+    @DisplayName("Deve ignorar campos de texto em branco ao atualizar a fazenda")
+    void testUpdateFarmWithBlankFieldsIgnored() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(farmRepository.save(any(Farm.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO("   ", new BigDecimal("300.00"), "   ", 80000, "   ", 25000, "   ");
+
+        FarmResponseDTO response = farmService.updateFarm(1L, updateDTO, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals("Fazenda Ouro Verde", response.name());
+        assertEquals(new BigDecimal("300.00"), response.areaProperty());
+        assertEquals("Sudeste", response.region());
+        assertEquals(80000, response.poultryCapacity());
+        assertEquals("Gleba 4 - Setor Sul", response.place());
+        assertEquals(25000, response.chickensNow());
+        assertEquals("https://photo.com/farm.jpg", response.fotoUrl());
+        verify(farmRepository).save(any(Farm.class));
+    }
+
+    /**
      * Testa atualização parcial de fazenda com funcionário da mesma empresa.
      */
     @Test

@@ -222,7 +222,7 @@ public class FarmService {
         if (request.chickensNow() != null) {
             farm.setChickensNow(request.chickensNow());
         }
-        if (request.fotoUrl() != null) {
+        if (request.fotoUrl() != null && !request.fotoUrl().isBlank()) {
             farm.setFotoUrl(request.fotoUrl());
         }
 
