@@ -34,11 +34,14 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
+
 /**
  * Testes de integração e contrato HTTP para {@link FarmOwnerController} utilizando MockMvc.
  */
 @WebMvcTest(FarmOwnerController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class})
+@Import(SecurityConfig.class)
 class FarmOwnerControllerMockMvcTest {
 
     @Autowired
@@ -51,7 +54,10 @@ class FarmOwnerControllerMockMvcTest {
     private FarmOwnerService farmOwnerService;
 
     @MockitoBean
-    private JwtUtil jwtUtil;
+    private KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;

@@ -4,6 +4,7 @@ import com.ourosapp.springapi.entity.Adm;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.FarmOwner;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -16,14 +17,20 @@ import java.util.List;
  * Representa o usuário autenticado na sessão atual do Spring Security.
  */
 @Getter
+@Builder
 @AllArgsConstructor
 public class UserPrincipal implements UserDetails {
 
     private final Long id;
+    private final String keycloakId;
     private final String email;
     private final String password;
     private final String role;
     private final Collection<? extends GrantedAuthority> authorities;
+
+    public UserPrincipal(Long id, String email, String password, String role, Collection<? extends GrantedAuthority> authorities) {
+        this(id, null, email, password, role, authorities);
+    }
 
     /**
      * Cria um {@link UserPrincipal} a partir de uma entidade {@link Adm}.
@@ -34,6 +41,7 @@ public class UserPrincipal implements UserDetails {
     public static UserPrincipal create(Adm adm) {
         return new UserPrincipal(
                 adm.getId(),
+                null,
                 adm.getEmail(),
                 null,
                 "ADM",
@@ -50,6 +58,7 @@ public class UserPrincipal implements UserDetails {
     public static UserPrincipal create(CompanyEmployee employee) {
         return new UserPrincipal(
                 employee.getId(),
+                null,
                 employee.getEmail(),
                 null,
                 "COMPANY_EMPLOYEE",
@@ -66,6 +75,7 @@ public class UserPrincipal implements UserDetails {
     public static UserPrincipal create(FarmOwner farmOwner) {
         return new UserPrincipal(
                 farmOwner.getId(),
+                null,
                 farmOwner.getEmail(),
                 null,
                 "FARM_OWNER",

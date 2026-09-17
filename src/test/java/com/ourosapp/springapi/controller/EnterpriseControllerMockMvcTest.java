@@ -33,8 +33,11 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
+
 @WebMvcTest(EnterpriseController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class})
+@Import(SecurityConfig.class)
 class EnterpriseControllerMockMvcTest {
 
     @Autowired
@@ -47,7 +50,10 @@ class EnterpriseControllerMockMvcTest {
     private EnterpriseService enterpriseService;
 
     @MockitoBean
-    private JwtUtil jwtUtil;
+    private KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;

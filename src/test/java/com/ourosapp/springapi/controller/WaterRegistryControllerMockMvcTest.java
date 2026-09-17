@@ -33,11 +33,14 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
+
 /**
  * Testes de integração Web via MockMvc para o controlador {@link WaterRegistryController}.
  */
 @WebMvcTest(WaterRegistryController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class})
+@Import(SecurityConfig.class)
 class WaterRegistryControllerMockMvcTest {
 
     @Autowired
@@ -50,7 +53,10 @@ class WaterRegistryControllerMockMvcTest {
     private WaterRegistryService waterRegistryService;
 
     @MockitoBean
-    private JwtUtil jwtUtil;
+    private KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;

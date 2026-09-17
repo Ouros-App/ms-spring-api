@@ -22,7 +22,7 @@ import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Enterprise;
 import com.ourosapp.springapi.entity.Farm;
 import com.ourosapp.springapi.entity.FarmOwner;
-import com.ourosapp.springapi.security.JwtAuthFilter;
+import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -308,8 +308,8 @@ class DTOAndEntityTest {
      */
     @Test
     void testSecurityConfigBeans() {
-        JwtAuthFilter filter = Mockito.mock(JwtAuthFilter.class);
-        SecurityConfig config = new SecurityConfig(filter);
+        KeycloakJwtAuthenticationConverter converter = Mockito.mock(KeycloakJwtAuthenticationConverter.class);
+        SecurityConfig config = new SecurityConfig(converter);
 
         PasswordEncoder encoder = config.passwordEncoder();
         assertNotNull(encoder);
