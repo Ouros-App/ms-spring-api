@@ -4,9 +4,14 @@ import com.infisical.sdk.InfisicalSdk;
 import com.infisical.sdk.config.SdkConfig;
 import com.infisical.sdk.models.Secret;
 import com.infisical.sdk.util.InfisicalException;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
@@ -18,18 +23,37 @@ public class InfisicalEnvironmentPostProcessor implements EnvironmentPostProcess
 
     private static final String PROPERTY_SOURCE = "infisicalSecrets";
     private static final String DEFAULT_PATH = "/ms-spring-api";
-    private final Supplier<InfisicalSdk> sdkFactory;
+    private final Function<String, InfisicalSdk> sdkFactory;
+    private final Path dotenvPath;
 
     public InfisicalEnvironmentPostProcessor() {
-        this(() -> new InfisicalSdk(new SdkConfig.Builder().build()));
+        this(Path.of(".env"));
+    }
+
+    InfisicalEnvironmentPostProcessor(Path dotenvPath) {
+        this(InfisicalEnvironmentPostProcessor::createSdk, dotenvPath);
     }
 
     InfisicalEnvironmentPostProcessor(Supplier<InfisicalSdk> sdkFactory) {
+        this(siteUrl -> sdkFactory.get(), null);
+    }
+
+    InfisicalEnvironmentPostProcessor(Function<String, InfisicalSdk> sdkFactory, Path dotenvPath) {
         this.sdkFactory = sdkFactory;
+        this.dotenvPath = dotenvPath;
+    }
+
+    static InfisicalSdk createSdk(String siteUrl) {
+        var builder = new SdkConfig.Builder();
+        if (siteUrl != null && !siteUrl.isBlank()) {
+            builder.withSiteUrl(siteUrl);
+        }
+        return new InfisicalSdk(builder.build());
     }
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
+        loadDotEnv(environment);
         String clientId = environment.getProperty("INFISICAL_CLIENT_ID");
         String clientSecret = environment.getProperty("INFISICAL_CLIENT_SECRET");
         if (clientId == null || clientSecret == null) {
@@ -47,7 +71,7 @@ public class InfisicalEnvironmentPostProcessor implements EnvironmentPostProcess
         }
 
         try {
-            var sdk = sdkFactory.get();
+            var sdk = sdkFactory.apply(environment.getProperty("INFISICAL_SITE_URL"));
             sdk.Auth().UniversalAuthLogin(clientId, clientSecret);
             List<Secret> secrets = sdk.Secrets().ListSecrets(projectId, environmentSlug, secretPath, false, false, false, false);
             Map<String, Object> values = new HashMap<>();
@@ -60,8 +84,41 @@ public class InfisicalEnvironmentPostProcessor implements EnvironmentPostProcess
         }
     }
 
+    private void loadDotEnv(ConfigurableEnvironment environment) {
+        if (dotenvPath == null || !Files.isRegularFile(dotenvPath)) {
+            return;
+        }
+
+        Map<String, Object> values = new HashMap<>();
+        try {
+            for (String line : Files.readAllLines(dotenvPath, StandardCharsets.UTF_8)) {
+                String trimmed = line.trim();
+                int separator = trimmed.indexOf('=');
+                if (separator <= 0 || trimmed.startsWith("#")) {
+                    continue;
+                }
+                String key = trimmed.substring(0, separator).trim();
+                if (!key.startsWith("INFISICAL_") || environment.getProperty(key) != null) {
+                    continue;
+                }
+                String value = trimmed.substring(separator + 1).trim();
+                if (value.length() >= 2 && ((value.startsWith("\"") && value.endsWith("\""))
+                        || (value.startsWith("'") && value.endsWith("'")))) {
+                    value = value.substring(1, value.length() - 1);
+                }
+                values.put(key, value);
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("Não foi possível ler o arquivo .env", exception);
+        }
+
+        if (!values.isEmpty()) {
+            environment.getPropertySources().addFirst(new MapPropertySource("dotenv", values));
+        }
+    }
+
     @Override
     public int getOrder() {
-        return Ordered.HIGHEST_PRECEDENCE;
+        return Ordered.HIGHEST_PRECEDENCE + 20;
     }
 }

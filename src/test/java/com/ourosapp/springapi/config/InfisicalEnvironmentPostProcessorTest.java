@@ -3,15 +3,21 @@ package com.ourosapp.springapi.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.infisical.sdk.InfisicalSdk;
+import com.infisical.sdk.config.SdkConfig;
 import com.infisical.sdk.models.Secret;
 import com.infisical.sdk.resources.AuthClient;
 import com.infisical.sdk.resources.SecretsClient;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -62,7 +68,8 @@ class InfisicalEnvironmentPostProcessorTest {
                 .withProperty("INFISICAL_CLIENT_SECRET", "secret")
                 .withProperty("INFISICAL_PROJECT_ID", "project")
                 .withProperty("INFISICAL_ENVIRONMENT", "prod")
-                .withProperty("INFISICAL_SECRET_PATH", "/ms-spring-api");
+                .withProperty("INFISICAL_SECRET_PATH", "/ms-spring-api")
+                .withProperty("spring.datasource.url", "jdbc:stale");
         var sdk = mock(InfisicalSdk.class);
         var auth = mock(AuthClient.class);
         var secretsClient = mock(SecretsClient.class);
@@ -83,8 +90,60 @@ class InfisicalEnvironmentPostProcessorTest {
     }
 
     @Test
+    void deveCarregarCredenciaisDoArquivoDotenv(@TempDir Path tempDir) throws Exception {
+        Path dotenv = tempDir.resolve(".env");
+        Files.writeString(dotenv, """
+                INFISICAL_CLIENT_ID=from-file
+                INFISICAL_CLIENT_SECRET="secret"
+                INFISICAL_PROJECT_ID=project
+                INFISICAL_ENVIRONMENT=prod
+                INFISICAL_SECRET_PATH='/ms-spring-api'
+                INFISICAL_SITE_URL=https://infisical.example.com
+                # comentário ignorado
+                INVALID_LINE
+                """);
+        var environment = new MockEnvironment().withProperty("INFISICAL_CLIENT_ID", "client");
+        var auth = mock(AuthClient.class);
+        var secretsClient = mock(SecretsClient.class);
+        var sdkConfig = new AtomicReference<SdkConfig>();
+        when(secretsClient.ListSecrets("project", "prod", "/ms-spring-api", false, false, false, false))
+                .thenReturn(List.of());
+
+        try (var constructions = mockConstruction(InfisicalSdk.class, (sdk, context) -> {
+            sdkConfig.set((SdkConfig) context.arguments().get(0));
+            when(sdk.Auth()).thenReturn(auth);
+            when(sdk.Secrets()).thenReturn(secretsClient);
+        })) {
+            new InfisicalEnvironmentPostProcessor(dotenv).postProcessEnvironment(environment, null);
+
+            assertThat(constructions.constructed()).hasSize(1);
+        }
+
+        verify(auth).UniversalAuthLogin("client", "secret");
+        assertThat(environment.getProperty("INFISICAL_PROJECT_ID")).isEqualTo("project");
+        assertThat(sdkConfig).hasValueSatisfying(config ->
+                assertThat(config.getSiteUrl()).isEqualTo("https://infisical.example.com"));
+    }
+
+    @Test
+    void deveUsarUrlPadraoQuandoSiteUrlNaoConfigurada() {
+        var sdkConfig = new AtomicReference<SdkConfig>();
+
+        try (var constructions = mockConstruction(InfisicalSdk.class, (sdk, context) ->
+                sdkConfig.set((SdkConfig) context.arguments().get(0)))) {
+            InfisicalEnvironmentPostProcessor.createSdk(null);
+            InfisicalEnvironmentPostProcessor.createSdk(" ");
+
+            assertThat(constructions.constructed()).hasSize(2);
+        }
+
+        assertThat(sdkConfig).hasValueSatisfying(config ->
+                assertThat(config.getSiteUrl()).isEqualTo("https://app.infisical.com"));
+    }
+
+    @Test
     void deveUsarOrdemDePrioridadeMaxima() {
         assertThat(new InfisicalEnvironmentPostProcessor().getOrder())
-                .isEqualTo(Integer.MIN_VALUE);
+                .isEqualTo(Integer.MIN_VALUE + 20);
     }
 }

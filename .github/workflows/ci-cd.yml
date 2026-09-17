@@ -89,6 +89,61 @@ jobs:
             build/reports/
           retention-days: 1
 
+  deploy-discloud:
+    name: deploy-discloud
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: build/
+
+      - name: Prepare Discloud package
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          INFISICAL_ENVIRONMENT: ${{ secrets.INFISICAL_ENVIRONMENT }}
+          INFISICAL_SECRET_PATH: ${{ secrets.INFISICAL_SECRET_PATH }}
+          INFISICAL_SITE_URL: ${{ secrets.INFISICAL_SITE_URL }}
+        run: |
+          test -n "$INFISICAL_CLIENT_ID"
+          test -n "$INFISICAL_CLIENT_SECRET"
+          test -n "$INFISICAL_PROJECT_ID"
+          test -n "$INFISICAL_ENVIRONMENT"
+          test -n "$INFISICAL_SECRET_PATH"
+          test -n "$INFISICAL_SITE_URL"
+          mkdir -p deploy
+          cp discloud.config deploy/discloud.config
+          cp build/libs/app.jar deploy/app.jar
+          {
+            printf 'INFISICAL_CLIENT_ID=%s\n' "$INFISICAL_CLIENT_ID"
+            printf 'INFISICAL_CLIENT_SECRET=%s\n' "$INFISICAL_CLIENT_SECRET"
+            printf 'INFISICAL_PROJECT_ID=%s\n' "$INFISICAL_PROJECT_ID"
+            printf 'INFISICAL_ENVIRONMENT=%s\n' "$INFISICAL_ENVIRONMENT"
+            printf 'INFISICAL_SECRET_PATH=%s\n' "$INFISICAL_SECRET_PATH"
+            printf 'INFISICAL_SITE_URL=%s\n' "$INFISICAL_SITE_URL"
+          } > deploy/.env
+
+      - name: Install Discloud CLI
+        run: npm ci --ignore-scripts
+
+      - name: Deploy to Discloud
+        working-directory: deploy
+        env:
+          DISCLOUD_TOKEN: ${{ secrets.DISCLOUD_TOKEN }}
+        run: |
+          test -n "$DISCLOUD_TOKEN"
+          ../node_modules/.bin/discloud app commit ms-spring-api
+
   sonarcloud:
     name: sonarcloud
     runs-on: ubuntu-latest
@@ -161,4 +216,3 @@ jobs:
 
       - name: Analyze with CodeQL
         uses: github/codeql-action/analyze@v3
-
