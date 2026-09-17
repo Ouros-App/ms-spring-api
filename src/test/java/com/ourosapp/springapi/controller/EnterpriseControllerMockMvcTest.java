@@ -6,8 +6,6 @@ import com.ourosapp.springapi.dto.address.AddressRequestDTO;
 import com.ourosapp.springapi.dto.enterprise.EnterpriseRequestDTO;
 import com.ourosapp.springapi.dto.enterprise.EnterpriseResponseDTO;
 import com.ourosapp.springapi.dto.enterprise.EnterpriseUpdateDTO;
-import com.ourosapp.springapi.security.JwtAuthFilter;
-import com.ourosapp.springapi.security.JwtUtil;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.EnterpriseService;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;

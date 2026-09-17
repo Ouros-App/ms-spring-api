@@ -3,8 +3,6 @@ package com.ourosapp.springapi.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.address.*;
-import com.ourosapp.springapi.security.JwtAuthFilter;
-import com.ourosapp.springapi.security.JwtUtil;
 import com.ourosapp.springapi.service.AddressService;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;
 import com.ourosapp.springapi.security.UserPrincipal;

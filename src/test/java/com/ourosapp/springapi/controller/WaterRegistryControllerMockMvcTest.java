@@ -5,8 +5,6 @@ import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.waterregistry.WaterRegistryRequestDTO;
 import com.ourosapp.springapi.dto.waterregistry.WaterRegistryResponseDTO;
 import com.ourosapp.springapi.dto.waterregistry.WaterRegistryUpdateDTO;
-import com.ourosapp.springapi.security.JwtAuthFilter;
-import com.ourosapp.springapi.security.JwtUtil;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;
 import com.ourosapp.springapi.service.WaterRegistryService;

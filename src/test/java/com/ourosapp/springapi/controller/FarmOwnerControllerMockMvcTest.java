@@ -5,8 +5,6 @@ import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.farmowner.FarmOwnerRequestDTO;
 import com.ourosapp.springapi.dto.farmowner.FarmOwnerResponseDTO;
 import com.ourosapp.springapi.dto.farmowner.FarmOwnerUpdateDTO;
-import com.ourosapp.springapi.security.JwtAuthFilter;
-import com.ourosapp.springapi.security.JwtUtil;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.FarmOwnerService;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;

@@ -5,8 +5,6 @@ import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.energyregistry.EnergyRegistryRequestDTO;
 import com.ourosapp.springapi.dto.energyregistry.EnergyRegistryResponseDTO;
 import com.ourosapp.springapi.dto.energyregistry.EnergyRegistryUpdateDTO;
-import com.ourosapp.springapi.security.JwtAuthFilter;
-import com.ourosapp.springapi.security.JwtUtil;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.EnergyRegistryService;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;

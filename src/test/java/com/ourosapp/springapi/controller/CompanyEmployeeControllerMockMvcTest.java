@@ -5,8 +5,6 @@ import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeRequestDTO;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeResponseDTO;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeUpdateDTO;
-import com.ourosapp.springapi.security.JwtAuthFilter;
-import com.ourosapp.springapi.security.JwtUtil;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.CompanyEmployeeService;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;

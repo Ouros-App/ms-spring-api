@@ -49,41 +49,6 @@ class DTOAndEntityTest {
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
-    /**
-     * Testa instanciação e acessores do DTO de requisição de login.
-     */
-    @Test
-    void testLoginRequestDTO() {
-        LoginRequestDTO dto = new LoginRequestDTO("teste@ouros.com", "senha123");
-        assertEquals("teste@ouros.com", dto.email());
-        assertEquals("senha123", dto.password());
-    }
-
-    /**
-     * Testa instanciação e acessores do DTO de resposta de login contendo o token JWT e first_access opcional.
-     */
-    @Test
-    void testLoginResponseDTO() throws JsonProcessingException {
-        LoginResponseDTO dtoWithoutFirstAccess = new LoginResponseDTO("token123");
-        assertEquals("token123", dtoWithoutFirstAccess.token());
-        assertNull(dtoWithoutFirstAccess.firstAccess());
-
-        String jsonWithoutFirstAccess = objectMapper.writeValueAsString(dtoWithoutFirstAccess);
-        assertTrue(jsonWithoutFirstAccess.contains("\"token\":\"token123\""));
-        assertFalse(jsonWithoutFirstAccess.contains("first_access"));
-
-        LoginResponseDTO dtoWithFirstAccess = new LoginResponseDTO("token123", true);
-        assertEquals("token123", dtoWithFirstAccess.token());
-        assertTrue(dtoWithFirstAccess.firstAccess());
-
-        String jsonWithFirstAccess = objectMapper.writeValueAsString(dtoWithFirstAccess);
-        assertTrue(jsonWithFirstAccess.contains("\"token\":\"token123\""));
-        assertTrue(jsonWithFirstAccess.contains("\"first_access\":true"));
-
-        LoginResponseDTO deserialized = objectMapper.readValue(jsonWithFirstAccess, LoginResponseDTO.class);
-        assertEquals("token123", deserialized.token());
-        assertTrue(deserialized.firstAccess());
-    }
 
     /**
      * Testa getters, setters, builder e toString da entidade {@link Adm}.
