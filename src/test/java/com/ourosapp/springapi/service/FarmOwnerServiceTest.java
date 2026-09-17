@@ -87,6 +87,8 @@ class FarmOwnerServiceTest {
                 .email("sebastiao.silva@fazenda.com.br")
                 .telephone("11987654321")
                 .password("encoded_password_123")
+                .firstAccess(true)
+                .fotoUrl("https://storage.ourosapp.com/profiles/1.jpg")
                 .idFarm(10L)
                 .build();
 
@@ -96,7 +98,8 @@ class FarmOwnerServiceTest {
                 "sebastiao.silva@fazenda.com.br",
                 "11987654321",
                 "SenhaForte@123",
-                10L
+                10L,
+                "https://storage.ourosapp.com/profiles/1.jpg"
         );
 
         admPrincipal = new UserPrincipal(
@@ -154,6 +157,8 @@ class FarmOwnerServiceTest {
         assertEquals("12345678909", response.documentNumber());
         assertEquals("sebastiao.silva@fazenda.com.br", response.email());
         assertEquals("11987654321", response.telephone());
+        assertTrue(response.firstAccess());
+        assertEquals("https://storage.ourosapp.com/profiles/1.jpg", response.fotoUrl());
         assertEquals(10L, response.idFarm());
 
         verify(farmOwnerRepository, times(1)).save(any(FarmOwner.class));
@@ -607,7 +612,9 @@ class FarmOwnerServiceTest {
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
                 "sebastiao.novo@fazenda.com.br",
                 "11999998888",
-                "NovaSenha@123"
+                "NovaSenha@123",
+                false,
+                "https://storage.ourosapp.com/profiles/1-updated.jpg"
         );
 
         when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
@@ -621,6 +628,34 @@ class FarmOwnerServiceTest {
         assertEquals("sebastiao.novo@fazenda.com.br", sampleFarmOwner.getEmail());
         assertEquals("11999998888", sampleFarmOwner.getTelephone());
         assertEquals("new_encoded_pwd", sampleFarmOwner.getPassword());
+        assertFalse(sampleFarmOwner.getFirstAccess());
+        assertEquals("https://storage.ourosapp.com/profiles/1-updated.jpg", sampleFarmOwner.getFotoUrl());
+        verify(farmOwnerRepository, times(1)).save(sampleFarmOwner);
+    }
+
+    /**
+     * Testa remoção/limpeza da foto de perfil ao enviar string em branco.
+     */
+    @Test
+    @DisplayName("Deve remover fotoUrl (atribuir null) quando string em branco for enviada na atualização de produtor")
+    void testUpdateFarmOwnerClearFotoUrlWhenBlank() {
+        sampleFarmOwner.setFotoUrl("https://storage.ourosapp.com/profiles/existing.jpg");
+
+        FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                null,
+                null,
+                null,
+                null,
+                "   "
+        );
+
+        when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
+        when(farmOwnerRepository.save(any(FarmOwner.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        FarmOwnerResponseDTO response = farmOwnerService.updateFarmOwner(1L, updateDTO, farmOwnerPrincipal);
+
+        assertNotNull(response);
+        assertNull(sampleFarmOwner.getFotoUrl());
         verify(farmOwnerRepository, times(1)).save(sampleFarmOwner);
     }
 
@@ -633,6 +668,8 @@ class FarmOwnerServiceTest {
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
                 "sebastiao.silva@fazenda.com.br",
                 "11999998888",
+                null,
+                null,
                 null
         );
 
@@ -653,7 +690,7 @@ class FarmOwnerServiceTest {
     @Test
     @DisplayName("Deve retornar dados existentes sem salvar quando payload não contiver atualizações")
     void testUpdateFarmOwnerWithoutUpdates() {
-        FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(null, null, null);
+        FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(null, null, null, null, null);
 
         when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
 
@@ -676,6 +713,8 @@ class FarmOwnerServiceTest {
 
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
                 "outro@fazenda.com.br",
+                null,
+                null,
                 null,
                 null
         );

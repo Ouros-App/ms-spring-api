@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -77,6 +78,8 @@ class FarmServiceTest {
                 .region("Sudeste")
                 .poultryCapacity(50000)
                 .place("Gleba 4 - Setor Sul")
+                .chickensNow(15000)
+                .fotoUrl("https://photo.com/farm.jpg")
                 .idAddress(10L)
                 .idEnterprise(20L)
                 .build();
@@ -89,6 +92,8 @@ class FarmServiceTest {
                 "Gleba 4 - Setor Sul",
                 10L,
                 null,
+                15000,
+                "https://photo.com/farm.jpg",
                 20L
         );
 
@@ -108,6 +113,8 @@ class FarmServiceTest {
                 "Gleba 4 - Setor Sul",
                 null,
                 sampleAddressRequest,
+                15000,
+                "https://photo.com/farm.jpg",
                 20L
         );
 
@@ -148,7 +155,12 @@ class FarmServiceTest {
 
         verify(enterpriseRepository).existsById(20L);
         verify(addressRepository).existsById(10L);
-        verify(farmRepository).save(any(Farm.class));
+
+        ArgumentCaptor<Farm> farmCaptor = ArgumentCaptor.forClass(Farm.class);
+        verify(farmRepository).save(farmCaptor.capture());
+        Farm persistedFarm = farmCaptor.getValue();
+        assertEquals(15000, persistedFarm.getChickensNow());
+        assertEquals("https://photo.com/farm.jpg", persistedFarm.getFotoUrl());
     }
 
     /**
@@ -253,7 +265,76 @@ class FarmServiceTest {
         assertEquals(1L, response.id());
         assertEquals(10L, response.idAddress());
         verify(addressService).createAddress(sampleAddressRequest);
-        verify(farmRepository).save(any(Farm.class));
+
+        ArgumentCaptor<Farm> farmCaptor = ArgumentCaptor.forClass(Farm.class);
+        verify(farmRepository).save(farmCaptor.capture());
+        Farm persistedFarm = farmCaptor.getValue();
+        assertEquals(15000, persistedFarm.getChickensNow());
+        assertEquals("https://photo.com/farm.jpg", persistedFarm.getFotoUrl());
+    }
+
+    /**
+     * Testa o cadastro de fazenda com chickensNow nulo, garantindo que o valor padrão 0 seja persistido.
+     */
+    @Test
+    @DisplayName("Deve cadastrar fazenda com chickensNow padrão 0 quando não informado")
+    void testCreateFarmWithNullChickensNowDefaultsToZero() {
+        when(enterpriseRepository.existsById(20L)).thenReturn(true);
+        when(addressRepository.existsById(10L)).thenReturn(true);
+        when(farmRepository.save(any(Farm.class))).thenReturn(sampleFarm);
+
+        FarmRequestDTO requestWithNullChickens = new FarmRequestDTO(
+                "Fazenda Ouro Verde",
+                new BigDecimal("150.50"),
+                "Sudeste",
+                50000,
+                "Gleba 4 - Setor Sul",
+                10L,
+                null,
+                null,
+                "https://photo.com/farm.jpg",
+                20L
+        );
+
+        FarmResponseDTO response = farmService.createFarm(requestWithNullChickens, adminPrincipal);
+
+        assertNotNull(response);
+        ArgumentCaptor<Farm> farmCaptor = ArgumentCaptor.forClass(Farm.class);
+        verify(farmRepository).save(farmCaptor.capture());
+        Farm persistedFarm = farmCaptor.getValue();
+        assertEquals(0, persistedFarm.getChickensNow());
+        assertEquals("https://photo.com/farm.jpg", persistedFarm.getFotoUrl());
+    }
+
+    /**
+     * Testa lançamento de erro 400 ao cadastrar fazenda quando chickensNow for superior à capacidade.
+     */
+    @Test
+    @DisplayName("Deve lançar 400 ao cadastrar fazenda quando chickensNow exceder poultryCapacity")
+    void testCreateFarmWithChickensNowExceedingPoultryCapacityThrowsBadRequest() {
+        when(enterpriseRepository.existsById(20L)).thenReturn(true);
+        when(addressRepository.existsById(10L)).thenReturn(true);
+
+        FarmRequestDTO invalidRequest = new FarmRequestDTO(
+                "Fazenda Ouro Verde",
+                new BigDecimal("150.50"),
+                "Sudeste",
+                50000,
+                "Gleba 4 - Setor Sul",
+                10L,
+                null,
+                60000,
+                "https://photo.com/farm.jpg",
+                20L
+        );
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.createFarm(invalidRequest, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("A quantidade atual de aves não pode ser superior à capacidade de alojamento da fazenda"));
+        verify(farmRepository, never()).save(any());
     }
 
     /**
@@ -306,6 +387,8 @@ class FarmServiceTest {
                 "Local",
                 null,
                 null,
+                null,
+                null,
                 20L
         );
 
@@ -332,6 +415,8 @@ class FarmServiceTest {
                 "Local",
                 10L,
                 sampleAddressRequest,
+                null,
+                null,
                 20L
         );
 
@@ -358,6 +443,8 @@ class FarmServiceTest {
                 50000,
                 "Gleba 4 - Setor Sul",
                 10L,
+                null,
+                null,
                 null,
                 null
         );
@@ -683,7 +770,9 @@ class FarmServiceTest {
                 new BigDecimal("250.00"),
                 "Centro-Oeste",
                 70000,
-                "Gleba 5"
+                "Gleba 5",
+                20000,
+                "https://photo.com/updated.jpg"
         );
 
         FarmResponseDTO response = farmService.updateFarm(1L, updateDTO, adminPrincipal);
@@ -694,7 +783,60 @@ class FarmServiceTest {
         assertEquals("Centro-Oeste", response.region());
         assertEquals(70000, response.poultryCapacity());
         assertEquals("Gleba 5", response.place());
+        assertEquals(20000, response.chickensNow());
+        assertEquals("https://photo.com/updated.jpg", response.fotoUrl());
         verify(farmRepository).save(any(Farm.class));
+    }
+
+    /**
+     * Testa atualização ignorando campos em branco de texto como fotoUrl, name, region e place.
+     */
+    @Test
+    @DisplayName("Deve ignorar campos de texto em branco ao atualizar a fazenda")
+    void testUpdateFarmWithBlankFieldsIgnored() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(farmRepository.save(any(Farm.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO("   ", new BigDecimal("300.00"), "   ", 80000, "   ", 25000, "   ");
+
+        FarmResponseDTO response = farmService.updateFarm(1L, updateDTO, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals("Fazenda Ouro Verde", response.name());
+        assertEquals(new BigDecimal("300.00"), response.areaProperty());
+        assertEquals("Sudeste", response.region());
+        assertEquals(80000, response.poultryCapacity());
+        assertEquals("Gleba 4 - Setor Sul", response.place());
+        assertEquals(25000, response.chickensNow());
+        assertEquals("https://photo.com/farm.jpg", response.fotoUrl());
+        verify(farmRepository).save(any(Farm.class));
+    }
+
+    /**
+     * Testa lançamento de erro 400 ao atualizar fazenda quando chickensNow for superior à capacidade.
+     */
+    @Test
+    @DisplayName("Deve lançar 400 ao atualizar fazenda quando chickensNow exceder poultryCapacity")
+    void testUpdateFarmWithChickensNowExceedingPoultryCapacityThrowsBadRequest() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO(
+                null,
+                null,
+                null,
+                50000,
+                null,
+                55000,
+                null
+        );
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.updateFarm(1L, updateDTO, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("A quantidade atual de aves não pode ser superior à capacidade de alojamento da fazenda"));
+        verify(farmRepository, never()).save(any());
     }
 
     /**
@@ -708,7 +850,7 @@ class FarmServiceTest {
         when(companyEmployeeRepository.findById(100L)).thenReturn(Optional.of(employee));
         when(farmRepository.save(any(Farm.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null);
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null, null, null);
 
         FarmResponseDTO response = farmService.updateFarm(1L, updateDTO, employeePrincipal);
 
@@ -727,7 +869,7 @@ class FarmServiceTest {
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
         when(companyEmployeeRepository.findById(100L)).thenReturn(Optional.of(employee));
 
-        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null);
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null, null, null);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 farmService.updateFarm(1L, updateDTO, employeePrincipal)
@@ -745,7 +887,7 @@ class FarmServiceTest {
     void testUpdateFarmAsFarmOwnerForbidden() {
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
 
-        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null);
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null, null, null);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 farmService.updateFarm(1L, updateDTO, farmOwnerPrincipal)
@@ -763,7 +905,7 @@ class FarmServiceTest {
     void testUpdateFarmNoUpdates() {
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
 
-        FarmUpdateDTO emptyUpdate = new FarmUpdateDTO(null, null, null, null, null);
+        FarmUpdateDTO emptyUpdate = new FarmUpdateDTO(null, null, null, null, null, null, null);
 
         FarmResponseDTO response = farmService.updateFarm(1L, emptyUpdate, adminPrincipal);
 
@@ -780,7 +922,7 @@ class FarmServiceTest {
     void testUpdateFarmNotFound() {
         when(farmRepository.findById(99L)).thenReturn(Optional.empty());
 
-        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null);
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null, null, null);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 farmService.updateFarm(99L, updateDTO, adminPrincipal)
@@ -882,7 +1024,7 @@ class FarmServiceTest {
     @Test
     @DisplayName("Deve lançar 404 ao atualizar fazenda com ID nulo")
     void testUpdateFarmNullIdNotFound() {
-        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null);
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO("Novo Nome", null, null, null, null, null, null);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 farmService.updateFarm(null, updateDTO, adminPrincipal)

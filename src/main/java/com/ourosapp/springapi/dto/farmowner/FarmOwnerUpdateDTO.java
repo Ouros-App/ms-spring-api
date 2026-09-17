@@ -1,5 +1,7 @@
 package com.ourosapp.springapi.dto.farmowner;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
@@ -9,9 +11,11 @@ import jakarta.validation.constraints.Size;
  * DTO de requisição para atualização parcial de Produtor Rural (PATCH /farm-owners/{id}).
  * Todos os campos são opcionais, permitindo atualizar apenas o que for fornecido.
  *
- * @param email     Novo e-mail de acesso (opcional)
- * @param telephone Novo telefone de contato (opcional, entre 10 e 13 dígitos)
- * @param password  Nova senha de acesso (opcional, entre 8 e 20 caracteres com requisitos de complexidade)
+ * @param email       Novo e-mail de acesso (opcional)
+ * @param telephone   Novo telefone de contato (opcional, entre 10 e 13 dígitos)
+ * @param password    Nova senha de acesso (opcional, entre 8 e 20 caracteres com requisitos de complexidade)
+ * @param firstAccess Indicador de primeiro acesso do produtor rural (opcional)
+ * @param fotoUrl     Nova URL da foto de perfil do produtor rural (opcional)
  */
 @Schema(description = "Dados para atualização parcial do produtor rural")
 public record FarmOwnerUpdateDTO(
@@ -30,7 +34,18 @@ public record FarmOwnerUpdateDTO(
                 regexp = "^$|^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).{8,20}$",
                 message = "A senha deve ter entre 8 e 20 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula, um número e um caractere especial"
         )
-        String password
+        String password,
+
+        @Schema(description = "Indicador de primeiro acesso do produtor rural", example = "false")
+        @JsonProperty("first_access")
+        @JsonAlias({"firstAccess", "first_acess", "firstAcess"})
+        Boolean firstAccess,
+
+        @Schema(description = "Nova URL da foto de perfil do produtor rural", example = "https://ouros.com/fotos/produtor1_nova.jpg")
+        @JsonProperty("foto_url")
+        @JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
+        @Size(max = 2048, message = "A URL da foto deve ter no máximo 2048 caracteres")
+        String fotoUrl
 ) {
 
     /**
@@ -39,6 +54,7 @@ public record FarmOwnerUpdateDTO(
     public FarmOwnerUpdateDTO {
         email = email != null ? email.trim().toLowerCase() : null;
         telephone = telephone != null ? telephone.trim() : null;
+        fotoUrl = fotoUrl != null ? fotoUrl.trim() : null;
     }
 
     /**
@@ -49,6 +65,8 @@ public record FarmOwnerUpdateDTO(
     public boolean hasUpdates() {
         return (email != null && !email.isBlank())
                 || (telephone != null && !telephone.isBlank())
-                || (password != null && !password.isBlank());
+                || (password != null && !password.isBlank())
+                || firstAccess != null
+                || fotoUrl != null;
     }
 }

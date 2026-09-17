@@ -91,12 +91,22 @@ public class FarmService {
             );
         }
 
+        Integer chickensNow = request.chickensNow() != null ? request.chickensNow() : 0;
+        if (request.poultryCapacity() != null && chickensNow > request.poultryCapacity()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "A quantidade atual de aves não pode ser superior à capacidade de alojamento da fazenda"
+            );
+        }
+
         Farm farm = Farm.builder()
                 .name(request.name())
                 .areaProperty(request.areaProperty())
                 .region(request.region())
                 .poultryCapacity(request.poultryCapacity())
                 .place(request.place())
+                .chickensNow(chickensNow)
+                .fotoUrl(request.fotoUrl())
                 .idAddress(resolvedAddressId)
                 .idEnterprise(request.idEnterprise())
                 .build();
@@ -200,6 +210,15 @@ public class FarmService {
             return FarmResponseDTO.fromEntity(farm);
         }
 
+        Integer targetPoultryCapacity = request.poultryCapacity() != null ? request.poultryCapacity() : farm.getPoultryCapacity();
+        Integer targetChickensNow = request.chickensNow() != null ? request.chickensNow() : farm.getChickensNow();
+        if (targetPoultryCapacity != null && targetChickensNow != null && targetChickensNow > targetPoultryCapacity) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "A quantidade atual de aves não pode ser superior à capacidade de alojamento da fazenda"
+            );
+        }
+
         if (request.name() != null && !request.name().isBlank()) {
             farm.setName(request.name());
         }
@@ -214,6 +233,12 @@ public class FarmService {
         }
         if (request.place() != null && !request.place().isBlank()) {
             farm.setPlace(request.place());
+        }
+        if (request.chickensNow() != null) {
+            farm.setChickensNow(request.chickensNow());
+        }
+        if (request.fotoUrl() != null && !request.fotoUrl().isBlank()) {
+            farm.setFotoUrl(request.fotoUrl());
         }
 
         Farm updatedFarm = farmRepository.save(farm);

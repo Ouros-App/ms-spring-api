@@ -88,6 +88,8 @@ public class FarmOwnerService {
                 .telephone(request.telephone())
                 .password(encryptedPassword)
                 .idFarm(request.idFarm())
+                .firstAccess(Boolean.TRUE)
+                .fotoUrl(request.fotoUrl())
                 .build();
 
         try {
@@ -290,6 +292,14 @@ public class FarmOwnerService {
 
         if (request.password() != null && !request.password().isBlank()) {
             owner.setPassword(passwordEncoder.encode(request.password()));
+        }
+
+        if (request.firstAccess() != null) {
+            owner.setFirstAccess(request.firstAccess());
+        }
+
+        if (request.fotoUrl() != null) {
+            owner.setFotoUrl(request.fotoUrl().isBlank() ? null : request.fotoUrl());
         }
 
         try {

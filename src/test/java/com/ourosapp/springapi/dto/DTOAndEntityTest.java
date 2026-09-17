@@ -60,12 +60,29 @@ class DTOAndEntityTest {
     }
 
     /**
-     * Testa instanciação e acessores do DTO de resposta de login contendo o token JWT.
+     * Testa instanciação e acessores do DTO de resposta de login contendo o token JWT e first_access opcional.
      */
     @Test
-    void testLoginResponseDTO() {
-        LoginResponseDTO dto = new LoginResponseDTO("token123");
-        assertEquals("token123", dto.token());
+    void testLoginResponseDTO() throws JsonProcessingException {
+        LoginResponseDTO dtoWithoutFirstAccess = new LoginResponseDTO("token123");
+        assertEquals("token123", dtoWithoutFirstAccess.token());
+        assertNull(dtoWithoutFirstAccess.firstAccess());
+
+        String jsonWithoutFirstAccess = objectMapper.writeValueAsString(dtoWithoutFirstAccess);
+        assertTrue(jsonWithoutFirstAccess.contains("\"token\":\"token123\""));
+        assertFalse(jsonWithoutFirstAccess.contains("first_access"));
+
+        LoginResponseDTO dtoWithFirstAccess = new LoginResponseDTO("token123", true);
+        assertEquals("token123", dtoWithFirstAccess.token());
+        assertTrue(dtoWithFirstAccess.firstAccess());
+
+        String jsonWithFirstAccess = objectMapper.writeValueAsString(dtoWithFirstAccess);
+        assertTrue(jsonWithFirstAccess.contains("\"token\":\"token123\""));
+        assertTrue(jsonWithFirstAccess.contains("\"first_access\":true"));
+
+        LoginResponseDTO deserialized = objectMapper.readValue(jsonWithFirstAccess, LoginResponseDTO.class);
+        assertEquals("token123", deserialized.token());
+        assertTrue(deserialized.firstAccess());
     }
 
     /**
@@ -137,6 +154,8 @@ class DTOAndEntityTest {
         owner.setTelephone("11777777777");
         owner.setPassword("pass");
         owner.setIdFarm(5L);
+        owner.setFirstAccess(false);
+        owner.setFotoUrl("https://storage.ourosapp.com/profiles/1.jpg");
 
         assertEquals(1L, owner.getId());
         assertEquals("Carlos", owner.getName());
@@ -145,6 +164,8 @@ class DTOAndEntityTest {
         assertEquals("11777777777", owner.getTelephone());
         assertEquals("pass", owner.getPassword());
         assertEquals(5L, owner.getIdFarm());
+        assertFalse(owner.getFirstAccess());
+        assertEquals("https://storage.ourosapp.com/profiles/1.jpg", owner.getFotoUrl());
 
         FarmOwner built = FarmOwner.builder()
                 .id(2L)
@@ -154,8 +175,12 @@ class DTOAndEntityTest {
                 .telephone("11666666666")
                 .password("pass2")
                 .idFarm(15L)
+                .firstAccess(true)
+                .fotoUrl("https://storage.ourosapp.com/profiles/2.jpg")
                 .build();
         assertEquals("Ana", built.getName());
+        assertTrue(built.getFirstAccess());
+        assertEquals("https://storage.ourosapp.com/profiles/2.jpg", built.getFotoUrl());
         assertTrue(built.toString().contains("Ana"));
         assertFalse(built.toString().contains("pass2"));
     }
@@ -724,6 +749,8 @@ class DTOAndEntityTest {
         farm.setRegion("Sudeste");
         farm.setPoultryCapacity(40000);
         farm.setPlace("Setor 1");
+        farm.setChickensNow(15000);
+        farm.setFotoUrl("https://storage.ourosapp.com/farms/1.jpg");
         farm.setIdAddress(10L);
         farm.setIdEnterprise(20L);
 
@@ -733,6 +760,8 @@ class DTOAndEntityTest {
         assertEquals("Sudeste", farm.getRegion());
         assertEquals(40000, farm.getPoultryCapacity());
         assertEquals("Setor 1", farm.getPlace());
+        assertEquals(15000, farm.getChickensNow());
+        assertEquals("https://storage.ourosapp.com/farms/1.jpg", farm.getFotoUrl());
         assertEquals(10L, farm.getIdAddress());
         assertEquals(20L, farm.getIdEnterprise());
 
@@ -743,11 +772,15 @@ class DTOAndEntityTest {
                 .region("Sul")
                 .poultryCapacity(50000)
                 .place("Setor 2")
+                .chickensNow(25000)
+                .fotoUrl("https://storage.ourosapp.com/farms/2.jpg")
                 .idAddress(11L)
                 .idEnterprise(21L)
                 .build();
 
         assertEquals(2L, built.getId());
+        assertEquals(25000, built.getChickensNow());
+        assertEquals("https://storage.ourosapp.com/farms/2.jpg", built.getFotoUrl());
         assertTrue(built.toString().contains("Fazenda Built"));
     }
 
@@ -765,11 +798,15 @@ class DTOAndEntityTest {
                 "  Gleba 1  ",
                 1L,
                 null,
+                15000,
+                "  https://photo.com/farm.jpg  ",
                 2L
         );
         assertEquals("Fazenda Santa Maria", validWithId.name());
         assertEquals("Sudeste", validWithId.region());
         assertEquals("Gleba 1", validWithId.place());
+        assertEquals(15000, validWithId.chickensNow());
+        assertEquals("https://photo.com/farm.jpg", validWithId.fotoUrl());
         assertTrue(validator.validate(validWithId).isEmpty());
 
         // DTO válido com objeto address embutido
@@ -782,6 +819,8 @@ class DTOAndEntityTest {
                 "Local",
                 null,
                 address,
+                null,
+                null,
                 2L
         );
         assertTrue(validator.validate(validWithNested).isEmpty());
@@ -793,6 +832,8 @@ class DTOAndEntityTest {
                 "Sul",
                 1000,
                 "Local",
+                null,
+                null,
                 null,
                 null,
                 2L
@@ -809,6 +850,8 @@ class DTOAndEntityTest {
                 "Local",
                 1L,
                 address,
+                null,
+                null,
                 2L
         );
         assertFalse(validator.validate(bothAddress).isEmpty());
@@ -825,6 +868,8 @@ class DTOAndEntityTest {
                 "Local",
                 -1L,
                 null,
+                null,
+                null,
                 2L
         );
         assertFalse(validator.validate(negativeAddressId).isEmpty());
@@ -837,9 +882,26 @@ class DTOAndEntityTest {
                 "Local",
                 0L,
                 null,
+                null,
+                null,
                 2L
         );
         assertFalse(validator.validate(zeroAddressId).isEmpty());
+
+        // DTO inválido com chickensNow negativo
+        FarmRequestDTO negativeChickens = new FarmRequestDTO(
+                "Fazenda",
+                new BigDecimal("100.00"),
+                "Sul",
+                1000,
+                "Local",
+                1L,
+                null,
+                -10,
+                null,
+                2L
+        );
+        assertFalse(validator.validate(negativeChickens).isEmpty());
 
         // DTO inválido com id_enterprise negativo (< 0) ou zero (== 0)
         FarmRequestDTO negativeEnterpriseId = new FarmRequestDTO(
@@ -849,6 +911,8 @@ class DTOAndEntityTest {
                 1000,
                 "Local",
                 1L,
+                null,
+                null,
                 null,
                 -1L
         );
@@ -862,6 +926,8 @@ class DTOAndEntityTest {
                 "Local",
                 1L,
                 null,
+                null,
+                null,
                 0L
         );
         assertFalse(validator.validate(zeroEnterpriseId).isEmpty());
@@ -874,6 +940,8 @@ class DTOAndEntityTest {
                     "region": "Sudeste",
                     "poultry_capacity": 50000,
                     "place": "Gleba 4",
+                    "chickens_now": 20000,
+                    "foto_url": "https://storage.ourosapp.com/farm.jpg",
                     "id_address": 1,
                     "id_enterprise": 2
                 }
@@ -882,6 +950,8 @@ class DTOAndEntityTest {
         assertEquals("Fazenda JSON", snakeDto.name());
         assertEquals(new BigDecimal("150.50"), snakeDto.areaProperty());
         assertEquals(50000, snakeDto.poultryCapacity());
+        assertEquals(20000, snakeDto.chickensNow());
+        assertEquals("https://storage.ourosapp.com/farm.jpg", snakeDto.fotoUrl());
         assertEquals(1L, snakeDto.idAddress());
         assertEquals(2L, snakeDto.idEnterprise());
 
@@ -893,6 +963,8 @@ class DTOAndEntityTest {
                     "region": "Sudeste",
                     "poultryCapacity": 50000,
                     "place": "Gleba 4",
+                    "chickensNow": 20000,
+                    "photoUrl": "https://storage.ourosapp.com/farm.jpg",
                     "idAddress": 1,
                     "idEnterprise": 2
                 }
@@ -900,6 +972,8 @@ class DTOAndEntityTest {
         FarmRequestDTO camelDto = objectMapper.readValue(camelJson, FarmRequestDTO.class);
         assertEquals(1L, camelDto.idAddress());
         assertEquals(2L, camelDto.idEnterprise());
+        assertEquals(20000, camelDto.chickensNow());
+        assertEquals("https://storage.ourosapp.com/farm.jpg", camelDto.fotoUrl());
     }
 
     /**
@@ -914,6 +988,8 @@ class DTOAndEntityTest {
                 .region("Sudeste")
                 .poultryCapacity(50000)
                 .place("Gleba 4")
+                .chickensNow(12000)
+                .fotoUrl("https://storage.ourosapp.com/farm.jpg")
                 .idAddress(10L)
                 .idEnterprise(20L)
                 .build();
@@ -925,14 +1001,33 @@ class DTOAndEntityTest {
         assertEquals("Sudeste", dto.region());
         assertEquals(50000, dto.poultryCapacity());
         assertEquals("Gleba 4", dto.place());
+        assertEquals(12000, dto.chickensNow());
+        assertEquals("https://storage.ourosapp.com/farm.jpg", dto.fotoUrl());
         assertEquals(10L, dto.idAddress());
         assertEquals(20L, dto.idEnterprise());
 
         String json = objectMapper.writeValueAsString(dto);
         assertTrue(json.contains("\"area_property\":150.50"));
         assertTrue(json.contains("\"poultry_capacity\":50000"));
+        assertTrue(json.contains("\"chickens_now\":12000"));
+        assertTrue(json.contains("\"foto_url\":\"https://storage.ourosapp.com/farm.jpg\""));
         assertTrue(json.contains("\"id_address\":10"));
         assertTrue(json.contains("\"id_enterprise\":20"));
+
+        // Desserialização em snake_case e camelCase com @JsonAlias
+        String farmRespSnakeJson = "{\"id\": 1, \"name\": \"Granja 1\", \"area_property\": 150.50, \"region\": \"Sudeste\", \"poultry_capacity\": 50000, \"place\": \"Gleba 1\", \"id_address\": 10, \"chickens_now\": 12000, \"foto_url\": \"https://storage.ourosapp.com/farm.jpg\", \"id_enterprise\": 20}";
+        FarmResponseDTO fromSnake = objectMapper.readValue(farmRespSnakeJson, FarmResponseDTO.class);
+        assertEquals(new BigDecimal("150.50"), fromSnake.areaProperty());
+        assertEquals(50000, fromSnake.poultryCapacity());
+        assertEquals(12000, fromSnake.chickensNow());
+        assertEquals("https://storage.ourosapp.com/farm.jpg", fromSnake.fotoUrl());
+
+        String farmRespCamelJson = "{\"id\": 1, \"name\": \"Granja 1\", \"areaProperty\": 150.50, \"region\": \"Sudeste\", \"poultryCapacity\": 50000, \"place\": \"Gleba 1\", \"idAddress\": 10, \"chickensNow\": 12000, \"photoUrl\": \"https://storage.ourosapp.com/farm.jpg\", \"idEnterprise\": 20}";
+        FarmResponseDTO fromCamel = objectMapper.readValue(farmRespCamelJson, FarmResponseDTO.class);
+        assertEquals(new BigDecimal("150.50"), fromCamel.areaProperty());
+        assertEquals(50000, fromCamel.poultryCapacity());
+        assertEquals(12000, fromCamel.chickensNow());
+        assertEquals("https://storage.ourosapp.com/farm.jpg", fromCamel.fotoUrl());
 
         assertThrows(NullPointerException.class, () -> FarmResponseDTO.fromEntity(null));
     }
@@ -947,45 +1042,64 @@ class DTOAndEntityTest {
                 new BigDecimal("200.00"),
                 "  Centro-Oeste  ",
                 60000,
-                "  Gleba 2  "
+                "  Gleba 2  ",
+                15000,
+                "  https://photo.com/updated.jpg  "
         );
         assertEquals("Novo Nome", dtoWithUpdates.name());
         assertEquals("Centro-Oeste", dtoWithUpdates.region());
         assertEquals("Gleba 2", dtoWithUpdates.place());
+        assertEquals(15000, dtoWithUpdates.chickensNow());
+        assertEquals("https://photo.com/updated.jpg", dtoWithUpdates.fotoUrl());
         assertTrue(dtoWithUpdates.hasUpdates());
         assertTrue(validator.validate(dtoWithUpdates).isEmpty());
 
-        FarmUpdateDTO emptyDto = new FarmUpdateDTO(null, null, null, null, null);
+        // Individual hasUpdates branches
+        assertTrue(new FarmUpdateDTO("Nome", null, null, null, null, null, null).hasUpdates());
+        assertTrue(new FarmUpdateDTO(null, new BigDecimal("100.00"), null, null, null, null, null).hasUpdates());
+        assertTrue(new FarmUpdateDTO(null, null, "Sul", null, null, null, null).hasUpdates());
+        assertTrue(new FarmUpdateDTO(null, null, null, 1000, null, null, null).hasUpdates());
+        assertTrue(new FarmUpdateDTO(null, null, null, null, "Lugar", null, null).hasUpdates());
+        assertTrue(new FarmUpdateDTO(null, null, null, null, null, 500, null).hasUpdates());
+        assertTrue(new FarmUpdateDTO(null, null, null, null, null, null, "url").hasUpdates());
+
+        FarmUpdateDTO emptyDto = new FarmUpdateDTO(null, null, null, null, null, null, null);
         assertFalse(emptyDto.hasUpdates());
 
         // Validação de valores negativos
-        FarmUpdateDTO invalidDto = new FarmUpdateDTO(null, new BigDecimal("-10.00"), null, -5, null);
+        FarmUpdateDTO invalidDto = new FarmUpdateDTO(null, new BigDecimal("-10.00"), null, -5, null, -1, null);
         assertFalse(validator.validate(invalidDto).isEmpty());
 
         // Validação de strings em branco/vazias após sanitização
-        FarmUpdateDTO blankNameDto = new FarmUpdateDTO("   ", null, null, null, null);
-        assertFalse(validator.validate(blankNameDto).isEmpty());
+        FarmUpdateDTO blankNameDto = new FarmUpdateDTO("   ", null, null, null, null, null, null);
+        assertFalse(blankNameDto.hasUpdates());
 
-        FarmUpdateDTO blankRegionDto = new FarmUpdateDTO(null, null, "   ", null, null);
-        assertFalse(validator.validate(blankRegionDto).isEmpty());
+        FarmUpdateDTO blankRegionDto = new FarmUpdateDTO(null, null, "   ", null, null, null, null);
+        assertFalse(blankRegionDto.hasUpdates());
 
-        FarmUpdateDTO blankPlaceDto = new FarmUpdateDTO(null, null, null, null, "   ");
-        assertFalse(validator.validate(blankPlaceDto).isEmpty());
+        FarmUpdateDTO blankPlaceDto = new FarmUpdateDTO(null, null, null, null, "   ", null, null);
+        assertFalse(blankPlaceDto.hasUpdates());
+
+        FarmUpdateDTO blankFotoDto = new FarmUpdateDTO(null, null, null, null, null, null, "   ");
+        assertFalse(blankFotoDto.hasUpdates());
 
         // Desserialização Jackson em snake_case e camelCase (@JsonAlias)
-        String snakeJson = "{\"area_property\": 200.00, \"poultry_capacity\": 60000}";
-        FarmUpdateDTO fromSnake = assertDoesNotThrow(() -> objectMapper.readValue(snakeJson, FarmUpdateDTO.class));
-        assertEquals(new BigDecimal("200.00"), fromSnake.areaProperty());
-        assertEquals(60000, fromSnake.poultryCapacity());
+        String snakeJson = "{\"area_property\": 200.00, \"poultry_capacity\": 60000, \"chickens_now\": 10000, \"foto_url\": \"https://link.com/photo.jpg\"}";
+        FarmUpdateDTO fromSnakeUpdate = assertDoesNotThrow(() -> objectMapper.readValue(snakeJson, FarmUpdateDTO.class));
+        assertEquals(new BigDecimal("200.00"), fromSnakeUpdate.areaProperty());
+        assertEquals(60000, fromSnakeUpdate.poultryCapacity());
+        assertEquals(10000, fromSnakeUpdate.chickensNow());
+        assertEquals("https://link.com/photo.jpg", fromSnakeUpdate.fotoUrl());
 
-        String camelJson = "{\"areaProperty\": 300.00, \"poultryCapacity\": 75000}";
-        FarmUpdateDTO fromCamel = assertDoesNotThrow(() -> objectMapper.readValue(camelJson, FarmUpdateDTO.class));
-        assertEquals(new BigDecimal("300.00"), fromCamel.areaProperty());
-        assertEquals(75000, fromCamel.poultryCapacity());
+        String camelJson = "{\"areaProperty\": 300.00, \"poultryCapacity\": 75000, \"chickensNow\": 15000, \"photoUrl\": \"https://link.com/photo2.jpg\"}";
+        FarmUpdateDTO fromCamelUpdate = assertDoesNotThrow(() -> objectMapper.readValue(camelJson, FarmUpdateDTO.class));
+        assertEquals(new BigDecimal("300.00"), fromCamelUpdate.areaProperty());
+        assertEquals(75000, fromCamelUpdate.poultryCapacity());
+        assertEquals(15000, fromCamelUpdate.chickensNow());
+        assertEquals("https://link.com/photo2.jpg", fromCamelUpdate.fotoUrl());
     }
 
     /**
-<<<<<<< HEAD
      * Testa instanciação, normalização, conversão de entidade e validações de DTOs de Produtor Rural.
      */
     @Test
@@ -996,13 +1110,15 @@ class DTOAndEntityTest {
                 "sebastiao@fazenda.com.br",
                 "11987654321",
                 "SenhaForte@123",
-                10L
+                10L,
+                "https://storage.ourosapp.com/profiles/sebastiao.jpg"
         );
         assertEquals("Sebastião Silva", request.name());
         assertEquals("12345678909", request.documentNumber());
         assertEquals("sebastiao@fazenda.com.br", request.email());
         assertEquals("11987654321", request.telephone());
         assertEquals("SenhaForte@123", request.password());
+        assertEquals("https://storage.ourosapp.com/profiles/sebastiao.jpg", request.fotoUrl());
         assertEquals(10L, request.idFarm());
         assertTrue(validator.validate(request).isEmpty());
 
@@ -1013,12 +1129,14 @@ class DTOAndEntityTest {
                 "  SEBASTIAO@FAZENDA.COM.BR  ",
                 "  11987654321  ",
                 "SenhaForte@123",
-                10L
+                10L,
+                "  https://storage.ourosapp.com/profiles/sebastiao.jpg  "
         );
         assertEquals("Sebastião Silva", formattedCpf.name());
         assertEquals("12345678909", formattedCpf.documentNumber());
         assertEquals("sebastiao@fazenda.com.br", formattedCpf.email());
         assertEquals("11987654321", formattedCpf.telephone());
+        assertEquals("https://storage.ourosapp.com/profiles/sebastiao.jpg", formattedCpf.fotoUrl());
         assertTrue(validator.validate(formattedCpf).isEmpty());
 
         // Desserialização Jackson snake_case e camelCase com aliases
@@ -1029,11 +1147,13 @@ class DTOAndEntityTest {
                     "email": "sebastiao@fazenda.com.br",
                     "telephone": "11987654321",
                     "password": "SenhaForte@123",
+                    "foto_url": "https://storage.ourosapp.com/profiles/sebastiao.jpg",
                     "id_farm": 10
                 }
                 """;
         FarmOwnerRequestDTO fromJson = objectMapper.readValue(json, FarmOwnerRequestDTO.class);
         assertEquals("12345678909", fromJson.documentNumber());
+        assertEquals("https://storage.ourosapp.com/profiles/sebastiao.jpg", fromJson.fotoUrl());
         assertEquals(10L, fromJson.idFarm());
 
         String camelJson = """
@@ -1043,11 +1163,13 @@ class DTOAndEntityTest {
                     "email": "sebastiao@fazenda.com.br",
                     "telephone": "11987654321",
                     "password": "SenhaForte@123",
+                    "photoUrl": "https://storage.ourosapp.com/profiles/sebastiao.jpg",
                     "idFarm": 10
                 }
                 """;
         FarmOwnerRequestDTO fromCamelJson = objectMapper.readValue(camelJson, FarmOwnerRequestDTO.class);
         assertEquals("12345678909", fromCamelJson.documentNumber());
+        assertEquals("https://storage.ourosapp.com/profiles/sebastiao.jpg", fromCamelJson.fotoUrl());
         assertEquals(10L, fromCamelJson.idFarm());
 
         // FarmOwnerResponseDTO
@@ -1059,6 +1181,8 @@ class DTOAndEntityTest {
                 .telephone("11987654321")
                 .password("encoded_pass")
                 .idFarm(10L)
+                .firstAccess(true)
+                .fotoUrl("https://storage.ourosapp.com/profiles/sebastiao.jpg")
                 .build();
 
         FarmOwnerResponseDTO response = FarmOwnerResponseDTO.fromEntity(entity);
@@ -1067,19 +1191,71 @@ class DTOAndEntityTest {
         assertEquals("12345678909", response.documentNumber());
         assertEquals("sebastiao@fazenda.com.br", response.email());
         assertEquals("11987654321", response.telephone());
+        assertTrue(response.firstAccess());
+        assertEquals("https://storage.ourosapp.com/profiles/sebastiao.jpg", response.fotoUrl());
         assertEquals(10L, response.idFarm());
         assertThrows(NullPointerException.class, () -> FarmOwnerResponseDTO.fromEntity(null));
 
+        String resJson = objectMapper.writeValueAsString(response);
+        assertTrue(resJson.contains("\"first_access\":true"));
+        assertTrue(resJson.contains("\"foto_url\":\"https://storage.ourosapp.com/profiles/sebastiao.jpg\""));
+
+        // Desserialização FarmOwnerResponseDTO snake_case e camelCase com @JsonAlias
+        String ownerRespSnakeJson = "{\"id\": 1, \"name\": \"Sebastião Silva\", \"document_number\": \"12345678909\", \"email\": \"sebastiao@fazenda.com.br\", \"telephone\": \"11987654321\", \"id_farm\": 10, \"first_access\": true, \"foto_url\": \"https://photo.com/1.jpg\"}";
+        FarmOwnerResponseDTO fromOwnerSnake = objectMapper.readValue(ownerRespSnakeJson, FarmOwnerResponseDTO.class);
+        assertEquals("12345678909", fromOwnerSnake.documentNumber());
+        assertEquals(10L, fromOwnerSnake.idFarm());
+        assertTrue(fromOwnerSnake.firstAccess());
+        assertEquals("https://photo.com/1.jpg", fromOwnerSnake.fotoUrl());
+
+        String ownerRespCamelJson = "{\"id\": 1, \"name\": \"Sebastião Silva\", \"documentNumber\": \"12345678909\", \"email\": \"sebastiao@fazenda.com.br\", \"telephone\": \"11987654321\", \"idFarm\": 10, \"firstAccess\": false, \"photoUrl\": \"https://photo.com/2.jpg\"}";
+        FarmOwnerResponseDTO fromOwnerCamel = objectMapper.readValue(ownerRespCamelJson, FarmOwnerResponseDTO.class);
+        assertEquals("12345678909", fromOwnerCamel.documentNumber());
+        assertEquals(10L, fromOwnerCamel.idFarm());
+        assertFalse(fromOwnerCamel.firstAccess());
+        assertEquals("https://photo.com/2.jpg", fromOwnerCamel.fotoUrl());
+
         // FarmOwnerUpdateDTO
-        FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO("  NOVO@FAZENDA.COM.BR  ", "  11999998888  ", "NovaSenha@123");
+        FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                "  NOVO@FAZENDA.COM.BR  ",
+                "  11999998888  ",
+                "NovaSenha@123",
+                false,
+                "  https://storage.ourosapp.com/profiles/new.jpg  "
+        );
         assertEquals("novo@fazenda.com.br", updateDTO.email());
         assertEquals("11999998888", updateDTO.telephone());
         assertEquals("NovaSenha@123", updateDTO.password());
+        assertFalse(updateDTO.firstAccess());
+        assertEquals("https://storage.ourosapp.com/profiles/new.jpg", updateDTO.fotoUrl());
         assertTrue(updateDTO.hasUpdates());
         assertTrue(validator.validate(updateDTO).isEmpty());
 
-        FarmOwnerUpdateDTO emptyUpdate = new FarmOwnerUpdateDTO(null, null, null);
+        assertTrue(new FarmOwnerUpdateDTO("email@teste.com", null, null, null, null).hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO(null, "11999999999", null, null, null).hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO(null, null, "Senha@123", null, null).hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO(null, null, null, true, null).hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO(null, null, null, null, "https://url.com").hasUpdates());
+
+        FarmOwnerUpdateDTO emptyUpdate = new FarmOwnerUpdateDTO(null, null, null, null, null);
         assertFalse(emptyUpdate.hasUpdates());
+
+        FarmOwnerUpdateDTO blankUpdate = new FarmOwnerUpdateDTO("   ", "   ", "   ", null, null);
+        assertFalse(blankUpdate.hasUpdates());
+
+        FarmOwnerUpdateDTO clearFotoUpdate = new FarmOwnerUpdateDTO(null, null, null, null, "   ");
+        assertTrue(clearFotoUpdate.hasUpdates());
+
+        // Desserialização snake_case e camelCase (@JsonAlias)
+        String updateSnakeJson = "{\"first_acess\": false, \"foto_url\": \"https://photo.com/1.jpg\"}";
+        FarmOwnerUpdateDTO fromUpdateSnake = objectMapper.readValue(updateSnakeJson, FarmOwnerUpdateDTO.class);
+        assertFalse(fromUpdateSnake.firstAccess());
+        assertEquals("https://photo.com/1.jpg", fromUpdateSnake.fotoUrl());
+
+        String updateCamelJson = "{\"firstAccess\": true, \"photoUrl\": \"https://photo.com/2.jpg\"}";
+        FarmOwnerUpdateDTO fromUpdateCamel = objectMapper.readValue(updateCamelJson, FarmOwnerUpdateDTO.class);
+        assertTrue(fromUpdateCamel.firstAccess());
+        assertEquals("https://photo.com/2.jpg", fromUpdateCamel.fotoUrl());
     }
 
     /**

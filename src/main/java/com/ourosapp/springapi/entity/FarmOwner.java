@@ -36,6 +36,13 @@ public class FarmOwner {
     @Column(name = "telephone", length = 20, nullable = false)
     private String telephone;
 
+    @Builder.Default
+    @Column(name = "first_acess", nullable = false)
+    private Boolean firstAccess = Boolean.TRUE;
+
+    @Column(name = "foto_url")
+    private String fotoUrl;
+
     @Column(name = "id_farm", nullable = false)
     private Long idFarm;
 }

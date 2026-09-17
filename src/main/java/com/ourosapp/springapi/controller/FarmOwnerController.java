@@ -146,7 +146,7 @@ public class FarmOwnerController {
      * @param principal dados do usuário autenticado via token JWT
      * @return resposta HTTP 200 (OK) e o DTO do produtor rural atualizado
      */
-    @Operation(summary = "Atualizar produtor rural parcialmente", description = "Atualiza telefone, e-mail e/ou senha de um produtor rural existente.")
+    @Operation(summary = "Atualizar produtor rural parcialmente", description = "Atualiza telefone, e-mail, senha, primeiro acesso e/ou foto de um produtor rural existente.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Produtor rural atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
