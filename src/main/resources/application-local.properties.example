@@ -13,5 +13,6 @@ spring.datasource.driver-class-name=org.postgresql.Driver
 spring.security.oauth2.resourceserver.jwt.issuer-uri=https://ouros-keycloak.discloud.app/realms/ouros
 spring.security.oauth2.resourceserver.jwt.jwk-set-uri=https://ouros-keycloak.discloud.app/realms/ouros/protocol/openid-connect/certs
 app.security.oauth2.audience=ms-spring-api
+app.security.oauth2.client-id=ms-spring-api
 app.cors.allowed-origins=http://localhost:3000,http://localhost:5173,http://localhost:8080
 

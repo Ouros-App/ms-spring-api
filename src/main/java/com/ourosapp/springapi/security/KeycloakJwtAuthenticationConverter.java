@@ -4,6 +4,7 @@ import com.ourosapp.springapi.constants.RoleConstants;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -21,10 +22,18 @@ import java.util.*;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
     private final UserDetailsServiceImpl userDetailsService;
+    private final String clientId;
+
+    public KeycloakJwtAuthenticationConverter(
+            UserDetailsServiceImpl userDetailsService,
+            @Value("${app.security.oauth2.client-id:${app.security.oauth2.audience:ms-spring-api}}") String clientId
+    ) {
+        this.userDetailsService = userDetailsService;
+        this.clientId = (clientId != null && !clientId.isBlank()) ? clientId.trim() : "ms-spring-api";
+    }
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
@@ -68,7 +77,7 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
     }
 
     /**
-     * Extrai e normaliza as roles presentes em 'realm_access.roles' e 'resource_access.*.roles'.
+     * Extrai e normaliza as roles presentes em 'realm_access.roles' e 'resource_access[clientId].roles'.
      */
     public Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         Set<GrantedAuthority> authorities = new HashSet<>();
@@ -83,15 +92,14 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
             }
         }
 
-        // Extrai roles de Resource (Client) se existirem
+        // Extrai roles de Resource (Client) especificamente para este microserviço
         Map<String, Object> resourceAccess = jwt.getClaim("resource_access");
         if (resourceAccess != null) {
-            for (Object clientObj : resourceAccess.values()) {
-                if (clientObj instanceof Map<?, ?> clientMap && clientMap.get("roles") instanceof List<?> clientRoles) {
-                    for (Object roleObj : clientRoles) {
-                        if (roleObj instanceof String role) {
-                            mapRoleToAuthority(role).ifPresent(authorities::add);
-                        }
+            Object clientObj = resourceAccess.get(clientId);
+            if (clientObj instanceof Map<?, ?> clientMap && clientMap.get("roles") instanceof List<?> clientRoles) {
+                for (Object roleObj : clientRoles) {
+                    if (roleObj instanceof String role) {
+                        mapRoleToAuthority(role).ifPresent(authorities::add);
                     }
                 }
             }

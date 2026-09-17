@@ -18,15 +18,14 @@ public class AudienceValidator implements OAuth2TokenValidator<Jwt> {
     private final String requiredAudience;
 
     public AudienceValidator(String requiredAudience) {
-        this.requiredAudience = requiredAudience;
+        if (requiredAudience == null || requiredAudience.isBlank()) {
+            throw new IllegalArgumentException("A audience OAuth2 deve ser configurada e não pode estar em branco.");
+        }
+        this.requiredAudience = requiredAudience.trim();
     }
 
     @Override
     public OAuth2TokenValidatorResult validate(Jwt jwt) {
-        if (requiredAudience == null || requiredAudience.isBlank()) {
-            return OAuth2TokenValidatorResult.success();
-        }
-
         List<String> audience = jwt.getAudience();
         if (audience != null && audience.contains(requiredAudience)) {
             return OAuth2TokenValidatorResult.success();

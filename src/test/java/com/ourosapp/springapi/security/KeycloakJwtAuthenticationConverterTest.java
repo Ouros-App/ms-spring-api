@@ -129,7 +129,7 @@ class KeycloakJwtAuthenticationConverterTest {
     }
 
     @Test
-    @DisplayName("Deve extrair roles a partir de resource_access")
+    @DisplayName("Deve extrair roles a partir de resource_access para o client configurado")
     void testExtractAuthoritiesFromResourceAccess() {
         Jwt jwt = new Jwt(
                 "token-resource",
@@ -145,5 +145,51 @@ class KeycloakJwtAuthenticationConverterTest {
 
         var authorities = converter.extractAuthorities(jwt);
         assertTrue(authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADM")));
+    }
+
+    @Test
+    @DisplayName("Deve ignorar roles em resource_access de outros clients distintos desta API")
+    void testExtractAuthoritiesFromResourceAccessIgnoresOtherClients() {
+        Jwt jwt = new Jwt(
+                "token-other-client",
+                Instant.now(),
+                Instant.now().plusSeconds(3600),
+                Map.of("alg", "RS256"),
+                Map.of(
+                        "sub", "uuid-resource-2",
+                        "email", "user@ouros.com",
+                        "resource_access", Map.of("other-client-id", Map.of("roles", List.of("admin", "company_employee")))
+                )
+        );
+
+        var authorities = converter.extractAuthorities(jwt);
+        assertTrue(authorities.isEmpty(), "Roles de clients terceiros não devem ser atribuídas a este microserviço");
+    }
+
+    @Test
+    @DisplayName("Deve permitir configurar client-id customizado e extrair roles dele")
+    void testExtractAuthoritiesWithCustomClientId() {
+        KeycloakJwtAuthenticationConverter customConverter =
+                new KeycloakJwtAuthenticationConverter(userDetailsService, "custom-client");
+
+        Jwt jwt = new Jwt(
+                "token-custom",
+                Instant.now(),
+                Instant.now().plusSeconds(3600),
+                Map.of("alg", "RS256"),
+                Map.of(
+                        "sub", "uuid-custom",
+                        "email", "custom@ouros.com",
+                        "resource_access", Map.of(
+                                "custom-client", Map.of("roles", List.of("farm_owner")),
+                                "ms-spring-api", Map.of("roles", List.of("admin"))
+                        )
+                )
+        );
+
+        var authorities = customConverter.extractAuthorities(jwt);
+        assertEquals(1, authorities.size());
+        assertTrue(authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_FARM_OWNER")));
+        assertFalse(authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADM")));
     }
 }

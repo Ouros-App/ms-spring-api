@@ -50,9 +50,9 @@ class AudienceValidatorTest {
     }
 
     @Test
-    @DisplayName("Deve ter sucesso se nenhuma audience for configurada")
-    void testValidateWithoutRequiredAudience() {
-        AudienceValidator validator = new AudienceValidator("");
+    @DisplayName("Deve falhar quando o token não contém a claim aud")
+    void testValidateAudienceMissing() {
+        AudienceValidator validator = new AudienceValidator("ms-spring-api");
 
         Jwt jwt = new Jwt(
                 "token-value",
@@ -63,6 +63,21 @@ class AudienceValidatorTest {
         );
 
         OAuth2TokenValidatorResult result = validator.validate(jwt);
-        assertFalse(result.hasErrors());
+        assertTrue(result.hasErrors());
+        assertEquals("O token JWT não contém a audience esperada para este recurso.",
+                result.getErrors().iterator().next().getDescription());
+    }
+
+    @Test
+    @DisplayName("Deve lançar IllegalArgumentException quando a audience for nula ou vazia na inicialização")
+    void testInitializationWithoutRequiredAudience() {
+        IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class, () -> new AudienceValidator(null));
+        assertTrue(ex1.getMessage().contains("audience OAuth2 deve ser configurada"));
+
+        IllegalArgumentException ex2 = assertThrows(IllegalArgumentException.class, () -> new AudienceValidator(""));
+        assertTrue(ex2.getMessage().contains("audience OAuth2 deve ser configurada"));
+
+        IllegalArgumentException ex3 = assertThrows(IllegalArgumentException.class, () -> new AudienceValidator("   "));
+        assertTrue(ex3.getMessage().contains("audience OAuth2 deve ser configurada"));
     }
 }
