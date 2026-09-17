@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -154,7 +155,12 @@ class FarmServiceTest {
 
         verify(enterpriseRepository).existsById(20L);
         verify(addressRepository).existsById(10L);
-        verify(farmRepository).save(any(Farm.class));
+
+        ArgumentCaptor<Farm> farmCaptor = ArgumentCaptor.forClass(Farm.class);
+        verify(farmRepository).save(farmCaptor.capture());
+        Farm persistedFarm = farmCaptor.getValue();
+        assertEquals(15000, persistedFarm.getChickensNow());
+        assertEquals("https://photo.com/farm.jpg", persistedFarm.getFotoUrl());
     }
 
     /**
@@ -259,7 +265,76 @@ class FarmServiceTest {
         assertEquals(1L, response.id());
         assertEquals(10L, response.idAddress());
         verify(addressService).createAddress(sampleAddressRequest);
-        verify(farmRepository).save(any(Farm.class));
+
+        ArgumentCaptor<Farm> farmCaptor = ArgumentCaptor.forClass(Farm.class);
+        verify(farmRepository).save(farmCaptor.capture());
+        Farm persistedFarm = farmCaptor.getValue();
+        assertEquals(15000, persistedFarm.getChickensNow());
+        assertEquals("https://photo.com/farm.jpg", persistedFarm.getFotoUrl());
+    }
+
+    /**
+     * Testa o cadastro de fazenda com chickensNow nulo, garantindo que o valor padrão 0 seja persistido.
+     */
+    @Test
+    @DisplayName("Deve cadastrar fazenda com chickensNow padrão 0 quando não informado")
+    void testCreateFarmWithNullChickensNowDefaultsToZero() {
+        when(enterpriseRepository.existsById(20L)).thenReturn(true);
+        when(addressRepository.existsById(10L)).thenReturn(true);
+        when(farmRepository.save(any(Farm.class))).thenReturn(sampleFarm);
+
+        FarmRequestDTO requestWithNullChickens = new FarmRequestDTO(
+                "Fazenda Ouro Verde",
+                new BigDecimal("150.50"),
+                "Sudeste",
+                50000,
+                "Gleba 4 - Setor Sul",
+                10L,
+                null,
+                null,
+                "https://photo.com/farm.jpg",
+                20L
+        );
+
+        FarmResponseDTO response = farmService.createFarm(requestWithNullChickens, adminPrincipal);
+
+        assertNotNull(response);
+        ArgumentCaptor<Farm> farmCaptor = ArgumentCaptor.forClass(Farm.class);
+        verify(farmRepository).save(farmCaptor.capture());
+        Farm persistedFarm = farmCaptor.getValue();
+        assertEquals(0, persistedFarm.getChickensNow());
+        assertEquals("https://photo.com/farm.jpg", persistedFarm.getFotoUrl());
+    }
+
+    /**
+     * Testa lançamento de erro 400 ao cadastrar fazenda quando chickensNow for superior à capacidade.
+     */
+    @Test
+    @DisplayName("Deve lançar 400 ao cadastrar fazenda quando chickensNow exceder poultryCapacity")
+    void testCreateFarmWithChickensNowExceedingPoultryCapacityThrowsBadRequest() {
+        when(enterpriseRepository.existsById(20L)).thenReturn(true);
+        when(addressRepository.existsById(10L)).thenReturn(true);
+
+        FarmRequestDTO invalidRequest = new FarmRequestDTO(
+                "Fazenda Ouro Verde",
+                new BigDecimal("150.50"),
+                "Sudeste",
+                50000,
+                "Gleba 4 - Setor Sul",
+                10L,
+                null,
+                60000,
+                "https://photo.com/farm.jpg",
+                20L
+        );
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.createFarm(invalidRequest, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("A quantidade atual de aves não pode ser superior à capacidade de alojamento da fazenda"));
+        verify(farmRepository, never()).save(any());
     }
 
     /**
@@ -735,6 +810,33 @@ class FarmServiceTest {
         assertEquals(25000, response.chickensNow());
         assertEquals("https://photo.com/farm.jpg", response.fotoUrl());
         verify(farmRepository).save(any(Farm.class));
+    }
+
+    /**
+     * Testa lançamento de erro 400 ao atualizar fazenda quando chickensNow for superior à capacidade.
+     */
+    @Test
+    @DisplayName("Deve lançar 400 ao atualizar fazenda quando chickensNow exceder poultryCapacity")
+    void testUpdateFarmWithChickensNowExceedingPoultryCapacityThrowsBadRequest() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+
+        FarmUpdateDTO updateDTO = new FarmUpdateDTO(
+                null,
+                null,
+                null,
+                50000,
+                null,
+                55000,
+                null
+        );
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmService.updateFarm(1L, updateDTO, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("A quantidade atual de aves não pode ser superior à capacidade de alojamento da fazenda"));
+        verify(farmRepository, never()).save(any());
     }
 
     /**

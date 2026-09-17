@@ -67,6 +67,6 @@ public record FarmOwnerUpdateDTO(
                 || (telephone != null && !telephone.isBlank())
                 || (password != null && !password.isBlank())
                 || firstAccess != null
-                || (fotoUrl != null && !fotoUrl.isBlank());
+                || fotoUrl != null;
     }
 }

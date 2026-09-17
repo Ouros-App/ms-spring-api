@@ -92,6 +92,12 @@ public class FarmService {
         }
 
         Integer chickensNow = request.chickensNow() != null ? request.chickensNow() : 0;
+        if (request.poultryCapacity() != null && chickensNow > request.poultryCapacity()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "A quantidade atual de aves não pode ser superior à capacidade de alojamento da fazenda"
+            );
+        }
 
         Farm farm = Farm.builder()
                 .name(request.name())
@@ -202,6 +208,15 @@ public class FarmService {
 
         if (!request.hasUpdates()) {
             return FarmResponseDTO.fromEntity(farm);
+        }
+
+        Integer targetPoultryCapacity = request.poultryCapacity() != null ? request.poultryCapacity() : farm.getPoultryCapacity();
+        Integer targetChickensNow = request.chickensNow() != null ? request.chickensNow() : farm.getChickensNow();
+        if (targetPoultryCapacity != null && targetChickensNow != null && targetChickensNow > targetPoultryCapacity) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "A quantidade atual de aves não pode ser superior à capacidade de alojamento da fazenda"
+            );
         }
 
         if (request.name() != null && !request.name().isBlank()) {

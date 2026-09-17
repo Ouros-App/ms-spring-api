@@ -1240,8 +1240,11 @@ class DTOAndEntityTest {
         FarmOwnerUpdateDTO emptyUpdate = new FarmOwnerUpdateDTO(null, null, null, null, null);
         assertFalse(emptyUpdate.hasUpdates());
 
-        FarmOwnerUpdateDTO blankUpdate = new FarmOwnerUpdateDTO("   ", "   ", "   ", null, "   ");
+        FarmOwnerUpdateDTO blankUpdate = new FarmOwnerUpdateDTO("   ", "   ", "   ", null, null);
         assertFalse(blankUpdate.hasUpdates());
+
+        FarmOwnerUpdateDTO clearFotoUpdate = new FarmOwnerUpdateDTO(null, null, null, null, "   ");
+        assertTrue(clearFotoUpdate.hasUpdates());
 
         // Desserialização snake_case e camelCase (@JsonAlias)
         String updateSnakeJson = "{\"first_acess\": false, \"foto_url\": \"https://photo.com/1.jpg\"}";

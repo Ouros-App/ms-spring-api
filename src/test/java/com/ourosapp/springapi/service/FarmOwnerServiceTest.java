@@ -634,6 +634,32 @@ class FarmOwnerServiceTest {
     }
 
     /**
+     * Testa remoção/limpeza da foto de perfil ao enviar string em branco.
+     */
+    @Test
+    @DisplayName("Deve remover fotoUrl (atribuir null) quando string em branco for enviada na atualização de produtor")
+    void testUpdateFarmOwnerClearFotoUrlWhenBlank() {
+        sampleFarmOwner.setFotoUrl("https://storage.ourosapp.com/profiles/existing.jpg");
+
+        FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                null,
+                null,
+                null,
+                null,
+                "   "
+        );
+
+        when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
+        when(farmOwnerRepository.save(any(FarmOwner.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        FarmOwnerResponseDTO response = farmOwnerService.updateFarmOwner(1L, updateDTO, farmOwnerPrincipal);
+
+        assertNotNull(response);
+        assertNull(sampleFarmOwner.getFotoUrl());
+        verify(farmOwnerRepository, times(1)).save(sampleFarmOwner);
+    }
+
+    /**
      * Testa atualização mantendo o mesmo e-mail pertencente ao próprio produtor.
      */
     @Test

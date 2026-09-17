@@ -298,8 +298,8 @@ public class FarmOwnerService {
             owner.setFirstAccess(request.firstAccess());
         }
 
-        if (request.fotoUrl() != null && !request.fotoUrl().isBlank()) {
-            owner.setFotoUrl(request.fotoUrl());
+        if (request.fotoUrl() != null) {
+            owner.setFotoUrl(request.fotoUrl().isBlank() ? null : request.fotoUrl());
         }
 
         try {
