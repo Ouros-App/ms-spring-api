@@ -30,11 +30,13 @@ public class AuthController {
      * @param request corpo da requisição contendo e-mail e senha
      * @return token JWT encapsulado em LoginResponseDTO
      */
-    @Operation(summary = "Autenticação de Administrador", description = "Valida as credenciais do Administrador e retorna um token JWT de acesso.")
+    @Operation(summary = "Autenticação de Administrador", description = "Valida as credenciais do Administrador via ms-auth-service e retorna um token JWT de acesso.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Autenticação realizada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
-            @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
+            @ApiResponse(responseCode = "401", description = "Credenciais inválidas"),
+            @ApiResponse(responseCode = "429", description = "Muitas tentativas de login (rate limit excedido)"),
+            @ApiResponse(responseCode = "503", description = "Serviço de autenticação temporariamente indisponível")
     })
     @PostMapping("/adms/login")
     public ResponseEntity<LoginResponseDTO> loginAdm(@RequestBody @Valid LoginRequestDTO request) {
@@ -47,11 +49,13 @@ public class AuthController {
      * @param request corpo da requisição contendo e-mail e senha
      * @return token JWT encapsulado em LoginResponseDTO
      */
-    @Operation(summary = "Autenticação de Funcionário", description = "Valida as credenciais do Funcionário da Empresa e retorna um token JWT de acesso.")
+    @Operation(summary = "Autenticação de Funcionário", description = "Valida as credenciais do Funcionário da Empresa via ms-auth-service e retorna um token JWT de acesso.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Autenticação realizada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
-            @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
+            @ApiResponse(responseCode = "401", description = "Credenciais inválidas"),
+            @ApiResponse(responseCode = "429", description = "Muitas tentativas de login (rate limit excedido)"),
+            @ApiResponse(responseCode = "503", description = "Serviço de autenticação temporariamente indisponível")
     })
     @PostMapping("/company-employees/login")
     public ResponseEntity<LoginResponseDTO> loginEmployee(@RequestBody @Valid LoginRequestDTO request) {
@@ -64,15 +68,36 @@ public class AuthController {
      * @param request corpo da requisição contendo e-mail e senha
      * @return token JWT encapsulado em LoginResponseDTO
      */
-    @Operation(summary = "Autenticação de Fazendeiro / Proprietário", description = "Valida as credenciais do Proprietário Rural e retorna um token JWT de acesso.")
+    @Operation(summary = "Autenticação de Fazendeiro / Proprietário", description = "Valida as credenciais do Proprietário Rural via ms-auth-service e retorna um token JWT de acesso.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Autenticação realizada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
-            @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
+            @ApiResponse(responseCode = "401", description = "Credenciais inválidas"),
+            @ApiResponse(responseCode = "429", description = "Muitas tentativas de login (rate limit excedido)"),
+            @ApiResponse(responseCode = "503", description = "Serviço de autenticação temporariamente indisponível")
     })
     @PostMapping("/farm-owners/login")
     public ResponseEntity<LoginResponseDTO> loginFarmOwner(@RequestBody @Valid LoginRequestDTO request) {
         return ResponseEntity.ok(authService.loginFarmOwner(request));
     }
-}
 
+    /**
+     * Endpoint de autenticação unificado.
+     *
+     * @param request corpo da requisição contendo e-mail e senha
+     * @return token JWT encapsulado em LoginResponseDTO
+     */
+    @Operation(summary = "Autenticação Unificada", description = "Valida as credenciais do usuário independentemente do perfil via ms-auth-service e retorna um token JWT de acesso.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Autenticação realizada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
+            @ApiResponse(responseCode = "401", description = "Credenciais inválidas"),
+            @ApiResponse(responseCode = "409", description = "Credenciais ambíguas entre contas distintas"),
+            @ApiResponse(responseCode = "429", description = "Muitas tentativas de login (rate limit excedido)"),
+            @ApiResponse(responseCode = "503", description = "Serviço de autenticação temporariamente indisponível")
+    })
+    @PostMapping("/auth/login")
+    public ResponseEntity<LoginResponseDTO> login(@RequestBody @Valid LoginRequestDTO request) {
+        return ResponseEntity.ok(authService.login(request));
+    }
+}

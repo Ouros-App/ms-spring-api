@@ -1,8 +1,4 @@
 package com.ourosapp.springapi.controller;
-import com.ourosapp.springapi.dto.address.*;
-import com.ourosapp.springapi.dto.enterprise.*;
-import com.ourosapp.springapi.dto.companyemployee.*;
-import com.ourosapp.springapi.security.UserPrincipal;
 
 import com.ourosapp.springapi.dto.LoginRequestDTO;
 import com.ourosapp.springapi.dto.LoginResponseDTO;
@@ -62,5 +58,18 @@ class AuthControllerTest {
         assertNotNull(response.getBody());
         assertEquals("farmer-token", response.getBody().token());
         assertTrue(response.getBody().firstAccess());
+    }
+
+    @Test
+    void testLoginUnified() {
+        LoginRequestDTO request = new LoginRequestDTO("user@ouros.com", "senha123");
+        when(authService.login(request)).thenReturn(new LoginResponseDTO("user-token", false));
+
+        ResponseEntity<LoginResponseDTO> response = authController.login(request);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("user-token", response.getBody().token());
+        assertFalse(response.getBody().firstAccess());
     }
 }

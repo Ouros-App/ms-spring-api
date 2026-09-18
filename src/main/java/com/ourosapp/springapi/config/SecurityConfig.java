@@ -54,7 +54,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST,
                                 "/adms/login",
                                 "/company-employees/login",
-                                "/farm-owners/login"
+                                "/farm-owners/login",
+                                "/auth/login"
                         ).permitAll()
                         .requestMatchers(
                                 "/health",

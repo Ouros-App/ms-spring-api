@@ -14,3 +14,6 @@ app.jwt.secret=<SUA_CHAVE_SECRETA_JWT_MINIMO_256_BITS>
 app.jwt.expiration-ms=86400000
 app.cors.allowed-origins=http://localhost:3000,http://localhost:5173,http://localhost:8080
 
+# Integração ms-auth-service local
+app.auth-service.base-url=http://localhost:8000
+

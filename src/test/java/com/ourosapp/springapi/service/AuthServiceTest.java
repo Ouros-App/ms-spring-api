@@ -1,22 +1,17 @@
 package com.ourosapp.springapi.service;
 
+import com.ourosapp.springapi.client.auth.AuthServiceClient;
+import com.ourosapp.springapi.client.auth.dto.AuthVerifyResponseDTO;
+import com.ourosapp.springapi.client.auth.exception.AuthRateLimitException;
 import com.ourosapp.springapi.constants.RoleConstants;
 import com.ourosapp.springapi.dto.LoginRequestDTO;
 import com.ourosapp.springapi.dto.LoginResponseDTO;
-import com.ourosapp.springapi.entity.Adm;
-import com.ourosapp.springapi.entity.CompanyEmployee;
-import com.ourosapp.springapi.entity.FarmOwner;
-import com.ourosapp.springapi.repository.AdmRepository;
-import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
-import com.ourosapp.springapi.repository.FarmOwnerRepository;
 import com.ourosapp.springapi.security.JwtUtil;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
@@ -28,16 +23,7 @@ import static org.mockito.Mockito.*;
 class AuthServiceTest {
 
     @Mock
-    private AdmRepository admRepository;
-
-    @Mock
-    private CompanyEmployeeRepository companyEmployeeRepository;
-
-    @Mock
-    private FarmOwnerRepository farmOwnerRepository;
-
-    @Mock
-    private PasswordEncoder passwordEncoder;
+    private AuthServiceClient authServiceClient;
 
     @Mock
     private JwtUtil jwtUtil;
@@ -45,45 +31,30 @@ class AuthServiceTest {
     @InjectMocks
     private AuthService authService;
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(passwordEncoder.encode(anyString())).thenReturn("dummy-encoded-hash");
-    }
-
     @Test
     void testLoginAdmSuccess() {
-        LoginRequestDTO request = new LoginRequestDTO("ADM@OUROS.COM", "senha123");
-        Adm adm = Adm.builder().id(1L).email("adm@ouros.com").password("hashedSenha").build();
+        LoginRequestDTO request = new LoginRequestDTO("adm@ouros.com", "senha123");
+        AuthVerifyResponseDTO.IdentityDTO identity = new AuthVerifyResponseDTO.IdentityDTO(
+                1L, "adm@ouros.com", "admin", "admin", null, null, null, null
+        );
 
-        when(admRepository.findByEmailIgnoreCase("adm@ouros.com")).thenReturn(Optional.of(adm));
-        when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
-        when(jwtUtil.generateToken(1L, "adm@ouros.com", RoleConstants.ADM)).thenReturn("fake-jwt-token");
+        when(authServiceClient.verifyCredentials("adm@ouros.com", "senha123", "admin"))
+                .thenReturn(Optional.of(identity));
+        when(jwtUtil.generateToken(1L, "adm@ouros.com", RoleConstants.ADM)).thenReturn("fake-jwt-adm");
 
         LoginResponseDTO response = authService.loginAdm(request);
 
         assertNotNull(response);
-        assertEquals("fake-jwt-token", response.token());
+        assertEquals("fake-jwt-adm", response.token());
         assertNull(response.firstAccess());
     }
 
     @Test
-    void testLoginAdmUserNotFound() {
-        LoginRequestDTO request = new LoginRequestDTO("notfound@ouros.com", "senha123");
-        when(admRepository.findByEmailIgnoreCase("notfound@ouros.com")).thenReturn(Optional.empty());
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginAdm(request));
-        assertEquals(401, ex.getStatusCode().value());
-        assertEquals("Credenciais inválidas.", ex.getReason());
-        verify(passwordEncoder).matches(eq("senha123"), eq("dummy-encoded-hash"));
-    }
-
-    @Test
-    void testLoginAdmWrongPassword() {
+    void testLoginAdmInvalidCredentials() {
         LoginRequestDTO request = new LoginRequestDTO("adm@ouros.com", "errada");
-        Adm adm = Adm.builder().id(1L).email("adm@ouros.com").password("hashedSenha").build();
 
-        when(admRepository.findByEmailIgnoreCase("adm@ouros.com")).thenReturn(Optional.of(adm));
-        when(passwordEncoder.matches("errada", "hashedSenha")).thenReturn(false);
+        when(authServiceClient.verifyCredentials("adm@ouros.com", "errada", "admin"))
+                .thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginAdm(request));
         assertEquals(401, ex.getStatusCode().value());
@@ -92,12 +63,14 @@ class AuthServiceTest {
 
     @Test
     void testLoginEmployeeSuccess() {
-        LoginRequestDTO request = new LoginRequestDTO("Employee@Ouros.Com", "senha123");
-        CompanyEmployee employee = CompanyEmployee.builder().id(2L).email("emp@ouros.com").password("hashedSenha").build();
+        LoginRequestDTO request = new LoginRequestDTO("employee@ouros.com", "senha123");
+        AuthVerifyResponseDTO.IdentityDTO identity = new AuthVerifyResponseDTO.IdentityDTO(
+                2L, "employee@ouros.com", "company_employee", "company_employee", "João", null, 10L, null
+        );
 
-        when(companyEmployeeRepository.findByEmailIgnoreCase("employee@ouros.com")).thenReturn(Optional.of(employee));
-        when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
-        when(jwtUtil.generateToken(2L, "emp@ouros.com", RoleConstants.COMPANY_EMPLOYEE)).thenReturn("emp-token");
+        when(authServiceClient.verifyCredentials("employee@ouros.com", "senha123", "company_employee"))
+                .thenReturn(Optional.of(identity));
+        when(jwtUtil.generateToken(2L, "employee@ouros.com", RoleConstants.COMPANY_EMPLOYEE)).thenReturn("emp-token");
 
         LoginResponseDTO response = authService.loginEmployee(request);
 
@@ -107,23 +80,11 @@ class AuthServiceTest {
     }
 
     @Test
-    void testLoginEmployeeNotFound() {
-        LoginRequestDTO request = new LoginRequestDTO("emp@ouros.com", "senha123");
-        when(companyEmployeeRepository.findByEmailIgnoreCase("emp@ouros.com")).thenReturn(Optional.empty());
+    void testLoginEmployeeInvalidCredentials() {
+        LoginRequestDTO request = new LoginRequestDTO("employee@ouros.com", "errada");
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginEmployee(request));
-        assertEquals(401, ex.getStatusCode().value());
-        assertEquals("Credenciais inválidas.", ex.getReason());
-        verify(passwordEncoder).matches(eq("senha123"), eq("dummy-encoded-hash"));
-    }
-
-    @Test
-    void testLoginEmployeeWrongPassword() {
-        LoginRequestDTO request = new LoginRequestDTO("emp@ouros.com", "errada");
-        CompanyEmployee employee = CompanyEmployee.builder().id(2L).email("emp@ouros.com").password("hashedSenha").build();
-
-        when(companyEmployeeRepository.findByEmailIgnoreCase("emp@ouros.com")).thenReturn(Optional.of(employee));
-        when(passwordEncoder.matches("errada", "hashedSenha")).thenReturn(false);
+        when(authServiceClient.verifyCredentials("employee@ouros.com", "errada", "company_employee"))
+                .thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginEmployee(request));
         assertEquals(401, ex.getStatusCode().value());
@@ -131,12 +92,14 @@ class AuthServiceTest {
     }
 
     @Test
-    void testLoginFarmOwnerSuccess() {
-        LoginRequestDTO request = new LoginRequestDTO("Farmer@Ouros.COM", "senha123");
-        FarmOwner owner = FarmOwner.builder().id(3L).email("farmer@ouros.com").password("hashedSenha").firstAccess(true).build();
+    void testLoginFarmOwnerSuccessWithFirstAccessTrue() {
+        LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "senha123");
+        AuthVerifyResponseDTO.IdentityDTO identity = new AuthVerifyResponseDTO.IdentityDTO(
+                3L, "farmer@ouros.com", "farm_owner", "farm_owner", "Produtor", 5L, null, true
+        );
 
-        when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.of(owner));
-        when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
+        when(authServiceClient.verifyCredentials("farmer@ouros.com", "senha123", "farm_owner"))
+                .thenReturn(Optional.of(identity));
         when(jwtUtil.generateToken(3L, "farmer@ouros.com", RoleConstants.FARM_OWNER)).thenReturn("farmer-token");
 
         LoginResponseDTO response = authService.loginFarmOwner(request);
@@ -148,11 +111,13 @@ class AuthServiceTest {
 
     @Test
     void testLoginFarmOwnerSuccessWithFirstAccessFalse() {
-        LoginRequestDTO request = new LoginRequestDTO("Farmer@Ouros.COM", "senha123");
-        FarmOwner owner = FarmOwner.builder().id(3L).email("farmer@ouros.com").password("hashedSenha").firstAccess(false).build();
+        LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "senha123");
+        AuthVerifyResponseDTO.IdentityDTO identity = new AuthVerifyResponseDTO.IdentityDTO(
+                3L, "farmer@ouros.com", "farm_owner", "farm_owner", "Produtor", 5L, null, false
+        );
 
-        when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.of(owner));
-        when(passwordEncoder.matches("senha123", "hashedSenha")).thenReturn(true);
+        when(authServiceClient.verifyCredentials("farmer@ouros.com", "senha123", "farm_owner"))
+                .thenReturn(Optional.of(identity));
         when(jwtUtil.generateToken(3L, "farmer@ouros.com", RoleConstants.FARM_OWNER)).thenReturn("farmer-token");
 
         LoginResponseDTO response = authService.loginFarmOwner(request);
@@ -163,26 +128,92 @@ class AuthServiceTest {
     }
 
     @Test
-    void testLoginFarmOwnerNotFound() {
-        LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "senha123");
-        when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.empty());
+    void testLoginFarmOwnerInvalidCredentials() {
+        LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "errada");
+
+        when(authServiceClient.verifyCredentials("farmer@ouros.com", "errada", "farm_owner"))
+                .thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginFarmOwner(request));
         assertEquals(401, ex.getStatusCode().value());
         assertEquals("Credenciais inválidas.", ex.getReason());
-        verify(passwordEncoder).matches(eq("senha123"), eq("dummy-encoded-hash"));
     }
 
     @Test
-    void testLoginFarmOwnerWrongPassword() {
-        LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "errada");
-        FarmOwner owner = FarmOwner.builder().id(3L).email("farmer@ouros.com").password("hashedSenha").build();
+    void testLoginUnifiedAdminSuccess() {
+        LoginRequestDTO request = new LoginRequestDTO("adm@ouros.com", "senha123");
+        AuthVerifyResponseDTO.IdentityDTO identity = new AuthVerifyResponseDTO.IdentityDTO(
+                1L, "adm@ouros.com", "admin", "admin", null, null, null, null
+        );
 
-        when(farmOwnerRepository.findByEmailIgnoreCase("farmer@ouros.com")).thenReturn(Optional.of(owner));
-        when(passwordEncoder.matches("errada", "hashedSenha")).thenReturn(false);
+        when(authServiceClient.verifyCredentials("adm@ouros.com", "senha123", null))
+                .thenReturn(Optional.of(identity));
+        when(jwtUtil.generateToken(1L, "adm@ouros.com", RoleConstants.ADM)).thenReturn("unified-token-adm");
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.loginFarmOwner(request));
+        LoginResponseDTO response = authService.login(request);
+
+        assertNotNull(response);
+        assertEquals("unified-token-adm", response.token());
+    }
+
+    @Test
+    void testLoginUnifiedCompanyEmployeeSuccess() {
+        LoginRequestDTO request = new LoginRequestDTO("emp@ouros.com", "senha123");
+        AuthVerifyResponseDTO.IdentityDTO identity = new AuthVerifyResponseDTO.IdentityDTO(
+                2L, "emp@ouros.com", "company_employee", "company_employee", "Colaborador", null, 8L, null
+        );
+
+        when(authServiceClient.verifyCredentials("emp@ouros.com", "senha123", null))
+                .thenReturn(Optional.of(identity));
+        when(jwtUtil.generateToken(2L, "emp@ouros.com", RoleConstants.COMPANY_EMPLOYEE)).thenReturn("unified-token-emp");
+
+        LoginResponseDTO response = authService.login(request);
+
+        assertNotNull(response);
+        assertEquals("unified-token-emp", response.token());
+    }
+
+    @Test
+    void testLoginUnifiedFarmOwnerSuccess() {
+        LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "senha123");
+        AuthVerifyResponseDTO.IdentityDTO identity = new AuthVerifyResponseDTO.IdentityDTO(
+                3L, "farmer@ouros.com", "farm_owner", "farm_owner", "Produtor", 12L, null, true
+        );
+
+        when(authServiceClient.verifyCredentials("farmer@ouros.com", "senha123", null))
+                .thenReturn(Optional.of(identity));
+        when(jwtUtil.generateToken(3L, "farmer@ouros.com", RoleConstants.FARM_OWNER)).thenReturn("unified-token-farmer");
+
+        LoginResponseDTO response = authService.login(request);
+
+        assertNotNull(response);
+        assertEquals("unified-token-farmer", response.token());
+        assertTrue(response.firstAccess());
+    }
+
+    @Test
+    void testLoginUnifiedUnknownAccountTypeThrowsException() {
+        LoginRequestDTO request = new LoginRequestDTO("unknown@ouros.com", "senha123");
+        AuthVerifyResponseDTO.IdentityDTO identity = new AuthVerifyResponseDTO.IdentityDTO(
+                99L, "unknown@ouros.com", "unknown_role", "unknown_role", null, null, null, null
+        );
+
+        when(authServiceClient.verifyCredentials("unknown@ouros.com", "senha123", null))
+                .thenReturn(Optional.of(identity));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.login(request));
         assertEquals(401, ex.getStatusCode().value());
         assertEquals("Credenciais inválidas.", ex.getReason());
+    }
+
+    @Test
+    void testLoginPropagatesRateLimitException() {
+        LoginRequestDTO request = new LoginRequestDTO("farmer@ouros.com", "senha123");
+
+        when(authServiceClient.verifyCredentials("farmer@ouros.com", "senha123", "farm_owner"))
+                .thenThrow(new AuthRateLimitException("Muitas tentativas.", 45L));
+
+        AuthRateLimitException ex = assertThrows(AuthRateLimitException.class, () -> authService.loginFarmOwner(request));
+        assertEquals(45L, ex.getRetryAfterSeconds());
     }
 }

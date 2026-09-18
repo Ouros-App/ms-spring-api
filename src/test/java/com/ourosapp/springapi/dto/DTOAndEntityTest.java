@@ -8,8 +8,8 @@ import com.ourosapp.springapi.entity.WaterRegistry;
 import java.time.LocalDate;
 import com.ourosapp.springapi.constants.ErrorMessages;
 import com.ourosapp.springapi.constants.RoleConstants;
-import com.ourosapp.springapi.security.UserPrincipal;
-
+import com.ourosapp.springapi.client.auth.dto.AuthVerifyRequestDTO;
+import com.ourosapp.springapi.client.auth.dto.AuthVerifyResponseDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
@@ -83,6 +83,62 @@ class DTOAndEntityTest {
         LoginResponseDTO deserialized = objectMapper.readValue(jsonWithFirstAccess, LoginResponseDTO.class);
         assertEquals("token123", deserialized.token());
         assertTrue(deserialized.firstAccess());
+    }
+
+    /**
+     * Testa instanciação, normalização e serialização de {@link AuthVerifyRequestDTO}.
+     */
+    @Test
+    void testAuthVerifyRequestDTO() throws JsonProcessingException {
+        AuthVerifyRequestDTO dto = new AuthVerifyRequestDTO("  USER@OUROS.COM  ", "senha123", "admin");
+        assertEquals("user@ouros.com", dto.email());
+        assertEquals("senha123", dto.password());
+        assertEquals("admin", dto.accountType());
+
+        AuthVerifyRequestDTO dtoNullEmail = new AuthVerifyRequestDTO(null, "senha", null);
+        assertNull(dtoNullEmail.email());
+        assertNull(dtoNullEmail.accountType());
+
+        String json = objectMapper.writeValueAsString(dto);
+        assertTrue(json.contains("\"email\":\"user@ouros.com\""));
+        assertTrue(json.contains("\"account_type\":\"admin\""));
+
+        AuthVerifyRequestDTO deserialized = objectMapper.readValue(json, AuthVerifyRequestDTO.class);
+        assertEquals("user@ouros.com", deserialized.email());
+        assertEquals("senha123", deserialized.password());
+        assertEquals("admin", deserialized.accountType());
+    }
+
+    /**
+     * Testa instanciação e serialização de {@link AuthVerifyResponseDTO} e seu {@link AuthVerifyResponseDTO.IdentityDTO}.
+     */
+    @Test
+    void testAuthVerifyResponseDTO() throws JsonProcessingException {
+        AuthVerifyResponseDTO.IdentityDTO identity = new AuthVerifyResponseDTO.IdentityDTO(
+                10L, "farm@ouros.com", "farm_owner", "farm_owner", "Fazenda Sol", 5L, null, true
+        );
+        assertEquals(10L, identity.id());
+        assertEquals("farm@ouros.com", identity.email());
+        assertEquals("farm_owner", identity.accountType());
+        assertEquals("farm_owner", identity.realmRole());
+        assertEquals("Fazenda Sol", identity.name());
+        assertEquals(5L, identity.farmId());
+        assertNull(identity.enterpriseId());
+        assertTrue(identity.firstAccess());
+
+        AuthVerifyResponseDTO responseDTO = new AuthVerifyResponseDTO(true, identity);
+        assertTrue(responseDTO.authenticated());
+        assertNotNull(responseDTO.identity());
+
+        String json = objectMapper.writeValueAsString(responseDTO);
+        assertTrue(json.contains("\"authenticated\":true"));
+        assertTrue(json.contains("\"farm_id\":5"));
+        assertTrue(json.contains("\"first_access\":true"));
+
+        AuthVerifyResponseDTO deserialized = objectMapper.readValue(json, AuthVerifyResponseDTO.class);
+        assertTrue(deserialized.authenticated());
+        assertEquals(10L, deserialized.identity().id());
+        assertEquals("farm_owner", deserialized.identity().accountType());
     }
 
     /**
