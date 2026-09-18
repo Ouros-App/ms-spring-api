@@ -26,7 +26,7 @@ O **ms-spring-api** é o microserviço backend central do ecossistema **Ouros Ap
 | **Framework** | Spring Boot | **3.4.0** |
 | **Gerenciador de Build** | Gradle Wrapper | **`gradlew` / `gradlew.bat`** |
 | **Persistência** | Spring Data JPA / Hibernate | PostgreSQL (runtime) / H2 (testes) |
-| **Segurança & Auth** | Spring Security 6 + JJWT | **JJWT 0.12.6** (Stateless Bearer JWT, BCrypt) |
+| **Segurança & Auth** | Spring Security 6 (OAuth2 Resource Server) | Tokens RS256 validados via JWKS do Keycloak |
 | **Validação** | Jakarta Bean Validation | Hibernate Validator (`@CNPJ`, `@Valid`, `@NotBlank`, etc.) |
 | **Documentação API** | SpringDoc OpenAPI | **2.8.5** (Swagger UI em `/swagger-ui.html`, OpenAPI em `/v3/api-docs`) |
 | **Utilitários** | Lombok | `@Getter`, `@Setter`, `@Builder`, `@ToString.Exclude` |
@@ -98,7 +98,7 @@ ms-spring-api/
 │   │   │   │   └── farm/
 │   │   │   ├── entity/         # Entidades JPA mapeadas para o banco de dados relacional
 │   │   │   ├── repository/     # Interfaces Spring Data JPA
-│   │   │   ├── security/       # Componentes de segurança (JwtUtil, JwtAuthFilter, UserPrincipal)
+│   │   │   ├── security/       # Componentes de segurança (KeycloakJwtAuthenticationConverter, AudienceValidator, UserPrincipal)
 │   │   │   ├── service/        # Regras de negócio, transações (@Transactional) e controle RBAC
 │   │   │   └── SpringApiApplication.java # Ponto de entrada da aplicação
 │   │   └── resources/
@@ -110,7 +110,7 @@ ms-spring-api/
 │           ├── config/         # Testes de infraestrutura e OpenAPI
 │           ├── controller/     # Testes de camada web com @WebMvcTest e MockMvc
 │           ├── dto/            # Testes unitários de DTOs, imutabilidade e sanitização
-│           ├── security/       # Testes unitários de JwtUtil, filtros e UserPrincipal
+│           ├── security/       # Testes unitários de conversão Keycloak, validação de audience e UserPrincipal
 │           └── service/        # Testes unitários de regras de negócio com Mockito
 ├── build.gradle                # Script de build Gradle
 ├── Dockerfile                  # Empacotamento Docker multi-stage
@@ -123,9 +123,14 @@ ms-spring-api/
 ## 🔐 5. Segurança, Autenticação e RBAC (Role-Based Access Control)
 
 ### 🔑 Modelo de Autenticação
-* **Stateless JWT (Bearer):** O token deve ser enviado no cabeçalho `Authorization: Bearer <TOKEN>`.
-* **Claims do JWT:** O payload do token contém obrigatoriamente `id` (Long), `sub` (e-mail) e `role` (perfil).
-* **Injeção no Controller:** Os dados do usuário logado devem ser injetados nos métodos via `@AuthenticationPrincipal UserPrincipal principal`.
+* **OAuth2 Resource Server (Bearer JWT):** O microserviço atua exclusivamente como Resource Server. O token JWT assimétrico (RS256) emitido pelo Keycloak deve ser enviado no cabeçalho `Authorization: Bearer <TOKEN>`.
+* **Validação de Token:** A validação da assinatura criptográfica é feita contra o JWKS do Keycloak (`/protocol/openid-connect/certs`). O `AudienceValidator` assegura que o token contenha o audience configurado (`ms-spring-api`).
+* **Claims do JWT:**
+  - `sub`: Identificador único no Keycloak (UUID).
+  - `email`: E-mail do usuário.
+  - `realm_access.roles`: Roles atribuídas globalmente no Keycloak (`ADM`, `COMPANY_EMPLOYEE`, `FARM_OWNER`).
+  - `database_id`: ID numérico da entidade no banco de dados relacional (injetado via client scope `ouros-identity`).
+* **Injeção no Controller:** O `KeycloakJwtAuthenticationConverter` converte o JWT em um `KeycloakAuthenticationToken` cujo principal é um `UserPrincipal`, injetado nos endpoints via `@AuthenticationPrincipal UserPrincipal principal`.
 
 ### 👥 Perfis de Acesso (`RoleConstants`)
 ```java
@@ -139,7 +144,6 @@ public final class RoleConstants {
 ### 🛡️ Matriz de Permissões por Recurso
 | Recurso / Rota | Ação | ADM | COMPANY_EMPLOYEE | FARM_OWNER |
 |---|---|:---:|:---:|:---:|
-| `/adms/login`, `/company-employees/login`, `/farm-owners/login` | Login | Público | Público | Público |
 | `/health`, `/`, `/v3/api-docs/**`, `/swagger-ui/**` | Monitoramento / Swagger | Público | Público | Público |
 | `/enterprises` (POST) | Cadastrar integradora | ✅ Total | ❌ 403 | ❌ 403 |
 | `/enterprises` (GET) | Listar integradoras | ✅ Todas | ✅ Apenas a sua | ❌ 403 |
@@ -225,7 +229,7 @@ public final class RoleConstants {
 ### 🧩 Padrão de Teste de Controller (WebMvc)
 ```java
 @WebMvcTest(EnterpriseController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class})
+@Import({SecurityConfig.class, KeycloakJwtAuthenticationConverter.class})
 class EnterpriseControllerMockMvcTest {
 
     @Autowired
@@ -238,10 +242,10 @@ class EnterpriseControllerMockMvcTest {
     private EnterpriseService enterpriseService;
 
     @MockitoBean
-    private JwtUtil jwtUtil;
+    private JwtDecoder jwtDecoder;
 
     @MockitoBean
-    private UserDetailsServiceImpl userDetailsService;
+    private KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
 
     // Simulação de usuário autenticado no MockMvc:
     // .with(user(userPrincipal))

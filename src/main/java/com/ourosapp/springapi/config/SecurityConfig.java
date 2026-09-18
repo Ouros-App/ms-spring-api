@@ -1,20 +1,25 @@
 package com.ourosapp.springapi.config;
 
-import com.ourosapp.springapi.security.JwtAuthFilter;
-import lombok.RequiredArgsConstructor;
+import com.ourosapp.springapi.security.AudienceValidator;
+import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -23,7 +28,7 @@ import java.util.List;
 
 /**
  * Configuração central de segurança do Spring Security.
- * Define filtros stateless, políticas de CORS, codificador de senhas e tratamento de exceções de autenticação.
+ * Configura o OAuth2 Resource Server para validação assíncrona de tokens JWT via JWKS do Keycloak.
  */
 @Configuration
 @EnableWebSecurity
@@ -31,10 +36,19 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthFilter jwtAuthFilter;
+    private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
 
     @Value("${app.cors.allowed-origins:}")
     private List<String> allowedOrigins;
+
+    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:https://ouros-keycloak.discloud.app/realms/ouros/protocol/openid-connect/certs}")
+    private String jwkSetUri;
+
+    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:https://ouros-keycloak.discloud.app/realms/ouros}")
+    private String issuerUri;
+
+    @Value("${app.security.oauth2.audience:ms-spring-api}")
+    private String requiredAudience;
 
     /**
      * Configura a cadeia de filtros de segurança HTTP.
@@ -46,17 +60,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                // Desativa CSRF pois a API é 100% Stateless (autenticação via Authorization: Bearer JWT sem cookies de sessão)
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST,
-                                "/adms/login",
-                                "/company-employees/login",
-                                "/farm-owners/login",
-                                "/auth/login"
-                        ).permitAll()
                         .requestMatchers(
                                 "/health",
                                 "/",
@@ -69,13 +76,33 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(keycloakJwtAuthenticationConverter))
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Acesso não autorizado. Token ausente ou inválido.")
+                        )
+                )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->
                                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Acesso não autorizado. Token ausente ou inválido.")
                         )
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
+    }
+
+    /**
+     * Decoder de JWT configurado com validação de assinatura via JWKS, timestamps, emissor e audience.
+     */
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+
+        OAuth2TokenValidator<Jwt> defaultValidator = JwtValidators.createDefaultWithIssuer(issuerUri);
+        OAuth2TokenValidator<Jwt> audienceValidator = new AudienceValidator(requiredAudience);
+        OAuth2TokenValidator<Jwt> delegatingValidator = new DelegatingOAuth2TokenValidator<>(defaultValidator, audienceValidator);
+
+        jwtDecoder.setJwtValidator(delegatingValidator);
+        return jwtDecoder;
     }
 
     /**

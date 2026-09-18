@@ -5,8 +5,7 @@ import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.waterregistry.WaterRegistryRequestDTO;
 import com.ourosapp.springapi.dto.waterregistry.WaterRegistryResponseDTO;
 import com.ourosapp.springapi.dto.waterregistry.WaterRegistryUpdateDTO;
-import com.ourosapp.springapi.security.JwtAuthFilter;
-import com.ourosapp.springapi.security.JwtUtil;
+import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;
 import com.ourosapp.springapi.service.WaterRegistryService;
@@ -18,6 +17,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
@@ -37,7 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Testes de integração Web via MockMvc para o controlador {@link WaterRegistryController}.
  */
 @WebMvcTest(WaterRegistryController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class})
+@Import(SecurityConfig.class)
 class WaterRegistryControllerMockMvcTest {
 
     @Autowired
@@ -50,7 +50,10 @@ class WaterRegistryControllerMockMvcTest {
     private WaterRegistryService waterRegistryService;
 
     @MockitoBean
-    private JwtUtil jwtUtil;
+    private KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;

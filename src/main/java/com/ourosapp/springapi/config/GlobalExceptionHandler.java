@@ -1,11 +1,8 @@
 package com.ourosapp.springapi.config;
 
-import com.ourosapp.springapi.client.auth.exception.AuthRateLimitException;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -95,30 +92,4 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
-    /**
-     * Intercepta {@link AuthRateLimitException} quando a taxa limite de autenticação é excedida.
-     * Retorna HTTP 429 Too Many Requests e injeta o cabeçalho Retry-After se informado.
-     *
-     * @param ex exceção disparada pelo client de autenticação
-     * @return {@link ResponseEntity} com {@link ProblemDetail} formatado e cabeçalho Retry-After
-     */
-    @ExceptionHandler(AuthRateLimitException.class)
-    public ResponseEntity<ProblemDetail> handleAuthRateLimitException(AuthRateLimitException ex) {
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.TOO_MANY_REQUESTS,
-                ex.getMessage() != null ? ex.getMessage() : "Muitas tentativas de login. Tente novamente mais tarde."
-        );
-        problemDetail.setTitle("Too Many Requests");
-        problemDetail.setType(URI.create("about:blank"));
-        problemDetail.setProperty("timestamp", Instant.now());
-        if (ex.getRetryAfterSeconds() != null) {
-            problemDetail.setProperty("retry_after_seconds", ex.getRetryAfterSeconds());
-        }
-
-        ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS);
-        if (ex.getRetryAfterSeconds() != null) {
-            builder.header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()));
-        }
-        return builder.body(problemDetail);
-    }
 }

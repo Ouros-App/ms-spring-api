@@ -6,8 +6,7 @@ import com.ourosapp.springapi.dto.address.AddressRequestDTO;
 import com.ourosapp.springapi.dto.enterprise.EnterpriseRequestDTO;
 import com.ourosapp.springapi.dto.enterprise.EnterpriseResponseDTO;
 import com.ourosapp.springapi.dto.enterprise.EnterpriseUpdateDTO;
-import com.ourosapp.springapi.security.JwtAuthFilter;
-import com.ourosapp.springapi.security.JwtUtil;
+import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.EnterpriseService;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;
@@ -19,6 +18,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(EnterpriseController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class})
+@Import(SecurityConfig.class)
 class EnterpriseControllerMockMvcTest {
 
     @Autowired
@@ -47,7 +47,10 @@ class EnterpriseControllerMockMvcTest {
     private EnterpriseService enterpriseService;
 
     @MockitoBean
-    private JwtUtil jwtUtil;
+    private KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;

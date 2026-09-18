@@ -27,8 +27,7 @@ class OpenApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openapi").exists())
                 .andExpect(jsonPath("$.info.title").value("ms-spring-api"))
-                .andExpect(jsonPath("$.paths['/adms/login']").exists())
-                .andExpect(jsonPath("$.paths['/auth/login']").exists())
+                .andExpect(jsonPath("$.paths['/enterprises']").exists())
                 .andExpect(jsonPath("$.paths['/health']").exists())
                 .andExpect(jsonPath("$.components.securitySchemes.BearerAuth").exists());
     }

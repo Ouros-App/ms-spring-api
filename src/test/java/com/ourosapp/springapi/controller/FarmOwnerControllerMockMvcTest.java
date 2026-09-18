@@ -5,8 +5,7 @@ import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.farmowner.FarmOwnerRequestDTO;
 import com.ourosapp.springapi.dto.farmowner.FarmOwnerResponseDTO;
 import com.ourosapp.springapi.dto.farmowner.FarmOwnerUpdateDTO;
-import com.ourosapp.springapi.security.JwtAuthFilter;
-import com.ourosapp.springapi.security.JwtUtil;
+import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.FarmOwnerService;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;
@@ -18,6 +17,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -38,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Testes de integração e contrato HTTP para {@link FarmOwnerController} utilizando MockMvc.
  */
 @WebMvcTest(FarmOwnerController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class})
+@Import(SecurityConfig.class)
 class FarmOwnerControllerMockMvcTest {
 
     @Autowired
@@ -51,7 +51,10 @@ class FarmOwnerControllerMockMvcTest {
     private FarmOwnerService farmOwnerService;
 
     @MockitoBean
-    private JwtUtil jwtUtil;
+    private KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;
