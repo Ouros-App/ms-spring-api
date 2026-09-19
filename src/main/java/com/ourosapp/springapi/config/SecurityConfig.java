@@ -82,11 +82,6 @@ public class SecurityConfig {
                                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Acesso não autorizado. Token ausente ou inválido.")
                         )
                 )
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) ->
-                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Acesso não autorizado. Token ausente ou inválido.")
-                        )
-                )
                 .build();
     }
 

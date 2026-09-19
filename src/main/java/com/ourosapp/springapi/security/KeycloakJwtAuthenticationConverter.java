@@ -10,6 +10,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
@@ -38,13 +40,30 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
     public AbstractAuthenticationToken convert(Jwt jwt) {
         Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
         String primaryRole = determinePrimaryRole(authorities);
+
+        if (primaryRole == null) {
+            throw new OAuth2AuthenticationException(
+                    new OAuth2Error("invalid_token"),
+                    "O token JWT não contém uma role autorizada para este recurso."
+            );
+        }
+
         String email = extractEmail(jwt);
         String keycloakId = jwt.getSubject();
         Long databaseId = extractDatabaseId(jwt);
 
         UserPrincipal userPrincipal = null;
 
-        if (email != null && primaryRole != null) {
+        if (databaseId != null) {
+            userPrincipal = UserPrincipal.builder()
+                    .id(databaseId)
+                    .keycloakId(keycloakId)
+                    .email(email != null ? email : keycloakId)
+                    .password(null)
+                    .role(primaryRole)
+                    .authorities(authorities)
+                    .build();
+        } else if (email != null) {
             try {
                 UserDetails userDetails = userDetailsService.loadUserByEmailAndRole(email, primaryRole);
                 if (userDetails instanceof UserPrincipal localPrincipal) {
@@ -64,7 +83,7 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
 
         if (userPrincipal == null) {
             userPrincipal = UserPrincipal.builder()
-                    .id(databaseId)
+                    .id(null)
                     .keycloakId(keycloakId)
                     .email(email != null ? email : keycloakId)
                     .password(null)

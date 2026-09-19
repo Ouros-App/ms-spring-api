@@ -13,6 +13,9 @@ O **ms-spring-api** é o microserviço backend central do ecossistema **Ouros Ap
 * **CompanyEmployee (Funcionário da Integradora):** Colaborador corporativo com acesso restrito às granjas e dados da sua respectiva integradora.
 * **Farm (Fazenda / Granja):** Unidade produtiva que possui capacidade de aves, área, localização geográfica e vínculo com uma empresa integradora.
 * **FarmOwner (Produtor Rural / Granjeiro):** Dono ou operador responsável por uma fazenda vinculada à integradora.
+* **Lot (Lote de Aves):** Ciclo de criação e alojamento de aves em uma fazenda vinculada (linhagem, quantidade alojada, datas de entrada/saída e status).
+* **WaterRegistry (Registro de Água):** Apontamentos e medições periódicas de hidrômetro/consumo de água em uma fazenda.
+* **EnergyRegistry (Registro de Energia):** Apontamentos e medições periódicas de consumo de energia elétrica (kWh) em uma fazenda.
 * **Address (Endereço):** Entidade de geolocalização e endereço físico, reaproveitável ou gerada de forma embutida/aninhada por empresas e fazendas.
 * **Adm (Administrador da Plataforma):** Perfil com privilégios globais de governança no sistema.
 
@@ -94,8 +97,12 @@ ms-spring-api/
 │   │   │   ├── dto/            # Data Transfer Objects (Java records segregados por domínio)
 │   │   │   │   ├── address/
 │   │   │   │   ├── companyemployee/
+│   │   │   │   ├── energyregistry/
 │   │   │   │   ├── enterprise/
-│   │   │   │   └── farm/
+│   │   │   │   ├── farm/
+│   │   │   │   ├── farmowner/
+│   │   │   │   ├── lot/
+│   │   │   │   └── waterregistry/
 │   │   │   ├── entity/         # Entidades JPA mapeadas para o banco de dados relacional
 │   │   │   ├── repository/     # Interfaces Spring Data JPA
 │   │   │   ├── security/       # Componentes de segurança (KeycloakJwtAuthenticationConverter, AudienceValidator, UserPrincipal)
@@ -127,10 +134,15 @@ ms-spring-api/
 * **Validação de Token:** A validação da assinatura criptográfica é feita contra o JWKS do Keycloak (`/protocol/openid-connect/certs`). O `AudienceValidator` assegura que o token contenha o audience configurado (`ms-spring-api`).
 * **Claims do JWT:**
   - `sub`: Identificador único no Keycloak (UUID).
-  - `email`: E-mail do usuário.
-  - `realm_access.roles`: Roles atribuídas globalmente no Keycloak (`ADM`, `COMPANY_EMPLOYEE`, `FARM_OWNER`).
+  - `email` / `preferred_username`: Identificador de e-mail do usuário.
+  - `realm_access.roles` / `resource_access[clientId].roles`: Roles atribuídas globalmente ou por client no Keycloak (`ADM`, `COMPANY_EMPLOYEE`, `FARM_OWNER`).
   - `database_id`: ID numérico da entidade no banco de dados relacional (injetado via client scope `ouros-identity`).
-* **Injeção no Controller:** O `KeycloakJwtAuthenticationConverter` converte o JWT em um `KeycloakAuthenticationToken` cujo principal é um `UserPrincipal`, injetado nos endpoints via `@AuthenticationPrincipal UserPrincipal principal`.
+* **Conversor de JWT (`KeycloakJwtAuthenticationConverter`):**
+  - **Validação Rigorosa de Roles:** Rejeita imediatamente tokens sem uma role autorizada com `OAuth2AuthenticationException` (`invalid_token`), garantindo que apenas identidades com perfil válido acessem a aplicação.
+  - **Resolução Stateless de Identidade:** Prioriza a extração direta do ID numérico a partir da claim `database_id` do JWT, evitando consultas desnecessárias de I/O ao banco de dados relacional.
+  - **Fallback sob Demanda:** Caso a claim `database_id` não esteja no token, consulta o usuário no banco local via `UserDetailsServiceImpl.loadUserByEmailAndRole(email, role)`.
+* **Injeção no Controller:** O conversor instancia um `KeycloakAuthenticationToken` cujo principal é um `UserPrincipal` (garantindo coleção de autoridades não nula via `getAuthorities()`), injetado nos endpoints via `@AuthenticationPrincipal UserPrincipal principal`.
+* **Tratamento de Erros de Autenticação:** `SecurityConfig` centraliza a resposta de token inválido ou ausente no `authenticationEntryPoint` do Resource Server retornando `401 Unauthorized`.
 
 ### 👥 Perfis de Acesso (`RoleConstants`)
 ```java
@@ -153,6 +165,11 @@ public final class RoleConstants {
 | `/farms` (POST) | Cadastrar granja/fazenda | ✅ Total | ✅ Na sua empresa | ❌ 403 |
 | `/farms` (GET) | Listar granjas/fazendas | ✅ Todas | ✅ Da sua empresa | ✅ Suas granjas |
 | `/farms/{id}` (GET / PATCH / DELETE) | Manter granja | ✅ Total | ✅ Da sua empresa | ✅ Apenas leitura/vínculo |
+| `/farm-owners` (POST / DELETE) | Cadastrar / Excluir produtor rural | ✅ Total | ✅ Na sua empresa | ❌ 403 |
+| `/farm-owners` (GET / PATCH) | Listar / Detalhar / Editar produtor | ✅ Total | ✅ Na sua empresa | ✅ Apenas os seus dados |
+| `/lots` (POST / GET / PATCH / DELETE) | Gestão de lotes de aves | ✅ Total | ✅ Da sua empresa | ✅ Das suas granjas |
+| `/water-registries` (POST / GET / PATCH / DELETE) | Registros de consumo de água | ✅ Total | ✅ Da sua empresa | ✅ Das suas granjas |
+| `/energy-registries` (POST / GET / PATCH / DELETE) | Registros de consumo de energia | ✅ Total | ✅ Da sua empresa | ✅ Das suas granjas |
 | `/addresses` (POST / GET / PATCH) | Gestão de endereços | ✅ Total | ✅ Conforme escopo | ✅ Conforme escopo |
 
 ---

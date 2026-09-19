@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Instant;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -129,7 +131,7 @@ class KeycloakJwtAuthenticationConverterTest {
     }
 
     @Test
-    @DisplayName("Deve extrair database_id da claim do token quando usuário não estiver no banco local")
+    @DisplayName("Deve priorizar extração do database_id da claim do token sem consultar o banco de dados")
     void testConvertWithDatabaseIdClaim() {
         Jwt jwt = new Jwt(
                 "token-owner-db-id",
@@ -144,9 +146,6 @@ class KeycloakJwtAuthenticationConverterTest {
                 )
         );
 
-        when(userDetailsService.loadUserByEmailAndRole("owner2@fazenda.com", RoleConstants.FARM_OWNER))
-                .thenThrow(new UsernameNotFoundException("Usuário não encontrado"));
-
         AbstractAuthenticationToken auth = converter.convert(jwt);
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
 
@@ -154,6 +153,32 @@ class KeycloakJwtAuthenticationConverterTest {
         assertEquals("keycloak-uuid-4", principal.getKeycloakId());
         assertEquals("owner2@fazenda.com", principal.getEmail());
         assertEquals(RoleConstants.FARM_OWNER, principal.getRole());
+        verifyNoInteractions(userDetailsService);
+    }
+
+    @Test
+    @DisplayName("Deve lançar OAuth2AuthenticationException quando o token não contiver role autorizada")
+    void testConvertWithoutAuthorizedRoleThrowsOAuth2AuthenticationException() {
+        Jwt jwt = new Jwt(
+                "token-no-role",
+                Instant.now(),
+                Instant.now().plusSeconds(3600),
+                Map.of("alg", "RS256"),
+                Map.of(
+                        "sub", "keycloak-uuid-no-role",
+                        "email", "norole@ouros.com",
+                        "realm_access", Map.of("roles", List.of("unrecognized_role", "offline_access"))
+                )
+        );
+
+        OAuth2AuthenticationException exception = assertThrows(
+                OAuth2AuthenticationException.class,
+                () -> converter.convert(jwt)
+        );
+
+        assertEquals("invalid_token", exception.getError().getErrorCode());
+        assertEquals("O token JWT não contém uma role autorizada para este recurso.", exception.getMessage());
+        verifyNoInteractions(userDetailsService);
     }
 
     @Test

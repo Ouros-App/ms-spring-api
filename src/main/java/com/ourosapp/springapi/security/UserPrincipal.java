@@ -29,7 +29,12 @@ public class UserPrincipal implements UserDetails {
     private final Collection<? extends GrantedAuthority> authorities;
 
     public UserPrincipal(Long id, String email, String password, String role, Collection<? extends GrantedAuthority> authorities) {
-        this(id, null, email, password, role, authorities);
+        this(id, null, email, password, role, authorities != null ? authorities : List.of());
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return authorities != null ? authorities : List.of();
     }
 
     /**
