@@ -8,8 +8,6 @@ import com.ourosapp.springapi.entity.WaterRegistry;
 import java.time.LocalDate;
 import com.ourosapp.springapi.constants.ErrorMessages;
 import com.ourosapp.springapi.constants.RoleConstants;
-import com.ourosapp.springapi.security.UserPrincipal;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
@@ -22,7 +20,6 @@ import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Enterprise;
 import com.ourosapp.springapi.entity.Farm;
 import com.ourosapp.springapi.entity.FarmOwner;
-import com.ourosapp.springapi.security.JwtAuthFilter;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -52,39 +49,6 @@ class DTOAndEntityTest {
     /**
      * Testa instanciação e acessores do DTO de requisição de login.
      */
-    @Test
-    void testLoginRequestDTO() {
-        LoginRequestDTO dto = new LoginRequestDTO("teste@ouros.com", "senha123");
-        assertEquals("teste@ouros.com", dto.email());
-        assertEquals("senha123", dto.password());
-    }
-
-    /**
-     * Testa instanciação e acessores do DTO de resposta de login contendo o token JWT e first_access opcional.
-     */
-    @Test
-    void testLoginResponseDTO() throws JsonProcessingException {
-        LoginResponseDTO dtoWithoutFirstAccess = new LoginResponseDTO("token123");
-        assertEquals("token123", dtoWithoutFirstAccess.token());
-        assertNull(dtoWithoutFirstAccess.firstAccess());
-
-        String jsonWithoutFirstAccess = objectMapper.writeValueAsString(dtoWithoutFirstAccess);
-        assertTrue(jsonWithoutFirstAccess.contains("\"token\":\"token123\""));
-        assertFalse(jsonWithoutFirstAccess.contains("first_access"));
-
-        LoginResponseDTO dtoWithFirstAccess = new LoginResponseDTO("token123", true);
-        assertEquals("token123", dtoWithFirstAccess.token());
-        assertTrue(dtoWithFirstAccess.firstAccess());
-
-        String jsonWithFirstAccess = objectMapper.writeValueAsString(dtoWithFirstAccess);
-        assertTrue(jsonWithFirstAccess.contains("\"token\":\"token123\""));
-        assertTrue(jsonWithFirstAccess.contains("\"first_access\":true"));
-
-        LoginResponseDTO deserialized = objectMapper.readValue(jsonWithFirstAccess, LoginResponseDTO.class);
-        assertEquals("token123", deserialized.token());
-        assertTrue(deserialized.firstAccess());
-    }
-
     /**
      * Testa getters, setters, builder e toString da entidade {@link Adm}.
      */
@@ -308,8 +272,9 @@ class DTOAndEntityTest {
      */
     @Test
     void testSecurityConfigBeans() {
-        JwtAuthFilter filter = Mockito.mock(JwtAuthFilter.class);
-        SecurityConfig config = new SecurityConfig(filter);
+        com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter converter =
+                Mockito.mock(com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter.class);
+        SecurityConfig config = new SecurityConfig(converter);
 
         PasswordEncoder encoder = config.passwordEncoder();
         assertNotNull(encoder);

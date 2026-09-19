@@ -3,8 +3,7 @@ package com.ourosapp.springapi.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.address.*;
-import com.ourosapp.springapi.security.JwtAuthFilter;
-import com.ourosapp.springapi.security.JwtUtil;
+import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
 import com.ourosapp.springapi.service.AddressService;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;
 import com.ourosapp.springapi.security.UserPrincipal;
@@ -16,6 +15,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AddressController.class)
-@Import({SecurityConfig.class, JwtAuthFilter.class})
+@Import(SecurityConfig.class)
 class AddressControllerMockMvcTest {
 
     @Autowired
@@ -44,7 +44,10 @@ class AddressControllerMockMvcTest {
     private AddressService addressService;
 
     @MockitoBean
-    private JwtUtil jwtUtil;
+    private KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;

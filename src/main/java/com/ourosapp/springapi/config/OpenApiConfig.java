@@ -31,7 +31,7 @@ import org.springframework.context.annotation.Configuration;
 )
 @SecurityScheme(
         name = "BearerAuth",
-        description = "Insira o token JWT gerado no endpoint de login.",
+        description = "Insira o token JWT de acesso emitido pelo Keycloak (OIDC).",
         type = SecuritySchemeType.HTTP,
         scheme = "bearer",
         bearerFormat = "JWT"
