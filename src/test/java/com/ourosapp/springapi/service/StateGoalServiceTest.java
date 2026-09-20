@@ -507,6 +507,36 @@ class StateGoalServiceTest {
         assertThrows(ResponseStatusException.class, () -> stateGoalService.getStateGoalById(null, admPrincipal));
     }
 
+    @Test
+    @DisplayName("Deve buscar meta estadual por ID com sucesso para FARM_OWNER de fazenda secundária vinculada")
+    void deveBuscarMetaPorIdComSucessoParaFarmOwnerDeFazendaSecundaria() {
+        FarmOwner secondaryOwner = FarmOwner.builder().id(3L).idFarm(20L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(secondaryOwner));
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal)); // goal.idFarm = 10L
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(true);
+
+        StateGoalResponseDTO response = stateGoalService.getStateGoalById(1L, ownerPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 ao buscar meta por ID para FARM_OWNER de fazenda não vinculada")
+    void deveLancar403AoBuscarMetaPorIdParaFarmOwnerSemVinculo() {
+        FarmOwner unlinkedOwner = FarmOwner.builder().id(3L).idFarm(99L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(unlinkedOwner));
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal)); // goal.idFarm = 10L
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(99L, 1L)).thenReturn(false);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> stateGoalService.getStateGoalById(1L, ownerPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
     // ==========================================
     // UPDATE STATE GOAL
     // ==========================================
@@ -817,5 +847,75 @@ class StateGoalServiceTest {
         assertEquals(2, regions.size());
         assertTrue(regions.contains("Sudeste"));
         assertTrue(regions.contains("Sul"));
+    }
+
+    @Test
+    @DisplayName("Deve listar fazendas vinculadas à meta com sucesso para FARM_OWNER de fazenda secundária")
+    void deveListarFazendasDaMetaParaFarmOwnerDeFazendaSecundaria() {
+        FarmOwner secondaryOwner = FarmOwner.builder().id(3L).idFarm(20L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(secondaryOwner));
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal)); // goal.idFarm = 10L
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(true);
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(
+                        FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build(),
+                        FarmGoal.builder().id(2L).idFarm(20L).idGoal(1L).build()
+                ));
+        when(farmRepository.findAllById(List.of(10L, 20L))).thenReturn(List.of(farm, farm2));
+
+        List<FarmResponseDTO> farms = stateGoalService.getFarmsByStateGoalId(1L, ownerPrincipal);
+
+        assertNotNull(farms);
+        assertEquals(2, farms.size());
+    }
+
+    @Test
+    @DisplayName("Deve listar regiões vinculadas à meta com sucesso para FARM_OWNER de fazenda secundária")
+    void deveListarRegioesDaMetaParaFarmOwnerDeFazendaSecundaria() {
+        FarmOwner secondaryOwner = FarmOwner.builder().id(3L).idFarm(20L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(secondaryOwner));
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal)); // goal.idFarm = 10L
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(true);
+        when(regionGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(RegionGoal.builder().id(1L).region("Sudeste").idGoal(1L).build()));
+
+        List<String> regions = stateGoalService.getRegionsByStateGoalId(1L, ownerPrincipal);
+
+        assertNotNull(regions);
+        assertEquals(1, regions.size());
+        assertEquals("Sudeste", regions.get(0));
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 ao listar fazendas da meta para FARM_OWNER sem vínculo")
+    void deveLancar403AoListarFazendasParaFarmOwnerSemVinculo() {
+        FarmOwner unlinkedOwner = FarmOwner.builder().id(3L).idFarm(99L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(unlinkedOwner));
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(99L, 1L)).thenReturn(false);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> stateGoalService.getFarmsByStateGoalId(1L, ownerPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve listar metas para fazenda única utilizando a região customizada em regions_goals")
+    void deveListarMetasParaFazendaUnicaComRegiaoCustomizada() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.findByIdFarm(10L)).thenReturn(List.of());
+        when(stateGoalRepository.findByIdFarm(10L)).thenReturn(List.of(goal));
+        when(regionGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(RegionGoal.builder().id(10L).region("Nordeste").idGoal(1L).build()));
+
+        List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(10L, "Nordeste", admPrincipal);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Nordeste", result.get(0).region());
     }
 }
