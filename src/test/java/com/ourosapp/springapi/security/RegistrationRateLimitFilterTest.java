@@ -49,13 +49,37 @@ class RegistrationRateLimitFilterTest {
     @Test
     @DisplayName("Deve usar CF-Connecting-IP quando disponível")
     void shouldUseCloudflareConnectingIpWhenPresent() throws Exception {
-        RegistrationRateLimitFilter filter = new RegistrationRateLimitFilter(1, 60);
+        RegistrationRateLimitFilter filter = new RegistrationRateLimitFilter(1, 60, true);
 
         MockHttpServletResponse first = execute(filter, "POST", "/farm-owners", "172.16.0.1", "203.0.113.10");
         MockHttpServletResponse second = execute(filter, "POST", "/farm-owners", "172.16.0.1", "203.0.113.11");
 
         assertEquals(200, first.getStatus());
         assertEquals(200, second.getStatus());
+    }
+
+    @Test
+    @DisplayName("Deve ignorar CF-Connecting-IP quando confiança em proxy estiver desabilitada")
+    void shouldIgnoreCloudflareHeaderWhenProxyTrustIsDisabled() throws Exception {
+        RegistrationRateLimitFilter filter = new RegistrationRateLimitFilter(1, 60);
+
+        MockHttpServletResponse first = execute(
+                filter,
+                "POST",
+                "/farm-owners",
+                "172.16.0.1",
+                "203.0.113.10"
+        );
+        MockHttpServletResponse second = execute(
+                filter,
+                "POST",
+                "/farm-owners",
+                "172.16.0.1",
+                "203.0.113.11"
+        );
+
+        assertEquals(200, first.getStatus());
+        assertEquals(429, second.getStatus());
     }
 
     @Test
@@ -112,6 +136,8 @@ class RegistrationRateLimitFilterTest {
         );
 
         assertEquals(429, saturated.getStatus());
+        assertEquals("1", saturated.getHeader("X-RateLimit-Limit"));
+        assertEquals("0", saturated.getHeader("X-RateLimit-Remaining"));
         assertEquals("3600", saturated.getHeader("Retry-After"));
         assertTrue(saturated.getContentAsString().contains("Muitas origens de cadastro ativas"));
     }
