@@ -158,4 +158,30 @@ class GlobalExceptionHandlerTest {
         assertNotNull(result.getProperties());
         assertTrue(result.getProperties().containsKey("timestamp"));
     }
+
+    @Test
+    @DisplayName("Deve preservar os status HTTP das exceções MVC")
+    void testHandleMvcExceptionsWithDefinedStatus() {
+        ProblemDetail methodNotAllowed = exceptionHandler.handleHttpRequestMethodNotSupportedException(
+                new org.springframework.web.HttpRequestMethodNotSupportedException("POST")
+        );
+        ProblemDetail unsupportedMediaType = exceptionHandler.handleHttpMediaTypeNotSupportedException(
+                new org.springframework.web.HttpMediaTypeNotSupportedException("Tipo de mídia não suportado")
+        );
+        ProblemDetail missingParameter = exceptionHandler.handleMissingServletRequestParameterException(
+                new org.springframework.web.bind.MissingServletRequestParameterException("farm_id", "Long")
+        );
+        ProblemDetail typeMismatch = exceptionHandler.handleMethodArgumentTypeMismatchException(
+                new org.springframework.web.method.annotation.MethodArgumentTypeMismatchException(
+                        "invalid", Long.class, "farm_id", null, new IllegalArgumentException()
+                )
+        );
+
+        assertEquals(HttpStatus.METHOD_NOT_ALLOWED.value(), methodNotAllowed.getStatus());
+        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), unsupportedMediaType.getStatus());
+        assertEquals(HttpStatus.BAD_REQUEST.value(), missingParameter.getStatus());
+        assertEquals(HttpStatus.BAD_REQUEST.value(), typeMismatch.getStatus());
+        assertTrue(missingParameter.getDetail().contains("farm_id"));
+        assertTrue(typeMismatch.getDetail().contains("farm_id"));
+    }
 }

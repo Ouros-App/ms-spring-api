@@ -7,9 +7,13 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
@@ -108,6 +112,46 @@ public class GlobalExceptionHandler {
                 "Corpo da requisição inválido ou malformado"
         );
         problemDetail.setTitle("Bad Request");
+        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        return problemDetail;
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ProblemDetail handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException ex) {
+        return buildProblemDetail(
+                HttpStatus.METHOD_NOT_ALLOWED,
+                "Método HTTP não suportado para esta rota"
+        );
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ProblemDetail handleHttpMediaTypeNotSupportedException(HttpMediaTypeNotSupportedException ex) {
+        return buildProblemDetail(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                "Tipo de mídia não suportado"
+        );
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ProblemDetail handleMissingServletRequestParameterException(MissingServletRequestParameterException ex) {
+        return buildProblemDetail(
+                HttpStatus.BAD_REQUEST,
+                "Parâmetro obrigatório ausente: " + ex.getParameterName()
+        );
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+        return buildProblemDetail(
+                HttpStatus.BAD_REQUEST,
+                "Valor inválido para o parâmetro: " + ex.getName()
+        );
+    }
+
+    private ProblemDetail buildProblemDetail(HttpStatus status, String detail) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
+        problemDetail.setTitle(status.getReasonPhrase());
         problemDetail.setType(URI.create("about:blank"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;

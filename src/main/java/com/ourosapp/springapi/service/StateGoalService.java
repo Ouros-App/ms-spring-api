@@ -23,6 +23,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -116,15 +117,7 @@ public class StateGoalService {
         if (farmIdFilter != null) {
             Farm farm = findFarmByIdOrThrow(farmIdFilter);
             validateFarmAccessPermission(farm, principal, "visualizar metas estaduais desta fazenda");
-
-            List<StateGoalResponseDTO> goals = getGoalsForSingleFarm(farm);
-            if (regionFilter != null) {
-                return goals.stream()
-                        .filter(g -> g.region() != null && g.region().equalsIgnoreCase(regionFilter.trim()))
-                        .toList();
-            }
-
-            return goals;
+            return getGoalsForSingleFarm(farm, regionFilter);
         }
 
         String role = principal.getRole();
@@ -139,17 +132,11 @@ public class StateGoalService {
             ).stream().collect(Collectors.toMap(Farm::getId, Function.identity()));
 
             return allGoals.stream()
-                    .map(goal -> {
+                    .flatMap(goal -> {
                         Farm f = farmMap.get(goal.getIdFarm());
                         String defaultRegion = f != null ? f.getRegion() : null;
-                        String goalRegion = regionGoalRepository.findByIdGoal(goal.getId())
-                                .stream()
-                                .map(RegionGoal::getRegion)
-                                .findFirst()
-                                .orElse(defaultRegion);
-                        return StateGoalResponseDTO.fromEntity(goal, goalRegion);
+                        return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
                     })
-                    .filter(dto -> regionFilter == null || (dto.region() != null && dto.region().equalsIgnoreCase(regionFilter.trim())))
                     .toList();
         } else if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
@@ -177,18 +164,12 @@ public class StateGoalService {
             junctionGoals.forEach(g -> combinedGoals.putIfAbsent(g.getId(), g));
 
             return combinedGoals.values().stream()
-                    .map(goal -> {
+                    .flatMap(goal -> {
                         Long matchedFarmId = goalToFarmId.get(goal.getId());
                         Farm f = matchedFarmId != null ? farmMap.get(matchedFarmId) : farmMap.get(goal.getIdFarm());
                         String defaultRegion = f != null ? f.getRegion() : null;
-                        String goalRegion = regionGoalRepository.findByIdGoal(goal.getId())
-                                .stream()
-                                .map(RegionGoal::getRegion)
-                                .findFirst()
-                                .orElse(defaultRegion);
-                        return StateGoalResponseDTO.fromEntity(goal, goalRegion);
+                        return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
                     })
-                    .filter(dto -> regionFilter == null || (dto.region() != null && dto.region().equalsIgnoreCase(regionFilter.trim())))
                     .toList();
         } else if (FARM_OWNER.equals(role)) {
             FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
@@ -196,14 +177,7 @@ public class StateGoalService {
                 return List.of();
             }
             Farm farm = findFarmByIdOrThrow(owner.getIdFarm());
-            List<StateGoalResponseDTO> goals = getGoalsForSingleFarm(farm);
-            if (regionFilter != null) {
-                return goals.stream()
-                        .filter(g -> g.region() != null && g.region().equalsIgnoreCase(regionFilter.trim()))
-                        .toList();
-            }
-
-            return goals;
+            return getGoalsForSingleFarm(farm, regionFilter);
         } else {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
@@ -212,7 +186,7 @@ public class StateGoalService {
         }
     }
 
-    private List<StateGoalResponseDTO> getGoalsForSingleFarm(Farm farm) {
+    private List<StateGoalResponseDTO> getGoalsForSingleFarm(Farm farm, String regionFilter) {
         List<Long> linkedGoalIds = farmGoalRepository.findByIdFarm(farm.getId())
                 .stream()
                 .map(FarmGoal::getIdGoal)
@@ -226,15 +200,35 @@ public class StateGoalService {
         junctionGoals.forEach(g -> combinedGoals.putIfAbsent(g.getId(), g));
 
         return combinedGoals.values().stream()
-                .map(goal -> {
-                    String region = regionGoalRepository.findByIdGoal(goal.getId())
-                            .stream()
-                            .map(RegionGoal::getRegion)
-                            .findFirst()
-                            .orElse(farm.getRegion());
-                    return StateGoalResponseDTO.fromEntity(goal, region);
-                })
+                .flatMap(goal -> toResponseIfRegionMatches(goal, farm.getRegion(), regionFilter).stream())
                 .toList();
+    }
+
+    private Optional<StateGoalResponseDTO> toResponseIfRegionMatches(
+            StateGoal goal,
+            String defaultRegion,
+            String regionFilter
+    ) {
+        List<RegionGoal> regionGoals = regionGoalRepository.findByIdGoal(goal.getId());
+        boolean matchesFilter = regionFilter == null || (regionGoals.isEmpty()
+                ? regionsMatch(defaultRegion, regionFilter)
+                : regionGoals.stream()
+                        .map(RegionGoal::getRegion)
+                        .anyMatch(region -> regionsMatch(region, regionFilter)));
+
+        if (!matchesFilter) {
+            return Optional.empty();
+        }
+
+        String primaryRegion = regionGoals.stream()
+                .map(RegionGoal::getRegion)
+                .findFirst()
+                .orElse(defaultRegion);
+        return Optional.of(StateGoalResponseDTO.fromEntity(goal, primaryRegion));
+    }
+
+    private boolean regionsMatch(String region, String regionFilter) {
+        return region != null && region.equalsIgnoreCase(regionFilter.trim());
     }
 
     /**
@@ -463,8 +457,9 @@ public class StateGoalService {
 
         boolean isAuthorized = switch (principal.getRole()) {
             case ADM -> true;
-            case COMPANY_EMPLOYEE -> Objects.equals(
-                    primaryFarm.getIdEnterprise(),
+            case COMPANY_EMPLOYEE -> hasEnterpriseAccessToStateGoal(
+                    goal,
+                    primaryFarm,
                     getCompanyEmployeeOrThrow(principal.getId()).getIdEnterprise()
             );
             case FARM_OWNER -> {
@@ -481,6 +476,23 @@ public class StateGoalService {
         if (!isAuthorized) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para " + action);
         }
+    }
+
+    private boolean hasEnterpriseAccessToStateGoal(StateGoal goal, Farm primaryFarm, Long enterpriseId) {
+        if (Objects.equals(primaryFarm.getIdEnterprise(), enterpriseId)) {
+            return true;
+        }
+
+        List<Long> linkedFarmIds = farmGoalRepository.findByIdGoal(goal.getId())
+                .stream()
+                .map(FarmGoal::getIdFarm)
+                .filter(idFarm -> !Objects.equals(idFarm, primaryFarm.getId()))
+                .distinct()
+                .toList();
+
+        return !linkedFarmIds.isEmpty() && farmRepository.findAllById(linkedFarmIds)
+                .stream()
+                .anyMatch(farm -> Objects.equals(farm.getIdEnterprise(), enterpriseId));
     }
 
     private void validateFarmAccessPermission(Farm farm, UserPrincipal principal, String action) {
