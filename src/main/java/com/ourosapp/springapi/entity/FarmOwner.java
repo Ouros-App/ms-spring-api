@@ -27,7 +27,7 @@ public class FarmOwner {
     @Column(name = "password", nullable = false)
     private String password;
 
-    @Column(name = "email", length = 255, nullable = false, unique = true)
+    @Column(name = "email", length = 50, nullable = false, unique = true)
     private String email;
 
     @Column(name = "document_number", unique = true, nullable = false)
