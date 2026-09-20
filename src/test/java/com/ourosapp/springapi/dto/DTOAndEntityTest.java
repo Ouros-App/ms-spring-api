@@ -4,6 +4,11 @@ import com.ourosapp.springapi.dto.enterprise.*;
 import com.ourosapp.springapi.dto.companyemployee.*;
 import com.ourosapp.springapi.dto.farmowner.*;
 import com.ourosapp.springapi.dto.waterregistry.*;
+import com.ourosapp.springapi.dto.stategoal.*;
+import com.ourosapp.springapi.entity.FarmGoal;
+import com.ourosapp.springapi.entity.RegionGoal;
+import com.ourosapp.springapi.entity.StateGoal;
+import com.ourosapp.springapi.entity.StateGoalRegion;
 import com.ourosapp.springapi.entity.WaterRegistry;
 import java.time.LocalDate;
 import com.ourosapp.springapi.constants.ErrorMessages;
@@ -1748,7 +1753,240 @@ class DTOAndEntityTest {
         assertEquals(49000, fromSnake.deliveredChickens());
         assertEquals(new BigDecimal("2.9500"), fromSnake.gain());
     }
+
+    /**
+     * Testa getters, setters, builder e toString da entidade {@link StateGoal}.
+     */
+    @Test
+    void testStateGoalEntity() {
+        StateGoal goal = new StateGoal();
+        goal.setId(1L);
+        goal.setTitle("Meta Estadual SP");
+        goal.setDescription("Descrição estadual");
+        goal.setType("FEED_CONVERSION");
+        goal.setStatus("IN_PROGRESS");
+        goal.setTargetValue(new BigDecimal("1.6500"));
+        goal.setDateCreation(LocalDate.of(2026, 1, 1));
+        goal.setDateEnd(LocalDate.of(2026, 12, 31));
+        goal.setIdFarm(10L);
+
+        assertEquals(1L, goal.getId());
+        assertEquals("Meta Estadual SP", goal.getTitle());
+        assertEquals("Descrição estadual", goal.getDescription());
+        assertEquals("FEED_CONVERSION", goal.getType());
+        assertEquals("IN_PROGRESS", goal.getStatus());
+        assertEquals(new BigDecimal("1.6500"), goal.getTargetValue());
+        assertEquals(LocalDate.of(2026, 1, 1), goal.getDateCreation());
+        assertEquals(LocalDate.of(2026, 12, 31), goal.getDateEnd());
+        assertEquals(10L, goal.getIdFarm());
+
+        StateGoal built = StateGoal.builder()
+                .id(2L)
+                .title("Meta Built")
+                .description("Desc Built")
+                .type("MORTALITY")
+                .status("PENDING")
+                .targetValue(new BigDecimal("2.1000"))
+                .dateCreation(LocalDate.of(2026, 2, 1))
+                .dateEnd(LocalDate.of(2026, 11, 30))
+                .idFarm(20L)
+                .build();
+
+        assertEquals(2L, built.getId());
+        assertTrue(built.toString().contains("Meta Built"));
+    }
+
+    /**
+     * Testa instanciação, sanitização, validação cruzada e interoperabilidade JSON de {@link StateGoalRequestDTO}.
+     */
+    @Test
+    void testStateGoalRequestDTO() throws JsonProcessingException {
+        StateGoalRequestDTO valid = new StateGoalRequestDTO(
+                "  Meta Estadual SP  ",
+                "  Descrição estadual  ",
+                "  FEED_CONVERSION  ",
+                "  IN_PROGRESS  ",
+                new BigDecimal("1.6500"),
+                LocalDate.of(2026, 1, 1),
+                LocalDate.of(2026, 12, 31),
+                1L,
+                "  Sudeste  "
+        );
+        assertEquals("Meta Estadual SP", valid.title());
+        assertEquals("Descrição estadual", valid.description());
+        assertEquals("FEED_CONVERSION", valid.type());
+        assertEquals("IN_PROGRESS", valid.status());
+        assertEquals(new BigDecimal("1.6500"), valid.targetValue());
+        assertEquals(LocalDate.of(2026, 1, 1), valid.dateCreation());
+        assertEquals(LocalDate.of(2026, 12, 31), valid.dateEnd());
+        assertEquals(1L, valid.idFarm());
+        assertEquals("Sudeste", valid.region());
+        assertTrue(valid.isDateRangeValid());
+        assertTrue(validator.validate(valid).isEmpty());
+
+        // DTO inválido com data de término anterior à data de criação
+        StateGoalRequestDTO invalidDateOrder = new StateGoalRequestDTO(
+                "Meta", "Desc", "MORTALITY", "PENDING", new BigDecimal("1.5000"),
+                LocalDate.of(2026, 12, 31), LocalDate.of(2026, 1, 1), 1L, "Sudeste"
+        );
+        assertFalse(invalidDateOrder.isDateRangeValid());
+        assertFalse(validator.validate(invalidDateOrder).isEmpty());
+
+        // DTO inválido com campos nulos e valores negativos
+        StateGoalRequestDTO invalid = new StateGoalRequestDTO(
+                "", null, "", "", new BigDecimal("-10.0000"), null, null, -1L, null
+        );
+        Set<ConstraintViolation<StateGoalRequestDTO>> violations = validator.validate(invalid);
+        assertFalse(violations.isEmpty());
+
+        // Desserialização snake_case
+        String snakeJson = """
+                {
+                    "title": "Meta Estadual SP",
+                    "description": "Descricao",
+                    "type": "FEED_CONVERSION",
+                    "status": "IN_PROGRESS",
+                    "target_value": 1.65,
+                    "date_creation": "2026-01-01",
+                    "date_end": "2026-12-31",
+                    "id_farm": 1,
+                    "region": "Sudeste"
+                }
+                """;
+        StateGoalRequestDTO fromSnake = objectMapper.readValue(snakeJson, StateGoalRequestDTO.class);
+        assertEquals("Meta Estadual SP", fromSnake.title());
+        assertEquals(new BigDecimal("1.65"), fromSnake.targetValue());
+        assertEquals(LocalDate.of(2026, 1, 1), fromSnake.dateCreation());
+        assertEquals(LocalDate.of(2026, 12, 31), fromSnake.dateEnd());
+
+        // Desserialização camelCase
+        String camelJson = """
+                {
+                    "title": "Meta Estadual SP",
+                    "description": "Descricao",
+                    "type": "FEED_CONVERSION",
+                    "status": "IN_PROGRESS",
+                    "targetValue": 1.65,
+                    "dateCreation": "2026-01-01",
+                    "dateEnd": "2026-12-31",
+                    "idFarm": 1,
+                    "region": "Sudeste"
+                }
+                """;
+        StateGoalRequestDTO fromCamel = objectMapper.readValue(camelJson, StateGoalRequestDTO.class);
+        assertEquals("Meta Estadual SP", fromCamel.title());
+        assertEquals(new BigDecimal("1.65"), fromCamel.targetValue());
+    }
+
+    /**
+     * Testa instanciação, serialização e conversão de entidade para {@link StateGoalResponseDTO}.
+     */
+    @Test
+    void testStateGoalResponseDTO() throws JsonProcessingException {
+        StateGoal goal = StateGoal.builder()
+                .id(1L)
+                .title("Meta Estadual")
+                .description("Descrição")
+                .type("FEED_CONVERSION")
+                .status("IN_PROGRESS")
+                .targetValue(new BigDecimal("1.6500"))
+                .dateCreation(LocalDate.of(2026, 1, 1))
+                .dateEnd(LocalDate.of(2026, 12, 31))
+                .idFarm(10L)
+                .build();
+
+        StateGoalResponseDTO dto = StateGoalResponseDTO.fromEntity(goal, "Sudeste");
+        assertEquals(1L, dto.id());
+        assertEquals("Meta Estadual", dto.title());
+        assertEquals("Sudeste", dto.region());
+        assertEquals(new BigDecimal("1.6500"), dto.targetValue());
+        assertEquals(10L, dto.idFarm());
+
+        String json = objectMapper.writeValueAsString(dto);
+        assertTrue(json.contains("\"target_value\":1.6500"));
+        assertTrue(json.contains("\"region\":\"Sudeste\""));
+
+        assertThrows(NullPointerException.class, () -> StateGoalResponseDTO.fromEntity(null, "Sudeste"));
+    }
+
+    /**
+     * Testa comportamento, validações e método hasUpdates de {@link StateGoalUpdateDTO}.
+     */
+    @Test
+    void testStateGoalUpdateDTO() {
+        StateGoalUpdateDTO updateWithAll = new StateGoalUpdateDTO(
+                "  ACHIEVED  ",
+                LocalDate.of(2026, 11, 30),
+                new BigDecimal("1.5500")
+        );
+        assertEquals("ACHIEVED", updateWithAll.status());
+        assertEquals(LocalDate.of(2026, 11, 30), updateWithAll.dateEnd());
+        assertEquals(new BigDecimal("1.5500"), updateWithAll.targetValue());
+        assertTrue(updateWithAll.hasUpdates());
+        assertTrue(validator.validate(updateWithAll).isEmpty());
+
+        StateGoalUpdateDTO emptyDto = new StateGoalUpdateDTO(null, null, null);
+        assertFalse(emptyDto.hasUpdates());
+
+        StateGoalUpdateDTO blankDto = new StateGoalUpdateDTO("  ", null, null);
+        assertFalse(blankDto.hasUpdates());
+
+        // Validação de targetValue negativo
+        StateGoalUpdateDTO negativeDto = new StateGoalUpdateDTO(null, null, new BigDecimal("-1.0000"));
+        assertFalse(validator.validate(negativeDto).isEmpty());
+    }
+
+    /**
+     * Testa getters, setters e builders das entidades de associação {@link FarmGoal}, {@link RegionGoal}, {@link StateGoalRegion}
+     * e do DTO {@link RegionGoalRequestDTO}.
+     */
+    @Test
+    void testJunctionGoalEntitiesAndDTOs() {
+        FarmGoal fg = new FarmGoal();
+        fg.setId(1L);
+        fg.setIdFarm(10L);
+        fg.setIdGoal(20L);
+        assertEquals(1L, fg.getId());
+        assertEquals(10L, fg.getIdFarm());
+        assertEquals(20L, fg.getIdGoal());
+
+        FarmGoal fgBuilt = FarmGoal.builder().id(2L).idFarm(11L).idGoal(21L).build();
+        assertEquals(2L, fgBuilt.getId());
+        assertTrue(fgBuilt.toString().contains("idFarm=11"));
+
+        RegionGoal rg = new RegionGoal();
+        rg.setId(1L);
+        rg.setRegion("Sudeste");
+        rg.setIdGoal(20L);
+        assertEquals(1L, rg.getId());
+        assertEquals("Sudeste", rg.getRegion());
+        assertEquals(20L, rg.getIdGoal());
+
+        RegionGoal rgBuilt = RegionGoal.builder().id(2L).region("Sul").idGoal(21L).build();
+        assertEquals(2L, rgBuilt.getId());
+        assertTrue(rgBuilt.toString().contains("region=Sul"));
+
+        StateGoalRegion sgr = new StateGoalRegion();
+        sgr.setId(1L);
+        sgr.setIdGoal(20L);
+        sgr.setIdRegion(30L);
+        assertEquals(1L, sgr.getId());
+        assertEquals(20L, sgr.getIdGoal());
+        assertEquals(30L, sgr.getIdRegion());
+
+        StateGoalRegion sgrBuilt = StateGoalRegion.builder().id(2L).idGoal(21L).idRegion(31L).build();
+        assertEquals(2L, sgrBuilt.getId());
+        assertTrue(sgrBuilt.toString().contains("idRegion=31"));
+
+        RegionGoalRequestDTO regionDTO = new RegionGoalRequestDTO("  Centro-Oeste  ");
+        assertEquals("Centro-Oeste", regionDTO.region());
+        assertTrue(validator.validate(regionDTO).isEmpty());
+
+        RegionGoalRequestDTO invalidRegion = new RegionGoalRequestDTO("");
+        assertFalse(validator.validate(invalidRegion).isEmpty());
+    }
 }
+
 
 
 
