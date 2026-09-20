@@ -80,31 +80,52 @@ async function main() {
   // 2. Resolver Source no Jules
   const sourceName = await getJulesSource(julesApiKey, repoFullName);
 
-  // 3. Montar Prompt Estrito para o Jules (Sem criar nova PR, apenas postar comentário)
-  const prompt = `Você é o Jules executando a revisão de código no estilo CodeRabbit para a Pull Request #${prNumber} no repositório ${repoFullName}.
+  // 3. Montar Prompt Estrito para o Jules (Review com comentários inline reais no GitHub)
+  const prompt = `Você é o Jules executando o Code Review da Pull Request #${prNumber} no repositório ${repoFullName}.
 
 === INFORMAÇÕES DA PULL REQUEST ===
 - **Número da PR:** #${prNumber}
 - **Branch:** ${prBranch}
 - **Commit Atual:** ${shortCommit}
 - **Título:** ${prTitle || 'Sem título'}
-- **Descrição da PR (Contexto de Negócio e Escopo):**
+- **Descrição da PR:**
 ${prBody || 'Nenhuma descrição detalhada fornecida.'}
 
-=== INSTRUÇÕES OBRIGATÓRIAS DE EXECUÇÃO ===
-1. **Regras e Padrões:** Siga rigorosamente o AGENTS.md e a skill em .github/skills/revisor-de-codigo/SKILL.md.
-2. **Foco:** Analise exclusivamente o diff das alterações da branch ${prBranch} em relação à main.
-3. **NÃO CRIAR NOVA PR NEM NOVA BRANCH:** Você NÃO deve abrir uma nova Pull Request nem criar novas branches.
-4. **COMO PUBLICAR O COMENTÁRIO NA PR #${prNumber}:**
-   - Você possui a variável de ambiente \`GITHUB_TOKEN\` configurada no seu ambiente.
-   - Use o GitHub CLI (\`gh\`) ou cURL com a GitHub API para publicar a sua análise diretamente como comentário na Pull Request #${prNumber}:
-     \`\`\`bash
-     gh pr comment ${prNumber} --body "<SEU_MARKDOWN_DE_REVISAO>"
-     \`\`\`
-   - O comentário deve conter:
-     - Resumo das alterações da PR
-     - Checklist de tarefas com checkboxes (- [ ])
-     - Sugestões inline com blocos de 1-clique (\`\`\`suggestion)
+=== DIRETRIZES DE REVISÃO (AGENTS.md & SKILL) ===
+1. Siga rigorosamente as diretrizes em AGENTS.md e .github/skills/revisor-de-codigo/SKILL.md.
+2. Analise exclusivamente as linhas e arquivos modificados no diff da branch ${prBranch} em relação à main.
+3. NÃO faça resumos longos no texto principal. NÃO crie nova PR e NÃO abra nova branch.
+
+=== FORMATO OBRIGATÓRIO DE PUBLICAÇÃO VIA GITHUB API ===
+Você possui a variável de ambiente \`GITHUB_TOKEN\` disponível no seu ambiente.
+Você deve publicar a revisão usando a API oficial de Pull Request Reviews do GitHub (\`POST /repos/${repoFullName}/pulls/${prNumber}/reviews\`).
+
+Crie um arquivo JSON chamado \`review_payload.json\` e envie via \`gh api\`:
+\`\`\`bash
+cat << 'EOF' > review_payload.json
+{
+  "commit_id": "${commitSha || ''}",
+  "body": "Revisão detalhada de código realizada com base nas diretrizes do \`AGENTS.md\`. Seguem os apontamentos identificados com sugestões prontas para aplicação em 1 clique.\\n\\n- [ ] **Corrigir todos os apontamentos automaticamente**",
+  "event": "COMMENT",
+  "comments": [
+    {
+      "path": "caminho/do/arquivo.java",
+      "line": 42,
+      "side": "RIGHT",
+      "body": "### \`[Sugestão]\` Título do problema\\nExplicação técnica objetiva do problema e impacto em Português.\\n\\n\`\`\`suggestion\\ncódigo exato de substituição\\n\`\`\`"
+    }
+  ]
+}
+EOF
+
+gh api repos/${repoFullName}/pulls/${prNumber}/reviews --input review_payload.json
+\`\`\`
+
+Atenção:
+- O campo "body" principal do review DEVE SER EXATAMENTE o texto curto com o checkbox:
+  "Revisão detalhada de código realizada com base nas diretrizes do \`AGENTS.md\`. Seguem os apontamentos identificados com sugestões prontas para aplicação em 1 clique.\\n\\n- [ ] **Corrigir todos os apontamentos automaticamente**"
+- Cada problema identificado DEVE estar no array "comments" apontando para o "path" e "line" corretos no diff, com o bloco de substituição \`\`\`suggestion.
+- Se não houver nenhum problema identificado no diff, envie o array "comments" vazio e o "body" como: "Revisão de código realizada com base nas diretrizes do \`AGENTS.md\`. Nenhum problema identificado. Código aprovado!"
 `;
 
   // 4. Criar Sessão no jules.google.com via API Oficial
