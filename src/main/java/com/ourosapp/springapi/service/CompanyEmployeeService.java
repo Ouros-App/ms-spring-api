@@ -37,6 +37,7 @@ public class CompanyEmployeeService {
     public CompanyEmployeeResponseDTO createCompanyEmployee(CompanyEmployeeRequestDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         if (principal != null) {
+            ensureAuthenticated(principal);
             validateCompanyEmployeeCreationPermission(request.idEnterprise(), principal);
         }
 
