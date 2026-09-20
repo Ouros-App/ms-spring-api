@@ -97,9 +97,10 @@ public class SecurityConfig {
     @Bean
     public RegistrationRateLimitFilter registrationRateLimitFilter(
             @Value("${app.security.registration-rate-limit.max-requests:60}") int maxRequests,
-            @Value("${app.security.registration-rate-limit.window-seconds:60}") long windowSeconds
+            @Value("${app.security.registration-rate-limit.window-seconds:60}") long windowSeconds,
+            @Value("${app.security.registration-rate-limit.trust-proxy-headers:false}") boolean trustProxyHeaders
     ) {
-        return new RegistrationRateLimitFilter(maxRequests, windowSeconds);
+        return new RegistrationRateLimitFilter(maxRequests, windowSeconds, trustProxyHeaders);
     }
 
     /**
