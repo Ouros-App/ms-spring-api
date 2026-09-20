@@ -851,4 +851,21 @@ class FarmOwnerServiceTest {
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
         verify(farmRepository, never()).findById(any());
     }
+    @Test
+    @DisplayName("Deve permitir cadastro público de produtor rural sem principal autenticado")
+    void testCreateFarmOwnerAnonymousSuccess() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(farmOwnerRepository.existsByDocumentNumber("12345678909")).thenReturn(false);
+        when(farmOwnerRepository.existsByEmailIgnoreCase("sebastiao.silva@fazenda.com.br")).thenReturn(false);
+        when(passwordEncoder.encode("SenhaForte@123")).thenReturn("encoded_password_123");
+        when(farmOwnerRepository.save(any(FarmOwner.class))).thenReturn(sampleFarmOwner);
+
+        FarmOwnerResponseDTO response = farmOwnerService.createFarmOwner(sampleRequest, null);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        verify(companyEmployeeRepository, never()).findById(any());
+        verify(farmOwnerRepository).save(any(FarmOwner.class));
+    }
+
 }
