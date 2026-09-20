@@ -80,7 +80,7 @@ async function main() {
   // 2. Resolver Source no Jules
   const sourceName = await getJulesSource(julesApiKey, repoFullName);
 
-  // 3. Montar Prompt Estrito para o Jules (Review com comentários inline reais no GitHub)
+  // 3. Montar Prompt Estrito para o Jules (Review único agrupando todos os comentários inline)
   const prompt = `Você é o Jules executando o Code Review da Pull Request #${prNumber} no repositório ${repoFullName}.
 
 === INFORMAÇÕES DA PULL REQUEST ===
@@ -100,7 +100,10 @@ ${prBody || 'Nenhuma descrição detalhada fornecida.'}
 Você possui a variável de ambiente \`GITHUB_TOKEN\` disponível no seu ambiente.
 Você deve publicar a revisão usando a API oficial de Pull Request Reviews do GitHub (\`POST /repos/${repoFullName}/pulls/${prNumber}/reviews\`).
 
-Crie um arquivo JSON chamado \`review_payload.json\` e envie via \`gh api\`:
+REGRAS CRÍTICAS DE PUBLICAÇÃO:
+1. Você deve fazer **EXATAMENTE UMA ÚNICA CHAMADA** para a API de Reviews. NUNCA execute em loop e NUNCA crie múltiplos reviews separados.
+2. Monte um único arquivo \`review_payload.json\` contendo o cabeçalho no "body" e **TODOS os apontamentos de TODOS os arquivos juntos no array "comments"**:
+
 \`\`\`bash
 cat << 'EOF' > review_payload.json
 {
@@ -109,10 +112,16 @@ cat << 'EOF' > review_payload.json
   "event": "COMMENT",
   "comments": [
     {
-      "path": "caminho/do/arquivo.java",
+      "path": "caminho/do/arquivo1.java",
       "line": 42,
       "side": "RIGHT",
       "body": "### \`[Sugestão]\` Título do problema\\nExplicação técnica objetiva do problema e impacto em Português.\\n\\n\`\`\`suggestion\\ncódigo exato de substituição\\n\`\`\`"
+    },
+    {
+      "path": "caminho/do/arquivo2.java",
+      "line": 15,
+      "side": "RIGHT",
+      "body": "### \`[Importante]\` Outro problema\\nExplicação em Português.\\n\\n\`\`\`suggestion\\ncódigo exato de substituição\\n\`\`\`"
     }
   ]
 }
@@ -122,10 +131,10 @@ gh api repos/${repoFullName}/pulls/${prNumber}/reviews --input review_payload.js
 \`\`\`
 
 Atenção:
-- O campo "body" principal do review DEVE SER EXATAMENTE o texto curto com o checkbox:
+- O campo "body" DEVE SER EXATAMENTE o texto curto com o checkbox único:
   "Revisão detalhada de código realizada com base nas diretrizes do \`AGENTS.md\`. Seguem os apontamentos identificados com sugestões prontas para aplicação em 1 clique.\\n\\n- [ ] **Corrigir todos os apontamentos automaticamente**"
-- Cada problema identificado DEVE estar no array "comments" apontando para o "path" e "line" corretos no diff, com o bloco de substituição \`\`\`suggestion.
-- Se não houver nenhum problema identificado no diff, envie o array "comments" vazio e o "body" como: "Revisão de código realizada com base nas diretrizes do \`AGENTS.md\`. Nenhum problema identificado. Código aprovado!"
+- Todos os arquivos e linhas com problemas devem estar reunidos no mesmo array "comments".
+- Se não houver nenhum problema identificado no diff, envie o array "comments" vazio \`[]\` e o "body" como: "Revisão de código realizada com base nas diretrizes do \`AGENTS.md\`. Nenhum problema identificado. Código aprovado!"
 `;
 
   // 4. Criar Sessão no jules.google.com via API Oficial
