@@ -143,16 +143,13 @@ jobs:
           DISCLOUD_TOKEN: ${{ secrets.DISCLOUD_TOKEN }}
         run: |
           test -n "$DISCLOUD_TOKEN"
-          echo "Parando aplicativo na Discloud para garantir limpeza de processo..."
-          ../node_modules/.bin/discloud app stop ms-spring-api || true
-          sleep 5
-          echo "Fazendo upload dos novos arquivos..."
+          echo "Fazendo upload e deploy dos novos arquivos na Discloud..."
           ../node_modules/.bin/discloud app commit ms-spring-api
-          sleep 5
-          echo "Iniciando aplicativo com os novos arquivos..."
-          ../node_modules/.bin/discloud app start ms-spring-api
-          sleep 20
-          echo "Obtendo logs do servidor..."
+          sleep 10
+          echo "Status da aplicacao na Discloud:"
+          ../node_modules/.bin/discloud app status ms-spring-api || true
+          sleep 10
+          echo "Logs da aplicacao na Discloud:"
           ../node_modules/.bin/discloud app logs ms-spring-api || true
 
   sonarcloud:
