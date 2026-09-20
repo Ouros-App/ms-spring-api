@@ -94,4 +94,49 @@ class GlobalExceptionHandlerTest {
         assertEquals("Erro global 1", errors.get("farmRequestDTO_1"));
         assertEquals("Erro global 2", errors.get("farmRequestDTO_2"));
     }
+
+    @Test
+    @DisplayName("Deve tratar exceção genérica com mensagem e retornar ProblemDetail com status 500")
+    void testHandleGenericExceptionWithMessage() {
+        RuntimeException exception = new RuntimeException("Falha inesperada no processamento");
+
+        ProblemDetail result = exceptionHandler.handleGenericException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), result.getStatus());
+        assertEquals("Internal Server Error", result.getTitle());
+        assertEquals("Falha inesperada no processamento", result.getDetail());
+        assertNotNull(result.getProperties());
+        assertTrue(result.getProperties().containsKey("timestamp"));
+    }
+
+    @Test
+    @DisplayName("Deve tratar exceção genérica sem mensagem e retornar mensagem padrão com status 500")
+    void testHandleGenericExceptionWithoutMessage() {
+        NullPointerException exception = new NullPointerException();
+
+        ProblemDetail result = exceptionHandler.handleGenericException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), result.getStatus());
+        assertEquals("Internal Server Error", result.getTitle());
+        assertEquals("Ocorreu um erro interno inesperado no servidor.", result.getDetail());
+        assertNotNull(result.getProperties());
+        assertTrue(result.getProperties().containsKey("timestamp"));
+    }
+
+    @Test
+    @DisplayName("Deve tratar exceção genérica com mensagem em branco e retornar mensagem padrão com status 500")
+    void testHandleGenericExceptionWithBlankMessage() {
+        IllegalArgumentException exception = new IllegalArgumentException("   ");
+
+        ProblemDetail result = exceptionHandler.handleGenericException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), result.getStatus());
+        assertEquals("Internal Server Error", result.getTitle());
+        assertEquals("Ocorreu um erro interno inesperado no servidor.", result.getDetail());
+        assertNotNull(result.getProperties());
+        assertTrue(result.getProperties().containsKey("timestamp"));
+    }
 }
