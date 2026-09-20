@@ -26,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Serviço responsável pelas regras de negócio e operações de persistência de {@link IndividualGoal}.
@@ -104,40 +105,38 @@ public class IndividualGoalService {
                     .toList();
         }
 
-        String role = principal.getRole();
-        if (ADM.equals(role)) {
-            return individualGoalRepository.findAll()
+        return switch (principal.getRole() != null ? principal.getRole() : "") {
+            case ADM -> individualGoalRepository.findAll()
                     .stream()
                     .map(IndividualGoalResponseDTO::fromEntity)
                     .toList();
-        } else if (COMPANY_EMPLOYEE.equals(role)) {
-            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            List<Long> farmIds = farmRepository.findAllByIdEnterprise(employee.getIdEnterprise())
-                    .stream()
-                    .map(Farm::getId)
-                    .toList();
-            if (farmIds.isEmpty()) {
-                return List.of();
+            case COMPANY_EMPLOYEE -> {
+                CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
+                List<Long> farmIds = farmRepository.findAllByIdEnterprise(employee.getIdEnterprise())
+                        .stream()
+                        .map(Farm::getId)
+                        .toList();
+                yield farmIds.isEmpty()
+                        ? List.of()
+                        : individualGoalRepository.findByIdFarmIn(farmIds)
+                                .stream()
+                                .map(IndividualGoalResponseDTO::fromEntity)
+                                .toList();
             }
-            return individualGoalRepository.findByIdFarmIn(farmIds)
-                    .stream()
-                    .map(IndividualGoalResponseDTO::fromEntity)
-                    .toList();
-        } else if (FARM_OWNER.equals(role)) {
-            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-            if (owner.getIdFarm() == null) {
-                return List.of();
+            case FARM_OWNER -> {
+                FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
+                yield (owner.getIdFarm() == null)
+                        ? List.of()
+                        : individualGoalRepository.findByIdFarm(owner.getIdFarm())
+                                .stream()
+                                .map(IndividualGoalResponseDTO::fromEntity)
+                                .toList();
             }
-            return individualGoalRepository.findByIdFarm(owner.getIdFarm())
-                    .stream()
-                    .map(IndividualGoalResponseDTO::fromEntity)
-                    .toList();
-        } else {
-            throw new ResponseStatusException(
+            default -> throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Perfil de usuário sem permissão para listar metas individuais"
             );
-        }
+        };
     }
 
     /**
@@ -237,37 +236,25 @@ public class IndividualGoalService {
     private void validateFarmAccessPermission(Farm farm, UserPrincipal principal, String action) {
         ensureAuthenticated(principal);
 
-        String role = principal.getRole();
-        if (ADM.equals(role)) {
-            return;
-        }
+        boolean authorized = switch (principal.getRole() != null ? principal.getRole() : "") {
+            case ADM -> true;
+            case COMPANY_EMPLOYEE -> Objects.equals(
+                    farm.getIdEnterprise(),
+                    getCompanyEmployeeOrThrow(principal.getId()).getIdEnterprise()
+            );
+            case FARM_OWNER -> Objects.equals(
+                    farm.getId(),
+                    getFarmOwnerOrThrow(principal.getId()).getIdFarm()
+            );
+            default -> throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Perfil de usuário sem permissão para acessar esta fazenda"
+            );
+        };
 
-        if (COMPANY_EMPLOYEE.equals(role)) {
-            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Acesso negado para " + action
-                );
-            }
-            return;
+        if (!authorized) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para " + action);
         }
-
-        if (FARM_OWNER.equals(role)) {
-            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-            if (!Objects.equals(farm.getId(), owner.getIdFarm())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Acesso negado para " + action
-                );
-            }
-            return;
-        }
-
-        throw new ResponseStatusException(
-                HttpStatus.FORBIDDEN,
-                "Perfil de usuário sem permissão para acessar esta fazenda"
-        );
     }
 
     /**
@@ -279,14 +266,14 @@ public class IndividualGoalService {
         }
 
         if (FARM_OWNER.equals(principal.getRole())) {
-            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-            if (owner.getIdFarm() == null) {
+            Long ownerFarmId = getFarmOwnerOrThrow(principal.getId()).getIdFarm();
+            if (ownerFarmId == null) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "Produtor rural logado não possui fazenda vinculada para cadastrar meta individual"
                 );
             }
-            return owner.getIdFarm();
+            return ownerFarmId;
         }
 
         throw new ResponseStatusException(
@@ -301,41 +288,37 @@ public class IndividualGoalService {
         }
     }
 
-    private CompanyEmployee getCompanyEmployeeOrThrow(Long id) {
-        return companyEmployeeRepository.findById(id)
+    private CompanyEmployee getCompanyEmployeeOrThrow(Long employeeId) {
+        return companyEmployeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Funcionário logado não encontrado para o ID: " + id
+                        "Funcionário logado não encontrado para o ID: " + employeeId
                 ));
     }
 
-    private FarmOwner getFarmOwnerOrThrow(Long id) {
-        return farmOwnerRepository.findById(id)
+    private FarmOwner getFarmOwnerOrThrow(Long ownerId) {
+        return farmOwnerRepository.findById(ownerId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Produtor rural logado não encontrado para o ID: " + id
+                        "Produtor rural logado não encontrado para o ID: " + ownerId
                 ));
     }
 
-    private Farm findFarmByIdOrThrow(Long id) {
-        if (id == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Fazenda não encontrada para o ID: null");
-        }
-        return farmRepository.findById(id)
+    private Farm findFarmByIdOrThrow(Long farmId) {
+        return Optional.ofNullable(farmId)
+                .flatMap(farmRepository::findById)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Fazenda não encontrada para o ID: " + id
+                        "Fazenda não encontrada para o ID: " + farmId
                 ));
     }
 
-    private IndividualGoal findIndividualGoalByIdOrThrow(Long id) {
-        if (id == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Meta individual não encontrada para o ID: null");
-        }
-        return individualGoalRepository.findById(id)
+    private IndividualGoal findIndividualGoalByIdOrThrow(Long goalId) {
+        return Optional.ofNullable(goalId)
+                .flatMap(individualGoalRepository::findById)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Meta individual não encontrada para o ID: " + id
+                        "Meta individual não encontrada para o ID: " + goalId
                 ));
     }
 }
