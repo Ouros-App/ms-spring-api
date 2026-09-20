@@ -3,31 +3,37 @@ const path = require('path');
 
 async function main() {
   const token = process.env.GITHUB_TOKEN;
-  // Support JULES_API_KEY (primary) or GEMINI_API_KEY (fallback)
-  const apiKey = process.env.JULES_API_KEY || process.env.GEMINI_API_KEY;
+  const julesApiKey = process.env.JULES_API_KEY || process.env.GEMINI_API_KEY;
   const repoFullName = process.env.GITHUB_REPOSITORY; // e.g. "Ouros-App/ms-spring-api"
   const prNumber = process.env.PR_NUMBER;
   const commitSha = process.env.COMMIT_SHA;
 
-  if (!token || !apiKey || !repoFullName || !prNumber) {
-    console.error('Missing required environment variables (GITHUB_TOKEN, JULES_API_KEY / GEMINI_API_KEY, GITHUB_REPOSITORY, PR_NUMBER).');
+  if (!token || !julesApiKey || !repoFullName || !prNumber) {
+    console.error('Missing required environment variables (GITHUB_TOKEN, JULES_API_KEY, GITHUB_REPOSITORY, PR_NUMBER).');
     process.exit(1);
   }
 
-  // 1. Read AGENTS.md rules
+  // 1. Read AGENTS.md
   let agentsMdContent = '';
   const agentsPath = path.join(process.cwd(), 'AGENTS.md');
   if (fs.existsSync(agentsPath)) {
     agentsMdContent = fs.readFileSync(agentsPath, 'utf8');
   }
 
-  // 2. Fetch PR diff from GitHub API
-  console.log(`Fetching PR #${prNumber} diff for ${repoFullName} at commit ${commitSha || 'latest'}...`);
+  // 2. Read Revisor de Código Skill
+  let skillContent = '';
+  const skillPath = path.join(process.cwd(), '.github', 'skills', 'revisor-de-codigo', 'SKILL.md');
+  if (fs.existsSync(skillPath)) {
+    skillContent = fs.readFileSync(skillPath, 'utf8');
+  }
+
+  // 3. Fetch PR diff from GitHub API
+  console.log(`Fetching PR #${prNumber} diff for ${repoFullName} (Commit: ${commitSha || 'latest'})...`);
   const diffResponse = await fetch(`https://api.github.com/repos/${repoFullName}/pulls/${prNumber}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Accept': 'application/vnd.github.v3.diff',
-      'User-Agent': 'ms-spring-api-jules-reviewer'
+      'User-Agent': 'ms-spring-api-jules-agent'
     }
   });
 
@@ -43,57 +49,55 @@ async function main() {
     return;
   }
 
-  // Truncate diff if extremely large (> 60KB) to prevent token overflow
+  // Limit diff size if overly large to fit context
   const maxDiffLength = 60000;
   const truncatedDiff = prDiff.length > maxDiffLength 
     ? prDiff.substring(0, maxDiffLength) + '\n... [Diff truncado devido ao tamanho]' 
     : prDiff;
 
-  // 3. Build CodeRabbit-style Prompt using Jules Engine
-  const prompt = `Você é o Jules (Google AI Coding Agent) atuando como um Revisor de Código Sênior rigoroso no estilo CodeRabbit para o repositório ms-spring-api.
+  // 4. Construct Prompt using Antigravity revisor-de-codigo Skill + AGENTS.md for Jules
+  const prompt = `Você é o Jules (Google Coding Agent) executando a Skill oficial de Code Review do Antigravity.
 
-### Diretrizes de Arquitetura e Engenharia (AGENTS.md):
+=== SKILL INSTRUCTIONS (revisor-de-codigo) ===
+${skillContent}
+
+=== REPOSITORY RULES (AGENTS.md) ===
 ${agentsMdContent}
 
-### Instruções de Análise e Estilo CodeRabbit:
-1. **Foco Estrito no Diff da Alteração:** Analise minuciosamente os arquivos e linhas modificados no diff fornecido.
-2. **Regras Técnicas Obrigatórias:**
-   - **Bugs e Lógica:** Trate exceções, concorrência, bordas e regressões.
-   - **Segurança & RBAC:** Verifique autorização (ADM, COMPANY_EMPLOYEE, FARM_OWNER), tokens JWT e vazamento de segredos.
-   - **Padrões do Repositório:** DTOs com Java \`record\`, Spring Boot 3.4.0 com \`@MockitoBean\` (nunca usar \`@MockBean\`), anotações Swagger/OpenAPI, transações \`@Transactional\`.
-   - **Idiomas:** Código Java em inglês; mensagens, explicações e comentários em **Português (PT-BR)**.
-3. **Formato da Resposta:**
-   Retorne estritamente um JSON com esta estrutura:
-   {
-     "summary": "### 🤖 Jules Code Review\\n\\n**Resumo da Alteração:**\\n<explicação em alto nível da alteração nesta commit/update>\\n\\n**Checklist / Tabela de Impacto:**\\n- [ ] Ponto de atenção 1\\n- [ ] Ponto de atenção 2\\n\\n**Veredito:**\\n<Aprovado | Requer Ajustes | Ponto de Atenção>",
-     "comments": [
-       {
-         "path": "caminho/do/arquivo.java",
-         "line": 42,
-         "title": "[Crítico|Importante|Sugestão] Título objetivo",
-         "explanation": "Explicação técnica do problema e impacto em PT-BR.",
-         "suggestion": "código exato de substituição para a linha/bloco (sem as aspas de markdown, apenas o código)"
-       }
-     ]
-   }
+=== INSTRUÇÕES ESPECÍFICAS DESTE REVIEW ===
+1. Analise exclusivamente as alterações presentes no diff abaixo.
+2. Não avalie código preexistente intocado.
+3. Responda ESTRITAMENTE em formato JSON com o seguinte schema:
+{
+  "summary": "### 🤖 Jules Code Review (Antigravity Skill)\\n\\n**Resumo da Alteração:**\\n<visão geral das modificações>\\n\\n**Checklist / Tabela de Impacto:**\\n- [ ] Ponto 1\\n- [ ] Ponto 2\\n\\n**Veredito:**\\n<Aprovado | Requer Ajustes>",
+  "comments": [
+    {
+      "path": "caminho/do/arquivo.java",
+      "line": 42,
+      "title": "[Crítico|Importante|Sugestão] Título",
+      "explanation": "Explicação técnica do problema e impacto em Português (PT-BR).",
+      "suggestion": "código exato de substituição para a linha/bloco modificado (sem crases de markdown)"
+    }
+  ]
+}
 
-Atenção: O campo "line" deve apontar para o número da linha no arquivo modificado (lado direito do diff). Se não houver sugestão de substituição em código, defina "suggestion" como null ou string vazia.
+Atenção: A propriedade "line" deve ser um número inteiro indicando a linha no novo código (lado direito do diff). Se não houver sugestão de código de 1-clique, envie "suggestion" como null.
 
-### Diff da Alteração:
+=== DIFF DA ALTERAÇÃO ===
 \`\`\`diff
 ${truncatedDiff}
 \`\`\`
 `;
 
-  // 4. Call API with JULES_API_KEY
-  console.log('Calling API for Jules Code Review...');
-  const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  // 5. Call Google Jules / Gemini Engine with JULES_API_KEY
+  console.log('Executing review via Jules API Engine with JULES_API_KEY...');
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${julesApiKey}`;
 
-  const apiResponse = await fetch(apiEndpoint, {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey
+      'x-goog-api-key': julesApiKey
     },
     body: JSON.stringify({
       contents: [
@@ -104,22 +108,22 @@ ${truncatedDiff}
       ],
       generationConfig: {
         responseMimeType: 'application/json',
-        temperature: 0.2
+        temperature: 0.1
       }
     })
   });
 
-  if (!apiResponse.ok) {
-    const errorText = await apiResponse.text();
-    console.error(`Jules API call failed: ${apiResponse.status} ${errorText}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Jules execution failed: ${response.status} ${errorText}`);
     process.exit(1);
   }
 
-  const apiData = await apiResponse.json();
-  const rawContent = apiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const responseData = await response.json();
+  const rawContent = responseData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
   if (!rawContent) {
-    console.error('No content returned from Jules API.');
+    console.error('Empty response received from Jules.');
     process.exit(1);
   }
 
@@ -127,11 +131,11 @@ ${truncatedDiff}
   try {
     reviewResult = JSON.parse(rawContent);
   } catch (e) {
-    console.error('Failed to parse response as JSON:', rawContent);
+    console.error('Failed to parse Jules review response as JSON:', rawContent);
     process.exit(1);
   }
 
-  // 5. Build GitHub Inline Comments (with ```suggestion```)
+  // 6. Format Inline Comments
   const githubComments = [];
   if (Array.isArray(reviewResult.comments)) {
     for (const c of reviewResult.comments) {
@@ -153,10 +157,10 @@ ${truncatedDiff}
 
   const shortCommit = commitSha ? commitSha.substring(0, 7) : 'update';
   const summaryHeader = `## 🤖 Jules Code Review (Commit: \`${shortCommit}\`)\n\n`;
-  const summaryBody = summaryHeader + (reviewResult.summary || 'Nenhum problema crítico identificado nesta alteração.');
+  const summaryBody = summaryHeader + (reviewResult.summary || 'Nenhum problema identificado nesta alteração.');
 
-  // 6. ALWAYS Post a NEW Pull Request Review on GitHub (every commit/alteration gets its own review comment)
-  console.log(`Posting NEW PR Review comment for commit ${shortCommit} with ${githubComments.length} inline comment(s)...`);
+  // 7. Post a NEW Review on GitHub for this alteration/commit
+  console.log(`Posting new Jules review for commit ${shortCommit} (${githubComments.length} inline suggestion(s))...`);
   
   const reviewPayload = {
     commit_id: commitSha || undefined,
@@ -172,21 +176,20 @@ ${truncatedDiff}
       'Authorization': `Bearer ${token}`,
       'Accept': 'application/vnd.github.v3+json',
       'Content-Type': 'application/json',
-      'User-Agent': 'ms-spring-api-jules-reviewer'
+      'User-Agent': 'ms-spring-api-jules-agent'
     },
     body: JSON.stringify(reviewPayload)
   });
 
   if (!postReviewResponse.ok) {
     const errBody = await postReviewResponse.text();
-    console.error(`Failed to post PR review: ${postReviewResponse.status} ${errBody}`);
+    console.warn(`Inline review comment rejected by GitHub (${postReviewResponse.status}): ${errBody}`);
+    console.log('Posting review as new issue comment fallback...');
     
-    // Fallback: If inline comments fail (e.g. line numbers outside diff context), post new summary issue comment
-    console.log('Posting new issue comment fallback...');
     const fallbackCommentUrl = `https://api.github.com/repos/${repoFullName}/issues/${prNumber}/comments`;
     let fallbackText = `${summaryBody}`;
     if (githubComments.length > 0) {
-      fallbackText += `\n\n---\n### 📌 Sugestões da Alteração:\n` + 
+      fallbackText += `\n\n---\n### 📌 Sugestões Inline da Skill:\n` + 
         githubComments.map(c => `**${c.path} (L${c.line}):**\n${c.body}`).join('\n\n');
     }
     
@@ -196,21 +199,21 @@ ${truncatedDiff}
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
-        'User-Agent': 'ms-spring-api-jules-reviewer'
+        'User-Agent': 'ms-spring-api-jules-agent'
       },
       body: JSON.stringify({ body: fallbackText })
     });
 
     if (!fallbackResponse.ok) {
-      console.error('Fallback comment post also failed.');
+      console.error('Failed to post fallback review comment.');
       process.exit(1);
     }
   }
 
-  console.log(`Successfully posted new Jules Code Review comment for commit ${shortCommit}!`);
+  console.log(`Jules Code Review successfully posted for commit ${shortCommit}!`);
 }
 
 main().catch(err => {
-  console.error('Unhandled error during Jules code review:', err);
+  console.error('Fatal error during Jules code review:', err);
   process.exit(1);
 });
