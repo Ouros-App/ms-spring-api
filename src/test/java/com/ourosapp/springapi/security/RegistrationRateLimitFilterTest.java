@@ -8,6 +8,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class RegistrationRateLimitFilterTest {
 
@@ -70,6 +71,49 @@ class RegistrationRateLimitFilterTest {
         assertEquals(200, otherPost.getStatus());
         assertEquals(200, registration.getStatus());
         assertEquals("0", registration.getHeader("X-RateLimit-Remaining"));
+    }
+
+
+    @Test
+    @DisplayName("Deve rejeitar configuração com limites inválidos")
+    void shouldRejectInvalidConfiguration() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new RegistrationRateLimitFilter(0, 60)
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new RegistrationRateLimitFilter(1, 0)
+        );
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar nova origem quando o limite de IPs rastreados estiver saturado")
+    void shouldRejectNewClientWhenTrackedClientCapacityIsReached() throws Exception {
+        RegistrationRateLimitFilter filter = new RegistrationRateLimitFilter(1, 3600);
+
+        for (int i = 0; i < 10_000; i++) {
+            MockHttpServletResponse response = execute(
+                    filter,
+                    "POST",
+                    "/farm-owners",
+                    "10." + (i / 65536) + "." + ((i / 256) % 256) + "." + (i % 256),
+                    null
+            );
+            assertEquals(200, response.getStatus());
+        }
+
+        MockHttpServletResponse saturated = execute(
+                filter,
+                "POST",
+                "/farm-owners",
+                "203.0.113.250",
+                null
+        );
+
+        assertEquals(429, saturated.getStatus());
+        assertEquals("3600", saturated.getHeader("Retry-After"));
+        assertTrue(saturated.getContentAsString().contains("Muitas origens de cadastro ativas"));
     }
 
     private MockHttpServletResponse execute(
