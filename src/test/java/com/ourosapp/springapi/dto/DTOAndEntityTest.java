@@ -1104,6 +1104,27 @@ class DTOAndEntityTest {
         assertEquals("https://storage.ourosapp.com/profiles/sebastiao.jpg", formattedCpf.fotoUrl());
         assertTrue(validator.validate(formattedCpf).isEmpty());
 
+        String oversizedEmail = "a".repeat(42) + "@example.com";
+        FarmOwnerRequestDTO oversizedEmailRequest = new FarmOwnerRequestDTO(
+                "Sebastião Silva",
+                "12345678909",
+                oversizedEmail,
+                "11987654321",
+                "SenhaForte@123",
+                10L,
+                null
+        );
+        assertFalse(validator.validate(oversizedEmailRequest).isEmpty());
+
+        FarmOwnerUpdateDTO oversizedEmailUpdate = new FarmOwnerUpdateDTO(
+                oversizedEmail,
+                null,
+                null,
+                null,
+                null
+        );
+        assertFalse(validator.validate(oversizedEmailUpdate).isEmpty());
+
         // Desserialização Jackson snake_case e camelCase com aliases
         String json = """
                 {
