@@ -32,7 +32,7 @@ public record IndividualGoalRequestDTO(
         @Schema(description = "Descrição detalhada da meta", example = "Meta operacional para otimizar os ciclos de ventilação noturna")
         String description,
 
-        @Schema(description = "Tipo ou métrica da meta", example = "ENERGY_CONSUMPTION")
+        @Schema(description = "Tipo ou métrica da meta (ex.: ENERGY_CONSUMPTION, WATER_CONSUMPTION, MORTALITY)", example = "ENERGY_CONSUMPTION")
         @NotBlank(message = "O tipo da meta não pode estar em branco")
         @Size(max = 50, message = "O tipo da meta deve ter no máximo 50 caracteres")
         String type,

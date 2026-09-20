@@ -54,7 +54,7 @@ public record IndividualGoalUpdateDTO(
      */
     public boolean hasUpdates() {
         return (title != null && !title.isBlank())
-                || (description != null && !description.isBlank())
+                || description != null
                 || (status != null && !status.isBlank())
                 || targetValue != null;
     }

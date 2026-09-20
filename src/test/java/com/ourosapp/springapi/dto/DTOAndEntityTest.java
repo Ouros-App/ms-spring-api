@@ -1757,7 +1757,6 @@ class DTOAndEntityTest {
     }
 
     /**
-<<<<<<< HEAD
      * Testa getters, setters, builder e toString da entidade {@link StateGoal}.
      */
     @Test
@@ -1792,7 +1791,14 @@ class DTOAndEntityTest {
                 .targetValue(new BigDecimal("2.1000"))
                 .dateCreation(LocalDate.of(2026, 2, 1))
                 .dateEnd(LocalDate.of(2026, 11, 30))
-=======
+                .idFarm(20L)
+                .build();
+
+        assertEquals(2L, built.getId());
+        assertTrue(built.toString().contains("Meta Built"));
+    }
+
+    /**
      * Testa getters, setters, builder e toString da entidade {@link IndividualGoal}.
      */
     @Test
@@ -1821,7 +1827,6 @@ class DTOAndEntityTest {
                 .type("WATER_CONSUMPTION")
                 .status("PENDING")
                 .targetValue(new BigDecimal("150.0000"))
->>>>>>> 1f2e7cf (feat(individual-goals): implementar rotas de metas individuais)
                 .idFarm(20L)
                 .build();
 
@@ -1830,7 +1835,6 @@ class DTOAndEntityTest {
     }
 
     /**
-<<<<<<< HEAD
      * Testa instanciação, sanitização, validação cruzada e interoperabilidade JSON de {@link StateGoalRequestDTO}.
      */
     @Test
@@ -2133,8 +2137,11 @@ class DTOAndEntityTest {
         IndividualGoalUpdateDTO emptyDto = new IndividualGoalUpdateDTO(null, null, null, null);
         assertFalse(emptyDto.hasUpdates());
 
-        IndividualGoalUpdateDTO blankDto = new IndividualGoalUpdateDTO("  ", "  ", "  ", null);
+        IndividualGoalUpdateDTO blankDto = new IndividualGoalUpdateDTO("  ", null, "  ", null);
         assertFalse(blankDto.hasUpdates());
+
+        IndividualGoalUpdateDTO clearDescriptionDto = new IndividualGoalUpdateDTO(null, "", null, null);
+        assertTrue(clearDescriptionDto.hasUpdates());
     }
 }
 
