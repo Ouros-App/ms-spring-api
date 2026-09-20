@@ -143,6 +143,7 @@ jobs:
         run: |
           test -n "$DISCLOUD_TOKEN"
           ../node_modules/.bin/discloud app commit ms-spring-api
+          ../node_modules/.bin/discloud app restart ms-spring-api
 
   sonarcloud:
     name: sonarcloud
