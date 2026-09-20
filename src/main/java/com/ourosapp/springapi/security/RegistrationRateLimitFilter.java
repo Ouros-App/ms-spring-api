@@ -28,9 +28,18 @@ public class RegistrationRateLimitFilter extends OncePerRequestFilter {
 
     private final int maxRequests;
     private final long windowSeconds;
+    private final boolean trustProxyHeaders;
     private final Map<String, ClientWindow> clients = new ConcurrentHashMap<>();
 
     public RegistrationRateLimitFilter(int maxRequests, long windowSeconds) {
+        this(maxRequests, windowSeconds, false);
+    }
+
+    public RegistrationRateLimitFilter(
+            int maxRequests,
+            long windowSeconds,
+            boolean trustProxyHeaders
+    ) {
         if (maxRequests <= 0) {
             throw new IllegalArgumentException("maxRequests deve ser maior que zero");
         }
@@ -40,6 +49,7 @@ public class RegistrationRateLimitFilter extends OncePerRequestFilter {
 
         this.maxRequests = maxRequests;
         this.windowSeconds = windowSeconds;
+        this.trustProxyHeaders = trustProxyHeaders;
     }
 
     @Override
@@ -65,6 +75,8 @@ public class RegistrationRateLimitFilter extends OncePerRequestFilter {
         cleanupExpiredEntries(now);
 
         if (!clients.containsKey(clientIp) && clients.size() >= MAX_TRACKED_CLIENTS) {
+            response.setHeader("X-RateLimit-Limit", String.valueOf(maxRequests));
+            response.setHeader("X-RateLimit-Remaining", "0");
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setHeader("Retry-After", String.valueOf(windowSeconds));
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -103,7 +115,10 @@ public class RegistrationRateLimitFilter extends OncePerRequestFilter {
 
     private String resolveClientIp(HttpServletRequest request) {
         String cloudflareIp = request.getHeader("CF-Connecting-IP");
-        if (cloudflareIp != null && !cloudflareIp.isBlank() && cloudflareIp.length() <= 64) {
+        if (trustProxyHeaders
+                && cloudflareIp != null
+                && !cloudflareIp.isBlank()
+                && cloudflareIp.length() <= 64) {
             return cloudflareIp.trim();
         }
 
