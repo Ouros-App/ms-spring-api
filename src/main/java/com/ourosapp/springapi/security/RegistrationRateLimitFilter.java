@@ -63,6 +63,18 @@ public class RegistrationRateLimitFilter extends OncePerRequestFilter {
 
         cleanupExpiredEntries(now);
 
+        if (!clients.containsKey(clientIp) && clients.size() >= MAX_TRACKED_CLIENTS) {
+            response.setStatus(HttpServletResponse.SC_TOO_MANY_REQUESTS);
+            response.setHeader("Retry-After", String.valueOf(windowSeconds));
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write(
+                    "{\"status\":429,\"error\":\"Too Many Requests\","
+                            + "\"message\":\"Muitas origens de cadastro ativas. Tente novamente mais tarde.\"}"
+            );
+            return;
+        }
+
         ClientWindow window = clients.computeIfAbsent(
                 clientIp,
                 ignored -> new ClientWindow(now, windowSeconds)
@@ -90,7 +102,7 @@ public class RegistrationRateLimitFilter extends OncePerRequestFilter {
 
     private String resolveClientIp(HttpServletRequest request) {
         String cloudflareIp = request.getHeader("CF-Connecting-IP");
-        if (cloudflareIp != null && !cloudflareIp.isBlank()) {
+        if (cloudflareIp != null && !cloudflareIp.isBlank() && cloudflareIp.length() <= 64) {
             return cloudflareIp.trim();
         }
 
