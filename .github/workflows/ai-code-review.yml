@@ -10,8 +10,8 @@ permissions:
   issues: write
 
 jobs:
-  code-review:
-    name: jules-code-review
+  jules-review:
+    name: jules-session-review
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -24,11 +24,11 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Run Jules Code Review
+      - name: Trigger Jules Session on jules.google.com
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
         run: node .github/scripts/ai-code-review.js
