@@ -1,7 +1,0 @@
-{
-  "name": "ms-spring-api-deploy",
-  "private": true,
-  "devDependencies": {
-    "discloud-cli": "2.11.1"
-  }
-}

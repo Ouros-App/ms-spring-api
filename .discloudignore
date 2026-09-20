@@ -1,0 +1,19 @@
+# Arquivos e pastas ignorados no deploy da Discloud
+.git/
+.github/
+.gradle/
+build/
+gradle/
+src/
+test/
+node_modules/
+package.json
+package-lock.json
+*.md
+*.bat
+gradlew
+settings.gradle
+build.gradle
+sonar-project.properties
+Dockerfile
+docker-compose.yml
