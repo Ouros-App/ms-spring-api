@@ -637,6 +637,26 @@ class CompanyEmployeeServiceTest {
         assertTrue(exception.getMessage().contains("Conflito de integridade de dados ao atualizar funcionário"));
     }
     @Test
+    @DisplayName("Deve rejeitar criação quando principal autenticado não possuir ID")
+    void testCreateCompanyEmployeeAuthenticatedPrincipalWithoutIdUnauthorized() {
+        UserPrincipal principalWithoutId = new UserPrincipal(
+                null,
+                "adm@empresa.com.br",
+                null,
+                "ADM",
+                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> companyEmployeeService.createCompanyEmployee(sampleRequest, principalWithoutId)
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+        verify(companyEmployeeRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Deve permitir cadastro público de funcionário sem principal autenticado")
     void testCreateCompanyEmployeeAnonymousSuccess() {
         when(enterpriseRepository.existsById(10L)).thenReturn(true);
