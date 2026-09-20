@@ -121,21 +121,7 @@ public class StateGoalService {
                 return List.of();
             }
 
-            List<Long> linkedGoalIds = farmGoalRepository.findByIdFarm(farm.getId())
-                    .stream()
-                    .map(FarmGoal::getIdGoal)
-                    .toList();
-
-            List<StateGoal> directGoals = stateGoalRepository.findByIdFarm(farm.getId());
-            List<StateGoal> junctionGoals = linkedGoalIds.isEmpty() ? List.of() : stateGoalRepository.findAllById(linkedGoalIds);
-
-            Map<Long, StateGoal> combinedGoals = new java.util.LinkedHashMap<>();
-            directGoals.forEach(g -> combinedGoals.put(g.getId(), g));
-            junctionGoals.forEach(g -> combinedGoals.putIfAbsent(g.getId(), g));
-
-            return combinedGoals.values().stream()
-                    .map(goal -> StateGoalResponseDTO.fromEntity(goal, farm.getRegion()))
-                    .toList();
+            return getGoalsForSingleFarm(farm);
         }
 
         String role = principal.getRole();
@@ -206,27 +192,31 @@ public class StateGoalService {
                 return List.of();
             }
 
-            List<Long> linkedGoalIds = farmGoalRepository.findByIdFarm(farm.getId())
-                    .stream()
-                    .map(FarmGoal::getIdGoal)
-                    .toList();
-
-            List<StateGoal> directGoals = stateGoalRepository.findByIdFarm(farm.getId());
-            List<StateGoal> junctionGoals = linkedGoalIds.isEmpty() ? List.of() : stateGoalRepository.findAllById(linkedGoalIds);
-
-            Map<Long, StateGoal> combinedGoals = new java.util.LinkedHashMap<>();
-            directGoals.forEach(g -> combinedGoals.put(g.getId(), g));
-            junctionGoals.forEach(g -> combinedGoals.putIfAbsent(g.getId(), g));
-
-            return combinedGoals.values().stream()
-                    .map(goal -> StateGoalResponseDTO.fromEntity(goal, farm.getRegion()))
-                    .toList();
+            return getGoalsForSingleFarm(farm);
         } else {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Perfil de usuário sem permissão para listar metas estaduais"
             );
         }
+    }
+
+    private List<StateGoalResponseDTO> getGoalsForSingleFarm(Farm farm) {
+        List<Long> linkedGoalIds = farmGoalRepository.findByIdFarm(farm.getId())
+                .stream()
+                .map(FarmGoal::getIdGoal)
+                .toList();
+
+        List<StateGoal> directGoals = stateGoalRepository.findByIdFarm(farm.getId());
+        List<StateGoal> junctionGoals = linkedGoalIds.isEmpty() ? List.of() : stateGoalRepository.findAllById(linkedGoalIds);
+
+        Map<Long, StateGoal> combinedGoals = new java.util.LinkedHashMap<>();
+        directGoals.forEach(g -> combinedGoals.put(g.getId(), g));
+        junctionGoals.forEach(g -> combinedGoals.putIfAbsent(g.getId(), g));
+
+        return combinedGoals.values().stream()
+                .map(goal -> StateGoalResponseDTO.fromEntity(goal, farm.getRegion()))
+                .toList();
     }
 
     /**
@@ -453,37 +443,25 @@ public class StateGoalService {
     private void validateFarmAccessPermission(Farm farm, UserPrincipal principal, String action) {
         ensureAuthenticated(principal);
 
-        String role = principal.getRole();
-        if (ADM.equals(role)) {
-            return;
-        }
+        boolean isAuthorized = switch (principal.getRole()) {
+            case ADM -> true;
+            case COMPANY_EMPLOYEE -> Objects.equals(
+                    farm.getIdEnterprise(),
+                    getCompanyEmployeeOrThrow(principal.getId()).getIdEnterprise()
+            );
+            case FARM_OWNER -> Objects.equals(
+                    farm.getId(),
+                    getFarmOwnerOrThrow(principal.getId()).getIdFarm()
+            );
+            default -> throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Perfil de usuário sem permissão para acessar esta fazenda"
+            );
+        };
 
-        if (COMPANY_EMPLOYEE.equals(role)) {
-            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Acesso negado para " + action
-                );
-            }
-            return;
+        if (!isAuthorized) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para " + action);
         }
-
-        if (FARM_OWNER.equals(role)) {
-            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-            if (!Objects.equals(farm.getId(), owner.getIdFarm())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Acesso negado para " + action
-                );
-            }
-            return;
-        }
-
-        throw new ResponseStatusException(
-                HttpStatus.FORBIDDEN,
-                "Perfil de usuário sem permissão para acessar esta fazenda"
-        );
     }
 
     private Long resolveFarmIdForCreation(Long idFarm, UserPrincipal principal) {
@@ -491,21 +469,21 @@ public class StateGoalService {
             return idFarm;
         }
 
-        if (FARM_OWNER.equals(principal.getRole())) {
-            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-            if (owner.getIdFarm() == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Produtor rural logado não possui fazenda vinculada para cadastrar meta estadual"
-                );
-            }
-            return owner.getIdFarm();
+        if (!FARM_OWNER.equals(principal.getRole())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "O ID da fazenda é obrigatório para administradores e funcionários da empresa"
+            );
         }
 
-        throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "O ID da fazenda é obrigatório para administradores e funcionários da empresa"
-        );
+        FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
+        if (owner.getIdFarm() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Produtor rural logado não possui fazenda vinculada para cadastrar meta estadual"
+            );
+        }
+        return owner.getIdFarm();
     }
 
     private void ensureAuthenticated(UserPrincipal principal) {
@@ -514,41 +492,41 @@ public class StateGoalService {
         }
     }
 
-    private CompanyEmployee getCompanyEmployeeOrThrow(Long id) {
-        return companyEmployeeRepository.findById(id)
+    private CompanyEmployee getCompanyEmployeeOrThrow(Long employeeId) {
+        return companyEmployeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Funcionário logado não encontrado para o ID: " + id
+                        "Funcionário logado não encontrado para o ID: " + employeeId
                 ));
     }
 
-    private FarmOwner getFarmOwnerOrThrow(Long id) {
-        return farmOwnerRepository.findById(id)
+    private FarmOwner getFarmOwnerOrThrow(Long ownerId) {
+        return farmOwnerRepository.findById(ownerId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Produtor rural logado não encontrado para o ID: " + id
+                        "Produtor rural logado não encontrado para o ID: " + ownerId
                 ));
     }
 
-    private Farm findFarmByIdOrThrow(Long id) {
-        if (id == null) {
+    private Farm findFarmByIdOrThrow(Long farmId) {
+        if (farmId == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Fazenda não encontrada para o ID: null");
         }
-        return farmRepository.findById(id)
+        return farmRepository.findById(farmId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Fazenda não encontrada para o ID: " + id
+                        "Fazenda não encontrada para o ID: " + farmId
                 ));
     }
 
-    private StateGoal findStateGoalByIdOrThrow(Long id) {
-        if (id == null) {
+    private StateGoal findStateGoalByIdOrThrow(Long goalId) {
+        if (goalId == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Meta estadual não encontrada para o ID: null");
         }
-        return stateGoalRepository.findById(id)
+        return stateGoalRepository.findById(goalId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Meta estadual não encontrada para o ID: " + id
+                        "Meta estadual não encontrada para o ID: " + goalId
                 ));
     }
 }
