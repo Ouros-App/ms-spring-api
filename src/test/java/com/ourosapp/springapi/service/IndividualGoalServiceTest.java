@@ -367,6 +367,49 @@ class IndividualGoalServiceTest {
     }
 
     @Test
+    @DisplayName("Deve lançar 403 Forbidden ao buscar meta por ID de fazenda de outra empresa")
+    void deveLancar403AoBuscarMetaDeOutraEmpresaPorId() {
+        CompanyEmployee employeeOutraEmpresa = CompanyEmployee.builder().id(2L).idEnterprise(99L).build();
+        when(individualGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employeeOutraEmpresa));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> individualGoalService.getIndividualGoalById(1L, employeePrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 Forbidden ao atualizar meta de outra fazenda por Produtor Rural")
+    void deveLancar403AoAtualizarMetaDeOutraFazendaPorProdutorRural() {
+        FarmOwner ownerOutraFazenda = FarmOwner.builder().id(3L).idFarm(99L).build();
+        IndividualGoalUpdateDTO updateDTO = new IndividualGoalUpdateDTO("Novo Titulo", null, null, null);
+        when(individualGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(ownerOutraFazenda));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> individualGoalService.updateIndividualGoal(1L, updateDTO, ownerPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 Forbidden ao deletar meta de outra fazenda por Produtor Rural")
+    void deveLancar403AoDeletarMetaDeOutraFazendaPorProdutorRural() {
+        FarmOwner ownerOutraFazenda = FarmOwner.builder().id(3L).idFarm(99L).build();
+        when(individualGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(ownerOutraFazenda));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> individualGoalService.deleteIndividualGoal(1L, ownerPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
     @DisplayName("Deve atualizar meta individual parcialmente com sucesso")
     void deveAtualizarMetaIndividualComSucesso() {
         IndividualGoalUpdateDTO updateDTO = new IndividualGoalUpdateDTO(
