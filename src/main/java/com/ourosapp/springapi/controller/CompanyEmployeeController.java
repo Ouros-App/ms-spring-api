@@ -38,7 +38,7 @@ public class CompanyEmployeeController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Funcionário cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
-            @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "401", description = "Token JWT inválido, caso seja enviado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
             @ApiResponse(responseCode = "404", description = "Empresa integradora vinculada não encontrada"),
             @ApiResponse(responseCode = "409", description = "Documento ou e-mail já cadastrados no sistema"),
