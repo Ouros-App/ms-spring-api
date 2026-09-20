@@ -27,6 +27,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
@@ -138,7 +139,7 @@ class CompanyEmployeeControllerMockMvcTest {
     }
 
     @Test
-    @DisplayName("POST /company-employees - Deve retornar 401 Unauthorized quando não autenticado")
+    @DisplayName("POST /company-employees - Deve permitir cadastro público sem autenticação")
     void testCreateCompanyEmployeeUnauthorized() throws Exception {
         CompanyEmployeeRequestDTO request = new CompanyEmployeeRequestDTO(
                 "Carlos Eduardo Pereira",
@@ -148,11 +149,23 @@ class CompanyEmployeeControllerMockMvcTest {
                 "SenhaForte@123",
                 10L
         );
+        CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
+                1L,
+                "Carlos Eduardo Pereira",
+                "12345678909",
+                "carlos.pereira@empresa.com.br",
+                "11987654321",
+                10L
+        );
+
+        when(companyEmployeeService.createCompanyEmployee(any(CompanyEmployeeRequestDTO.class), isNull())).thenReturn(response);
 
         mockMvc.perform(post("/company-employees")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isCreated())
+                .andExpect(header().string("X-RateLimit-Limit", "60"))
+                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/company-employees/1")));
     }
 
     @Test
