@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +23,7 @@ import java.net.URI;
 
 /**
  * Controlador REST responsável por expor as rotas de gerenciamento de Funcionários da Empresa Integradora.
- * Todas as rotas são protegidas por autenticação JWT (Bearer token).
+ * As rotas de leitura e manutenção exigem JWT. O POST de cadastro é público e protegido por rate limit.
  */
 @RestController
 @RequestMapping("/company-employees")
@@ -37,12 +38,14 @@ public class CompanyEmployeeController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Funcionário cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
-            @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "401", description = "Token JWT inválido, caso seja enviado"),
             @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
             @ApiResponse(responseCode = "404", description = "Empresa integradora vinculada não encontrada"),
-            @ApiResponse(responseCode = "409", description = "Documento ou e-mail já cadastrados no sistema")
+            @ApiResponse(responseCode = "409", description = "Documento ou e-mail já cadastrados no sistema"),
+            @ApiResponse(responseCode = "429", description = "Limite de tentativas de cadastro excedido")
     })
     @PostMapping
+    @SecurityRequirements
     public ResponseEntity<CompanyEmployeeResponseDTO> createCompanyEmployee(
             @RequestBody @Valid CompanyEmployeeRequestDTO request,
             @AuthenticationPrincipal UserPrincipal principal

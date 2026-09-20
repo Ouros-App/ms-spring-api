@@ -27,6 +27,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
@@ -106,12 +107,12 @@ class FarmOwnerControllerMockMvcTest {
     }
 
     /**
-     * Testa POST /farm-owners sem autenticação esperando status 401 Unauthorized.
+     * Testa POST /farm-owners sem autenticação esperando cadastro público com sucesso.
      *
      * @throws Exception se ocorrer erro na requisição MockMvc
      */
     @Test
-    @DisplayName("POST /farm-owners - Deve retornar 401 Unauthorized quando não autenticado")
+    @DisplayName("POST /farm-owners - Deve permitir cadastro público sem autenticação")
     void testCreateFarmOwnerUnauthorized() throws Exception {
         FarmOwnerRequestDTO request = new FarmOwnerRequestDTO(
                 "Sebastião da Silva",
@@ -122,11 +123,25 @@ class FarmOwnerControllerMockMvcTest {
                 10L,
                 null
         );
+        FarmOwnerResponseDTO response = new FarmOwnerResponseDTO(
+                1L,
+                "Sebastião da Silva",
+                "12345678909",
+                "sebastiao.silva@fazenda.com.br",
+                "11987654321",
+                10L,
+                true,
+                null
+        );
+
+        when(farmOwnerService.createFarmOwner(any(FarmOwnerRequestDTO.class), isNull())).thenReturn(response);
 
         mockMvc.perform(post("/farm-owners")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isCreated())
+                .andExpect(header().string("X-RateLimit-Limit", "60"))
+                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/farm-owners/1")));
     }
 
     /**

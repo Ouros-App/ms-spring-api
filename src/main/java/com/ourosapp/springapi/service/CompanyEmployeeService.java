@@ -36,8 +36,10 @@ public class CompanyEmployeeService {
     @Transactional
     public CompanyEmployeeResponseDTO createCompanyEmployee(CompanyEmployeeRequestDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
-        ensureAuthenticated(principal);
-        validateCompanyEmployeeCreationPermission(request.idEnterprise(), principal);
+        if (principal != null) {
+            ensureAuthenticated(principal);
+            validateCompanyEmployeeCreationPermission(request.idEnterprise(), principal);
+        }
 
         if (!enterpriseRepository.existsById(request.idEnterprise())) {
             throw new ResponseStatusException(

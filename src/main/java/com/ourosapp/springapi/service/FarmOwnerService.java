@@ -42,7 +42,7 @@ public class FarmOwnerService {
 
     /**
      * Cadastra um novo Produtor Rural vinculado a uma Fazenda.
-     * Valida permissões (apenas ADM ou Funcionário da mesma empresa integradora à qual a fazenda pertence).
+     * Permite cadastro público sem autenticação. Quando houver usuário autenticado, mantém as regras de permissão existentes.
      *
      * @param request   payload com os dados cadastrais do produtor rural
      * @param principal dados do usuário logado extraídos do token JWT
@@ -55,7 +55,6 @@ public class FarmOwnerService {
     @Transactional
     public FarmOwnerResponseDTO createFarmOwner(FarmOwnerRequestDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
-        ensureAuthenticated(principal);
 
         Farm farm = farmRepository.findById(request.idFarm())
                 .orElseThrow(() -> new ResponseStatusException(
@@ -63,7 +62,9 @@ public class FarmOwnerService {
                         "Fazenda não encontrada para o ID: " + request.idFarm()
                 ));
 
-        validateFarmOwnerCreationPermission(farm, principal);
+        if (principal != null) {
+            validateFarmOwnerCreationPermission(farm, principal);
+        }
 
         if (farmOwnerRepository.existsByDocumentNumber(request.documentNumber())) {
             throw new ResponseStatusException(
