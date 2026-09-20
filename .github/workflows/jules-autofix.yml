@@ -3,6 +3,16 @@ name: Jules Auto-Fix Trigger (Checkbox & Commands)
 on:
   issue_comment:
     types: [edited, created]
+  pull_request_review:
+    types: [edited, submitted]
+  pull_request_review_comment:
+    types: [edited, created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Número da PR para aplicar o Auto-Fix'
+        required: true
+        default: '33'
 
 permissions:
   contents: write
@@ -12,14 +22,13 @@ permissions:
 jobs:
   autofix:
     name: jules-autofix
-    # Dispara se for um comentário em uma PR E se tiver checkbox marcado com [x] ou menção @jules fix
     if: |
-      github.event.issue.pull_request &&
+      github.event_name == 'workflow_dispatch' ||
       (
-        contains(github.event.comment.body, '- [x]') ||
-        contains(github.event.comment.body, '- [X]') ||
-        contains(github.event.comment.body, '@jules fix') ||
-        contains(github.event.comment.body, '@jules corrige')
+        contains(github.event.comment.body || github.event.review.body || '', '- [x]') ||
+        contains(github.event.comment.body || github.event.review.body || '', '- [X]') ||
+        contains(github.event.comment.body || github.event.review.body || '', '@jules fix') ||
+        contains(github.event.comment.body || github.event.review.body || '', '@jules corrige')
       )
     runs-on: ubuntu-latest
     steps:
@@ -35,6 +44,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
-          PR_NUMBER: ${{ github.event.issue.number }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || github.event.inputs.pr_number }}
+          COMMENT_BODY: ${{ github.event.comment.body || github.event.review.body || '@jules fix all' }}
         run: node .github/scripts/jules-autofix.js
