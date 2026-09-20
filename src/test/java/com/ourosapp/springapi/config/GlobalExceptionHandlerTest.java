@@ -105,7 +105,7 @@ class GlobalExceptionHandlerTest {
         assertNotNull(result);
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), result.getStatus());
         assertEquals("Internal Server Error", result.getTitle());
-        assertEquals("Falha inesperada no processamento", result.getDetail());
+        assertEquals("Ocorreu um erro interno inesperado no servidor.", result.getDetail());
         assertNotNull(result.getProperties());
         assertTrue(result.getProperties().containsKey("timestamp"));
     }

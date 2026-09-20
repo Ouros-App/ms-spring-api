@@ -106,9 +106,7 @@ public class GlobalExceptionHandler {
         log.error("Erro interno inesperado na API: ", ex);
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                ex.getMessage() != null && !ex.getMessage().isBlank()
-                        ? ex.getMessage()
-                        : "Ocorreu um erro interno inesperado no servidor."
+                "Ocorreu um erro interno inesperado no servidor."
         );
         problemDetail.setTitle("Internal Server Error");
         problemDetail.setType(URI.create("about:blank"));

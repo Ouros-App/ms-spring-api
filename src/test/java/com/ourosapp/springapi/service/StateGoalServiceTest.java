@@ -66,7 +66,9 @@ class StateGoalServiceTest {
     private UserPrincipal employeePrincipal;
     private UserPrincipal ownerPrincipal;
     private Farm farm;
+    private Farm farm2;
     private StateGoal goal;
+    private StateGoal goal2;
     private StateGoalRequestDTO requestDTO;
 
     @BeforeEach
@@ -86,6 +88,17 @@ class StateGoalServiceTest {
                 .idEnterprise(50L)
                 .build();
 
+        farm2 = Farm.builder()
+                .id(20L)
+                .name("Fazenda Secundária")
+                .areaProperty(new BigDecimal("50.00"))
+                .region("Sudeste")
+                .poultryCapacity(15000)
+                .place("Gleba 2")
+                .idAddress(101L)
+                .idEnterprise(50L)
+                .build();
+
         goal = StateGoal.builder()
                 .id(1L)
                 .title("Meta Regional SP")
@@ -96,6 +109,18 @@ class StateGoalServiceTest {
                 .dateCreation(LocalDate.of(2026, 1, 1))
                 .dateEnd(LocalDate.of(2026, 12, 31))
                 .idFarm(10L)
+                .build();
+
+        goal2 = StateGoal.builder()
+                .id(2L)
+                .title("Meta Regional Secundária")
+                .description("Meta estadual vinculada")
+                .type("FEED_CONVERSION")
+                .status("IN_PROGRESS")
+                .targetValue(new BigDecimal("1.7000"))
+                .dateCreation(LocalDate.of(2026, 1, 1))
+                .dateEnd(LocalDate.of(2026, 12, 31))
+                .idFarm(20L)
                 .build();
 
         requestDTO = new StateGoalRequestDTO(
@@ -272,12 +297,28 @@ class StateGoalServiceTest {
     @DisplayName("Deve listar metas com filtro de fazenda e região compatível")
     void deveListarMetasComFiltroFazendaERegiao() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.findByIdFarm(10L)).thenReturn(List.of());
         when(stateGoalRepository.findByIdFarm(10L)).thenReturn(List.of(goal));
 
         List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(10L, "Sudeste", admPrincipal);
 
         assertNotNull(result);
         assertEquals(1, result.size());
+    }
+
+    @Test
+    @DisplayName("Deve listar metas com filtro de fazenda unindo metas diretas e vinculadas via farm_goals")
+    void deveListarMetasComFiltroFazendaIncluindoJuncaoFarmGoals() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.findByIdFarm(10L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(2L).build()));
+        when(stateGoalRepository.findByIdFarm(10L)).thenReturn(List.of(goal));
+        when(stateGoalRepository.findAllById(List.of(2L))).thenReturn(List.of(goal2));
+
+        List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(10L, null, admPrincipal);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
     }
 
     @Test
@@ -333,11 +374,29 @@ class StateGoalServiceTest {
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(farmRepository.findAllByIdEnterprise(50L)).thenReturn(List.of(farm));
         when(stateGoalRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of(goal));
+        when(farmGoalRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of());
 
         List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(null, "Sudeste", employeePrincipal);
 
         assertNotNull(result);
         assertEquals(1, result.size());
+    }
+
+    @Test
+    @DisplayName("Deve listar metas para COMPANY_EMPLOYEE incluindo metas vinculadas via farm_goals")
+    void deveListarMetasParaCompanyEmployeeIncluindoJuncaoFarmGoals() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(farmRepository.findAllByIdEnterprise(50L)).thenReturn(List.of(farm));
+        when(stateGoalRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of(goal));
+        when(farmGoalRepository.findByIdFarmIn(List.of(10L)))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(2L).build()));
+        when(stateGoalRepository.findAllById(List.of(2L))).thenReturn(List.of(goal2));
+
+        List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(null, null, employeePrincipal);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
     }
 
     @Test
@@ -359,12 +418,30 @@ class StateGoalServiceTest {
         FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.findByIdFarm(10L)).thenReturn(List.of());
         when(stateGoalRepository.findByIdFarm(10L)).thenReturn(List.of(goal));
 
         List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(null, "Sudeste", ownerPrincipal);
 
         assertNotNull(result);
         assertEquals(1, result.size());
+    }
+
+    @Test
+    @DisplayName("Deve listar metas para FARM_OWNER unindo metas diretas e junção farm_goals")
+    void deveListarMetasParaFarmOwnerIncluindoJuncaoFarmGoals() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.findByIdFarm(10L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(2L).build()));
+        when(stateGoalRepository.findByIdFarm(10L)).thenReturn(List.of(goal));
+        when(stateGoalRepository.findAllById(List.of(2L))).thenReturn(List.of(goal2));
+
+        List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(null, null, ownerPrincipal);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
     }
 
     @Test
@@ -504,9 +581,10 @@ class StateGoalServiceTest {
     void deveVincularFazendaAMetaEstadual() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(farmGoalRepository.existsByIdFarmAndIdGoal(10L, 1L)).thenReturn(false);
+        when(farmRepository.findById(20L)).thenReturn(Optional.of(farm2));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(false);
 
-        assertDoesNotThrow(() -> stateGoalService.addFarmToStateGoal(1L, 10L, admPrincipal));
+        assertDoesNotThrow(() -> stateGoalService.addFarmToStateGoal(1L, 20L, admPrincipal));
         verify(farmGoalRepository, times(1)).save(any(FarmGoal.class));
     }
 
@@ -515,20 +593,102 @@ class StateGoalServiceTest {
     void deveSerIdempotenteAoVincularFazendaJaAssociada() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(farmGoalRepository.existsByIdFarmAndIdGoal(10L, 1L)).thenReturn(true);
+        when(farmRepository.findById(20L)).thenReturn(Optional.of(farm2));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(true);
 
-        assertDoesNotThrow(() -> stateGoalService.addFarmToStateGoal(1L, 10L, admPrincipal));
+        assertDoesNotThrow(() -> stateGoalService.addFarmToStateGoal(1L, 20L, admPrincipal));
         verify(farmGoalRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("Deve desvincular fazenda de meta estadual")
+    @DisplayName("Deve lançar 403 ao vincular fazenda quando usuário não tem acesso à meta primária")
+    void deveLancar403AoVincularFazendaSemAcessoAMetaPrimaria() {
+        Farm foreignPrimaryFarm = Farm.builder().id(10L).idEnterprise(999L).build();
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(foreignPrimaryFarm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> stateGoalService.addFarmToStateGoal(1L, 20L, employeePrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("gerenciar esta meta estadual"));
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 ao vincular fazenda quando usuário não tem acesso à fazenda alvo")
+    void deveLancar403AoVincularFazendaSemAcessoAFazendaAlvo() {
+        Farm foreignTargetFarm = Farm.builder().id(20L).idEnterprise(999L).build();
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmRepository.findById(20L)).thenReturn(Optional.of(foreignTargetFarm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> stateGoalService.addFarmToStateGoal(1L, 20L, employeePrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("vincular fazenda a esta meta estadual"));
+    }
+
+    @Test
+    @DisplayName("Deve desvincular fazenda de meta estadual com sucesso")
     void deveDesvincularFazendaDeMetaEstadual() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmRepository.findById(20L)).thenReturn(Optional.of(farm2));
 
-        assertDoesNotThrow(() -> stateGoalService.removeFarmFromStateGoal(1L, 10L, admPrincipal));
-        verify(farmGoalRepository, times(1)).deleteByIdFarmAndIdGoal(10L, 1L);
+        assertDoesNotThrow(() -> stateGoalService.removeFarmFromStateGoal(1L, 20L, admPrincipal));
+        verify(farmGoalRepository, times(1)).deleteByIdFarmAndIdGoal(20L, 1L);
+    }
+
+    @Test
+    @DisplayName("Deve lançar 400 Bad Request ao tentar desvincular a fazenda principal da meta estadual")
+    void deveLancar400AoTentarDesvincularFazendaPrincipal() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> stateGoalService.removeFarmFromStateGoal(1L, 10L, admPrincipal));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("Não é permitido desvincular a fazenda principal da meta estadual. Para remover a meta, utilize o endpoint de exclusão.", ex.getReason());
+        verify(farmGoalRepository, never()).deleteByIdFarmAndIdGoal(any(), any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 ao desvincular fazenda quando usuário não tem acesso à meta primária")
+    void deveLancar403AoDesvincularFazendaSemAcessoAMetaPrimaria() {
+        Farm foreignPrimaryFarm = Farm.builder().id(10L).idEnterprise(999L).build();
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(foreignPrimaryFarm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> stateGoalService.removeFarmFromStateGoal(1L, 20L, employeePrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("gerenciar esta meta estadual"));
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 ao desvincular fazenda quando usuário não tem acesso à fazenda alvo")
+    void deveLancar403AoDesvincularFazendaSemAcessoAFazendaAlvo() {
+        Farm foreignTargetFarm = Farm.builder().id(20L).idEnterprise(999L).build();
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmRepository.findById(20L)).thenReturn(Optional.of(foreignTargetFarm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> stateGoalService.removeFarmFromStateGoal(1L, 20L, employeePrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("desvincular fazenda desta meta estadual"));
     }
 
     @Test

@@ -150,6 +150,7 @@ public class StateGoalController {
     @Operation(summary = "Desvincular fazenda da meta estadual", description = "Remove o vínculo de uma fazenda com a meta estadual (tabela farm_goals).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Fazenda desvinculada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Requisição inválida ou tentativa de desvincular a fazenda principal"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado"),
             @ApiResponse(responseCode = "404", description = "Meta estadual ou fazenda não encontrada")

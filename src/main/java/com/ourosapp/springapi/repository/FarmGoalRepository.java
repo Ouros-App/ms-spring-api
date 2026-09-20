@@ -17,6 +17,8 @@ public interface FarmGoalRepository extends JpaRepository<FarmGoal, Long> {
 
     List<FarmGoal> findByIdFarm(Long idFarm);
 
+    List<FarmGoal> findByIdFarmIn(List<Long> idFarms);
+
     Optional<FarmGoal> findByIdFarmAndIdGoal(Long idFarm, Long idGoal);
 
     boolean existsByIdFarmAndIdGoal(Long idFarm, Long idGoal);
