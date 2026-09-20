@@ -240,7 +240,13 @@ public class StateGoalService {
         Farm farm = findFarmByIdOrThrow(goal.getIdFarm());
         validateFarmAccessPermission(farm, principal, "visualizar esta meta estadual");
 
-        return StateGoalResponseDTO.fromEntity(goal, farm.getRegion());
+        String region = regionGoalRepository.findByIdGoal(goal.getId())
+                .stream()
+                .map(RegionGoal::getRegion)
+                .findFirst()
+                .orElse(farm.getRegion());
+
+        return StateGoalResponseDTO.fromEntity(goal, region);
     }
 
     /**
@@ -255,8 +261,14 @@ public class StateGoalService {
         Farm farm = findFarmByIdOrThrow(goal.getIdFarm());
         validateFarmAccessPermission(farm, principal, "alterar metas estaduais desta fazenda");
 
+        String region = regionGoalRepository.findByIdGoal(goal.getId())
+                .stream()
+                .map(RegionGoal::getRegion)
+                .findFirst()
+                .orElse(farm.getRegion());
+
         if (!request.hasUpdates()) {
-            return StateGoalResponseDTO.fromEntity(goal, farm.getRegion());
+            return StateGoalResponseDTO.fromEntity(goal, region);
         }
 
         if (request.status() != null && !request.status().isBlank()) {
@@ -277,7 +289,7 @@ public class StateGoalService {
 
         try {
             StateGoal updated = stateGoalRepository.save(goal);
-            return StateGoalResponseDTO.fromEntity(updated, farm.getRegion());
+            return StateGoalResponseDTO.fromEntity(updated, region);
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -91,6 +92,24 @@ public class GlobalExceptionHandler {
         }
         problemDetail.setProperty("errors", errors);
 
+        return problemDetail;
+    }
+
+    /**
+     * Intercepta erros de conversão de corpo ou sintaxe JSON inválida (payload malformado).
+     *
+     * @param ex exceção de leitura/conversão de mensagem HTTP disparada
+     * @return {@link ProblemDetail} formatado com status 400 Bad Request
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ProblemDetail handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "Corpo da requisição inválido ou malformado"
+        );
+        problemDetail.setTitle("Bad Request");
+        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }
 

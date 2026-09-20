@@ -139,4 +139,23 @@ class GlobalExceptionHandlerTest {
         assertNotNull(result.getProperties());
         assertTrue(result.getProperties().containsKey("timestamp"));
     }
+
+    @Test
+    @DisplayName("Deve tratar HttpMessageNotReadableException e retornar ProblemDetail com status 400 Bad Request")
+    void testHandleHttpMessageNotReadableException() {
+        org.springframework.http.converter.HttpMessageNotReadableException exception =
+                new org.springframework.http.converter.HttpMessageNotReadableException(
+                        "JSON parse error: Cannot deserialize value",
+                        (org.springframework.http.HttpInputMessage) null
+                );
+
+        ProblemDetail result = exceptionHandler.handleHttpMessageNotReadableException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.BAD_REQUEST.value(), result.getStatus());
+        assertEquals("Bad Request", result.getTitle());
+        assertEquals("Corpo da requisição inválido ou malformado", result.getDetail());
+        assertNotNull(result.getProperties());
+        assertTrue(result.getProperties().containsKey("timestamp"));
+    }
 }

@@ -484,6 +484,21 @@ class StateGoalServiceTest {
     }
 
     @Test
+    @DisplayName("Deve buscar meta estadual por ID retornando a região personalizada da tabela regions_goals")
+    void deveBuscarMetaPorIdComRegiaoPersonalizada() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(regionGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(RegionGoal.builder().id(50L).region("Centro-Oeste").idGoal(1L).build()));
+
+        StateGoalResponseDTO response = stateGoalService.getStateGoalById(1L, admPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        assertEquals("Centro-Oeste", response.region());
+    }
+
+    @Test
     @DisplayName("Deve lançar 404 quando ID for nulo ou não encontrado")
     void deveLancar404QuandoMetaNaoEncontrada() {
         when(stateGoalRepository.findById(999L)).thenReturn(Optional.empty());
@@ -512,6 +527,28 @@ class StateGoalServiceTest {
         StateGoalResponseDTO response = stateGoalService.updateStateGoal(1L, updateDTO, admPrincipal);
 
         assertNotNull(response);
+        verify(stateGoalRepository, times(1)).save(goal);
+    }
+
+    @Test
+    @DisplayName("Deve atualizar meta estadual mantendo a região personalizada da tabela regions_goals")
+    void deveAtualizarMetaEstadualMantendoRegiaoPersonalizada() {
+        StateGoalUpdateDTO updateDTO = new StateGoalUpdateDTO(
+                "ACHIEVED",
+                LocalDate.of(2026, 11, 30),
+                new BigDecimal("1.5500")
+        );
+
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(regionGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(RegionGoal.builder().id(50L).region("Centro-Oeste").idGoal(1L).build()));
+        when(stateGoalRepository.save(any(StateGoal.class))).thenReturn(goal);
+
+        StateGoalResponseDTO response = stateGoalService.updateStateGoal(1L, updateDTO, admPrincipal);
+
+        assertNotNull(response);
+        assertEquals("Centro-Oeste", response.region());
         verify(stateGoalRepository, times(1)).save(goal);
     }
 
