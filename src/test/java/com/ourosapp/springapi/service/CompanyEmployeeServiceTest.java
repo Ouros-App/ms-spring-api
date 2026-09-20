@@ -636,4 +636,20 @@ class CompanyEmployeeServiceTest {
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
         assertTrue(exception.getMessage().contains("Conflito de integridade de dados ao atualizar funcionário"));
     }
+    @Test
+    @DisplayName("Deve permitir cadastro público de funcionário sem principal autenticado")
+    void testCreateCompanyEmployeeAnonymousSuccess() {
+        when(enterpriseRepository.existsById(10L)).thenReturn(true);
+        when(companyEmployeeRepository.existsByDocumentNumber("12345678909")).thenReturn(false);
+        when(companyEmployeeRepository.existsByEmailIgnoreCase("carlos.pereira@empresa.com.br")).thenReturn(false);
+        when(passwordEncoder.encode("SenhaForte@123")).thenReturn("encoded_password_123");
+        when(companyEmployeeRepository.save(any(CompanyEmployee.class))).thenReturn(sampleEmployee);
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.createCompanyEmployee(sampleRequest, null);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        verify(companyEmployeeRepository).save(any(CompanyEmployee.class));
+    }
+
 }
