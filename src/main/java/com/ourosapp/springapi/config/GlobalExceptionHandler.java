@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -20,6 +21,7 @@ import java.util.Map;
  * Intercepta violações de integridade do banco de dados (chaves únicas, restrições de FK),
  * convertendo-as automaticamente para o status HTTP 409 (Conflict).
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -89,6 +91,28 @@ public class GlobalExceptionHandler {
         }
         problemDetail.setProperty("errors", errors);
 
+        return problemDetail;
+    }
+
+    /**
+     * Intercepta quaisquer outras exceções não tratadas explicitamente,
+     * garantindo log estruturado e resposta uniforme com status 500 em formato ProblemDetail.
+     *
+     * @param ex exceção inesperada disparada
+     * @return {@link ProblemDetail} formatado com status 500
+     */
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleGenericException(Exception ex) {
+        log.error("Erro interno inesperado na API: ", ex);
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ex.getMessage() != null && !ex.getMessage().isBlank()
+                        ? ex.getMessage()
+                        : "Ocorreu um erro interno inesperado no servidor."
+        );
+        problemDetail.setTitle("Internal Server Error");
+        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }
 
