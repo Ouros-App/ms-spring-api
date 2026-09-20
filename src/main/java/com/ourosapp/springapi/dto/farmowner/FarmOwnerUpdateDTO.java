@@ -22,7 +22,7 @@ public record FarmOwnerUpdateDTO(
 
         @Schema(description = "Novo e-mail de acesso do produtor rural", example = "sebastiao.novo@fazenda.com.br")
         @Email(message = "Formato de e-mail inválido")
-        @Size(max = 255, message = "O e-mail deve ter no máximo 255 caracteres")
+        @Size(max = 50, message = "O e-mail deve ter no máximo 50 caracteres")
         String email,
 
         @Schema(description = "Novo telefone de contato (entre 10 e 13 dígitos numéricos)", example = "11999998888")
