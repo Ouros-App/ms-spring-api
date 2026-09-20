@@ -1,13 +1,19 @@
 package com.ourosapp.springapi.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
@@ -20,6 +26,7 @@ import java.util.Map;
  * Intercepta violações de integridade do banco de dados (chaves únicas, restrições de FK),
  * convertendo-as automaticamente para o status HTTP 409 (Conflict).
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -89,6 +96,84 @@ public class GlobalExceptionHandler {
         }
         problemDetail.setProperty("errors", errors);
 
+        return problemDetail;
+    }
+
+    /**
+     * Intercepta erros de conversão de corpo ou sintaxe JSON inválida (payload malformado).
+     *
+     * @param ex exceção de leitura/conversão de mensagem HTTP disparada
+     * @return {@link ProblemDetail} formatado com status 400 Bad Request
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ProblemDetail handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "Corpo da requisição inválido ou malformado"
+        );
+        problemDetail.setTitle("Bad Request");
+        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        return problemDetail;
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ProblemDetail handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException ex) {
+        return buildProblemDetail(
+                HttpStatus.METHOD_NOT_ALLOWED,
+                "Método HTTP não suportado para esta rota"
+        );
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ProblemDetail handleHttpMediaTypeNotSupportedException(HttpMediaTypeNotSupportedException ex) {
+        return buildProblemDetail(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                "Tipo de mídia não suportado"
+        );
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ProblemDetail handleMissingServletRequestParameterException(MissingServletRequestParameterException ex) {
+        return buildProblemDetail(
+                HttpStatus.BAD_REQUEST,
+                "Parâmetro obrigatório ausente: " + ex.getParameterName()
+        );
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+        return buildProblemDetail(
+                HttpStatus.BAD_REQUEST,
+                "Valor inválido para o parâmetro: " + ex.getName()
+        );
+    }
+
+    private ProblemDetail buildProblemDetail(HttpStatus status, String detail) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
+        problemDetail.setTitle(status.getReasonPhrase());
+        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        return problemDetail;
+    }
+
+    /**
+     * Intercepta quaisquer outras exceções não tratadas explicitamente,
+     * garantindo log estruturado e resposta uniforme com status 500 em formato ProblemDetail.
+     *
+     * @param ex exceção inesperada disparada
+     * @return {@link ProblemDetail} formatado com status 500
+     */
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleGenericException(Exception ex) {
+        log.error("Erro interno inesperado na API: ", ex);
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Ocorreu um erro interno inesperado no servidor."
+        );
+        problemDetail.setTitle("Internal Server Error");
+        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }
 

@@ -94,4 +94,94 @@ class GlobalExceptionHandlerTest {
         assertEquals("Erro global 1", errors.get("farmRequestDTO_1"));
         assertEquals("Erro global 2", errors.get("farmRequestDTO_2"));
     }
+
+    @Test
+    @DisplayName("Deve tratar exceção genérica com mensagem e retornar ProblemDetail com status 500")
+    void testHandleGenericExceptionWithMessage() {
+        RuntimeException exception = new RuntimeException("Falha inesperada no processamento");
+
+        ProblemDetail result = exceptionHandler.handleGenericException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), result.getStatus());
+        assertEquals("Internal Server Error", result.getTitle());
+        assertEquals("Ocorreu um erro interno inesperado no servidor.", result.getDetail());
+        assertNotNull(result.getProperties());
+        assertTrue(result.getProperties().containsKey("timestamp"));
+    }
+
+    @Test
+    @DisplayName("Deve tratar exceção genérica sem mensagem e retornar mensagem padrão com status 500")
+    void testHandleGenericExceptionWithoutMessage() {
+        NullPointerException exception = new NullPointerException();
+
+        ProblemDetail result = exceptionHandler.handleGenericException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), result.getStatus());
+        assertEquals("Internal Server Error", result.getTitle());
+        assertEquals("Ocorreu um erro interno inesperado no servidor.", result.getDetail());
+        assertNotNull(result.getProperties());
+        assertTrue(result.getProperties().containsKey("timestamp"));
+    }
+
+    @Test
+    @DisplayName("Deve tratar exceção genérica com mensagem em branco e retornar mensagem padrão com status 500")
+    void testHandleGenericExceptionWithBlankMessage() {
+        IllegalArgumentException exception = new IllegalArgumentException("   ");
+
+        ProblemDetail result = exceptionHandler.handleGenericException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), result.getStatus());
+        assertEquals("Internal Server Error", result.getTitle());
+        assertEquals("Ocorreu um erro interno inesperado no servidor.", result.getDetail());
+        assertNotNull(result.getProperties());
+        assertTrue(result.getProperties().containsKey("timestamp"));
+    }
+
+    @Test
+    @DisplayName("Deve tratar HttpMessageNotReadableException e retornar ProblemDetail com status 400 Bad Request")
+    void testHandleHttpMessageNotReadableException() {
+        org.springframework.http.converter.HttpMessageNotReadableException exception =
+                new org.springframework.http.converter.HttpMessageNotReadableException(
+                        "JSON parse error: Cannot deserialize value",
+                        (org.springframework.http.HttpInputMessage) null
+                );
+
+        ProblemDetail result = exceptionHandler.handleHttpMessageNotReadableException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.BAD_REQUEST.value(), result.getStatus());
+        assertEquals("Bad Request", result.getTitle());
+        assertEquals("Corpo da requisição inválido ou malformado", result.getDetail());
+        assertNotNull(result.getProperties());
+        assertTrue(result.getProperties().containsKey("timestamp"));
+    }
+
+    @Test
+    @DisplayName("Deve preservar os status HTTP das exceções MVC")
+    void testHandleMvcExceptionsWithDefinedStatus() {
+        ProblemDetail methodNotAllowed = exceptionHandler.handleHttpRequestMethodNotSupportedException(
+                new org.springframework.web.HttpRequestMethodNotSupportedException("POST")
+        );
+        ProblemDetail unsupportedMediaType = exceptionHandler.handleHttpMediaTypeNotSupportedException(
+                new org.springframework.web.HttpMediaTypeNotSupportedException("Tipo de mídia não suportado")
+        );
+        ProblemDetail missingParameter = exceptionHandler.handleMissingServletRequestParameterException(
+                new org.springframework.web.bind.MissingServletRequestParameterException("farm_id", "Long")
+        );
+        ProblemDetail typeMismatch = exceptionHandler.handleMethodArgumentTypeMismatchException(
+                new org.springframework.web.method.annotation.MethodArgumentTypeMismatchException(
+                        "invalid", Long.class, "farm_id", null, new IllegalArgumentException()
+                )
+        );
+
+        assertEquals(HttpStatus.METHOD_NOT_ALLOWED.value(), methodNotAllowed.getStatus());
+        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), unsupportedMediaType.getStatus());
+        assertEquals(HttpStatus.BAD_REQUEST.value(), missingParameter.getStatus());
+        assertEquals(HttpStatus.BAD_REQUEST.value(), typeMismatch.getStatus());
+        assertTrue(missingParameter.getDetail().contains("farm_id"));
+        assertTrue(typeMismatch.getDetail().contains("farm_id"));
+    }
 }
