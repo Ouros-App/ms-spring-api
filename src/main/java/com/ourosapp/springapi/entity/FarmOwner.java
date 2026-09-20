@@ -37,7 +37,7 @@ public class FarmOwner {
     private String telephone;
 
     @Builder.Default
-    @Column(name = "first_acess", nullable = false)
+    @Column(name = "first_access", nullable = false)
     private Boolean firstAccess = Boolean.TRUE;
 
     @Column(name = "foto_url")
