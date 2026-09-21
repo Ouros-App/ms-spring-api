@@ -109,9 +109,16 @@ ${reviewCommentsText || commentBody || 'Aplique as correções sugeridas na revi
    - **NÃO crie uma nova branch** e **NÃO abra uma nova Pull Request**.
 3. **Validação de Testes:**
    - Execute \`./gradlew test\` no seu ambiente para garantir que a compilação e todos os testes automatizados passaram sem erros.
-4. **Enviar Commits:**
-   - Faça o commit das alterações com uma mensagem no padrão Conventional Commits (ex: \`fix(review): aplicar correções solicitadas na PR #${prNumber}\`).
-   - Envie os commits diretamente para a branch \`${prBranch}\` utilizando o seu \`GITHUB_TOKEN\`.
+4. **Configuração do Git, Commit e Push (Padrão Obrigatório):**
+   - Utilize a variável de ambiente \`GITHUB_TOKEN\` disponível no seu ambiente.
+   - Execute os comandos exatamente no seguinte padrão para comitar e enviar as alterações para a branch da PR:
+
+\`\`\`bash
+git add -A
+git config user.email "jules@google.com" && git config user.name "Jules"
+git commit -m "fix(review): aplicar correções solicitadas na PR #${prNumber}"
+git push https://x-access-token:\${GITHUB_TOKEN}@github.com/${repoFullName}.git HEAD:refs/heads/${prBranch}
+\`\`\`
 `;
 
   // 4. Criar Sessão de Auto-Fix no Jules
