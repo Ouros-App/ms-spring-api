@@ -115,7 +115,12 @@ Você deve publicar a revisão usando a API oficial de Pull Request Reviews do G
 
 REGRAS CRÍTICAS DE EXECUÇÃO:
 1. Você deve fazer **EXATAMENTE UMA ÚNICA CHAMADA** para a API de Reviews. NUNCA execute em loop e NUNCA crie múltiplos reviews separados.
-2. Monte um único arquivo \`review_payload.json\` contendo o cabeçalho no "body" e **TODOS os apontamentos de TODOS os arquivos reunidos no array "comments"**:
+2. Escolha exatamente um dos cenários abaixo para montar o arquivo \`review_payload.json\`:
+
+---
+
+### 🔴 CENÁRIO 1: FORAM IDENTIFICADOS APONTAMENTOS / PROBLEMAS
+Defina \`"event": "COMMENT"\`, coloque o checkbox único no \`"body"\` e reúna **TODOS os apontamentos de TODOS os arquivos no array "comments"**:
 
 \`\`\`bash
 cat << 'EOF' > review_payload.json
@@ -143,11 +148,23 @@ EOF
 gh api repos/${repoFullName}/pulls/${prNumber}/reviews --input review_payload.json
 \`\`\`
 
-Atenção:
-- O campo "body" DEVE SER EXATAMENTE o texto curto com o checkbox único:
-  "Revisão detalhada de código realizada com base nas diretrizes do \`AGENTS.md\`. Seguem os apontamentos identificados com sugestões prontas para aplicação em 1 clique.\\n\\n- [ ] **Corrigir todos os apontamentos automaticamente**"
-- Todos os arquivos e linhas com problemas devem estar reunidos no mesmo array "comments".
-- Se não houver nenhum problema identificado no diff, envie o array "comments" vazio \`[]\` e o "body" como: "Revisão de código realizada com base nas diretrizes do \`AGENTS.md\`. Nenhum problema identificado. Código aprovado!"
+---
+
+### 🟢 CENÁRIO 2: NENHUM PROBLEMA IDENTIFICADO (CÓDIGO 100% EM CONFORMIDADE)
+Defina \`"event": "APPROVE"\`, envie o array \`"comments": []\` vazio e **APROVE A PULL REQUEST**:
+
+\`\`\`bash
+cat << 'EOF' > review_payload.json
+{
+  "commit_id": "${commitSha || ''}",
+  "body": "Revisão de código realizada com base nas diretrizes do \`AGENTS.md\`. Nenhum problema identificado. Pull Request aprovada com sucesso! ✅",
+  "event": "APPROVE",
+  "comments": []
+}
+EOF
+
+gh api repos/${repoFullName}/pulls/${prNumber}/reviews --input review_payload.json
+\`\`\`
 `;
 
   // 5. Criar Sessão no jules.google.com via API Oficial
