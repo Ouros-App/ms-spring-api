@@ -18,7 +18,6 @@ import com.ourosapp.springapi.repository.FarmRepository;
 import com.ourosapp.springapi.repository.IndividualGoalRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,16 +69,8 @@ public class IndividualGoalService {
                 .idFarm(farm.getId())
                 .build();
 
-        try {
-            IndividualGoal saved = individualGoalRepository.save(goal);
-            return IndividualGoalResponseDTO.fromEntity(saved);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar meta individual",
-                    ex
-            );
-        }
+        IndividualGoal saved = individualGoalRepository.save(goal);
+        return IndividualGoalResponseDTO.fromEntity(saved);
     }
 
     /**
@@ -198,16 +189,8 @@ public class IndividualGoalService {
             goal.setTargetValue(request.targetValue());
         }
 
-        try {
-            IndividualGoal updated = individualGoalRepository.save(goal);
-            return IndividualGoalResponseDTO.fromEntity(updated);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao atualizar meta individual",
-                    ex
-            );
-        }
+        IndividualGoal updated = individualGoalRepository.save(goal);
+        return IndividualGoalResponseDTO.fromEntity(updated);
     }
 
     /**

@@ -255,16 +255,14 @@ class IndividualGoalServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 409 Conflict ao ocorrer DataIntegrityViolationException ao salvar")
+    @DisplayName("Deve lançar DataIntegrityViolationException ao ocorrer violação de integridade ao salvar")
     void deveLancar409QuandoHouverViolacaoDeIntegridade() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(individualGoalRepository.save(any(IndividualGoal.class)))
                 .thenThrow(new DataIntegrityViolationException("Chave duplicada ou constraint violada"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        assertThrows(DataIntegrityViolationException.class,
                 () -> individualGoalService.createIndividualGoal(requestDTO, admPrincipal));
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test

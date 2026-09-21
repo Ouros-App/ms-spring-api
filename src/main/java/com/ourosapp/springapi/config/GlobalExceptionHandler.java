@@ -165,7 +165,10 @@ public class GlobalExceptionHandler {
      * @return {@link ProblemDetail} formatado com status 500
      */
     @ExceptionHandler(Exception.class)
-    public ProblemDetail handleGenericException(Exception ex) {
+    public ProblemDetail handleGenericException(Exception ex) throws Exception {
+        if (ex instanceof org.springframework.security.access.AccessDeniedException) {
+            throw ex;
+        }
         log.error("Erro interno inesperado na API: ", ex);
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.INTERNAL_SERVER_ERROR,
