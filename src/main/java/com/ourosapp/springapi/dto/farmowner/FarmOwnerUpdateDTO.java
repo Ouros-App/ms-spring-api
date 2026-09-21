@@ -5,20 +5,35 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import org.hibernate.validator.constraints.br.CPF;
 
 /**
  * DTO de requisição para atualização parcial de Produtor Rural (PATCH /farm-owners/{id}).
  * Todos os campos são opcionais, permitindo atualizar apenas o que for fornecido.
  *
- * @param email       Novo e-mail de acesso (opcional)
- * @param telephone   Novo telefone de contato (opcional, entre 10 e 13 dígitos)
- * @param password    Nova senha de acesso (opcional, entre 8 e 20 caracteres com requisitos de complexidade)
- * @param firstAccess Indicador de primeiro acesso do produtor rural (opcional)
- * @param fotoUrl     Nova URL da foto de perfil do produtor rural (opcional)
+ * @param name           Novo nome completo do produtor rural (opcional)
+ * @param documentNumber Novo documento/CPF do produtor rural (opcional, 11 dígitos)
+ * @param email          Novo e-mail de acesso (opcional)
+ * @param telephone      Novo telefone de contato (opcional, entre 10 e 13 dígitos)
+ * @param password       Nova senha de acesso (opcional, entre 8 e 20 caracteres com requisitos de complexidade)
+ * @param firstAccess    Indicador de primeiro acesso do produtor rural (opcional)
+ * @param fotoUrl        Nova URL da foto de perfil do produtor rural (opcional)
+ * @param idFarm         Novo identificador da fazenda vinculada (opcional)
  */
 @Schema(description = "Dados para atualização parcial do produtor rural")
 public record FarmOwnerUpdateDTO(
+
+        @Schema(description = "Novo nome completo do produtor rural", example = "Sebastião da Silva")
+        @Size(max = 100, message = "O nome deve ter no máximo 100 caracteres")
+        String name,
+
+        @Schema(description = "Novo documento/CPF do produtor rural (11 dígitos numéricos)", example = "12345678901")
+        @JsonProperty("document_number")
+        @JsonAlias("documentNumber")
+        @CPF(message = "O documento/CPF deve ser válido")
+        String documentNumber,
 
         @Schema(description = "Novo e-mail de acesso do produtor rural", example = "sebastiao.novo@fazenda.com.br")
         @Email(message = "Formato de e-mail inválido")
@@ -45,13 +60,21 @@ public record FarmOwnerUpdateDTO(
         @JsonProperty("foto_url")
         @JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
         @Size(max = 2048, message = "A URL da foto deve ter no máximo 2048 caracteres")
-        String fotoUrl
+        String fotoUrl,
+
+        @Schema(description = "Novo identificador da fazenda vinculada", example = "2")
+        @JsonProperty("id_farm")
+        @JsonAlias("idFarm")
+        @Positive(message = "O ID da fazenda deve ser maior que zero")
+        Long idFarm
 ) {
 
     /**
-     * Construtor compacto para sanitização de espaços em branco e normalização do e-mail.
+     * Construtor compacto para sanitização automática de espaços em branco, normalização do e-mail e remoção de máscara de CPF.
      */
     public FarmOwnerUpdateDTO {
+        name = name != null ? name.trim() : null;
+        documentNumber = documentNumber != null ? documentNumber.trim().replaceAll("[-.]", "") : null;
         email = email != null ? email.trim().toLowerCase() : null;
         telephone = telephone != null ? telephone.trim() : null;
         fotoUrl = fotoUrl != null ? fotoUrl.trim() : null;
@@ -63,10 +86,13 @@ public record FarmOwnerUpdateDTO(
      * @return {@code true} se houver pelo menos um campo não nulo e não vazio
      */
     public boolean hasUpdates() {
-        return (email != null && !email.isBlank())
+        return (name != null && !name.isBlank())
+                || (documentNumber != null && !documentNumber.isBlank())
+                || (email != null && !email.isBlank())
                 || (telephone != null && !telephone.isBlank())
                 || (password != null && !password.isBlank())
                 || firstAccess != null
-                || fotoUrl != null;
+                || fotoUrl != null
+                || idFarm != null;
     }
 }

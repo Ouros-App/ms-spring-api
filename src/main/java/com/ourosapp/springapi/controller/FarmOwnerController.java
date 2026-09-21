@@ -149,14 +149,14 @@ public class FarmOwnerController {
      * @param principal dados do usuário autenticado via token JWT
      * @return resposta HTTP 200 (OK) e o DTO do produtor rural atualizado
      */
-    @Operation(summary = "Atualizar produtor rural parcialmente", description = "Atualiza telefone, e-mail, senha, primeiro acesso e/ou foto de um produtor rural existente.")
+    @Operation(summary = "Atualizar produtor rural parcialmente", description = "Atualiza nome, CPF, fazenda vinculada, telefone, e-mail, senha, primeiro acesso e/ou foto de um produtor rural existente.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Produtor rural atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
-            @ApiResponse(responseCode = "404", description = "Produtor rural não encontrado"),
-            @ApiResponse(responseCode = "409", description = "E-mail já pertence a outro produtor rural")
+            @ApiResponse(responseCode = "404", description = "Produtor rural ou fazenda vinculada não encontrada"),
+            @ApiResponse(responseCode = "409", description = "Documento/CPF ou e-mail já pertence a outro produtor rural")
     })
     @PatchMapping("/{id}")
     public ResponseEntity<FarmOwnerResponseDTO> updateFarmOwner(
