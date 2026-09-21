@@ -97,7 +97,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("Deve tratar exceção genérica com mensagem e retornar ProblemDetail com status 500")
-    void testHandleGenericExceptionWithMessage() {
+    void testHandleGenericExceptionWithMessage() throws Exception {
         RuntimeException exception = new RuntimeException("Falha inesperada no processamento");
 
         ProblemDetail result = exceptionHandler.handleGenericException(exception);
@@ -112,7 +112,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("Deve tratar exceção genérica sem mensagem e retornar mensagem padrão com status 500")
-    void testHandleGenericExceptionWithoutMessage() {
+    void testHandleGenericExceptionWithoutMessage() throws Exception {
         NullPointerException exception = new NullPointerException();
 
         ProblemDetail result = exceptionHandler.handleGenericException(exception);
@@ -127,7 +127,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("Deve tratar exceção genérica com mensagem em branco e retornar mensagem padrão com status 500")
-    void testHandleGenericExceptionWithBlankMessage() {
+    void testHandleGenericExceptionWithBlankMessage() throws Exception {
         IllegalArgumentException exception = new IllegalArgumentException("   ");
 
         ProblemDetail result = exceptionHandler.handleGenericException(exception);
@@ -153,8 +153,8 @@ class GlobalExceptionHandlerTest {
 
         assertNotNull(result);
         assertEquals(HttpStatus.BAD_REQUEST.value(), result.getStatus());
-        assertEquals("Bad Request", result.getTitle());
-        assertEquals("Corpo da requisição inválido ou malformado", result.getDetail());
+        assertEquals("Malformed JSON Request", result.getTitle());
+        assertEquals("Corpo da requisição inválido ou malformatado", result.getDetail());
         assertNotNull(result.getProperties());
         assertTrue(result.getProperties().containsKey("timestamp"));
     }

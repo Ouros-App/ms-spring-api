@@ -9,6 +9,8 @@ import com.ourosapp.springapi.entity.FarmGoal;
 import com.ourosapp.springapi.entity.RegionGoal;
 import com.ourosapp.springapi.entity.StateGoal;
 import com.ourosapp.springapi.entity.StateGoalRegion;
+import com.ourosapp.springapi.dto.individualgoal.*;
+import com.ourosapp.springapi.entity.IndividualGoal;
 import com.ourosapp.springapi.entity.WaterRegistry;
 import java.time.LocalDate;
 import com.ourosapp.springapi.constants.ErrorMessages;
@@ -1797,6 +1799,42 @@ class DTOAndEntityTest {
     }
 
     /**
+     * Testa getters, setters, builder e toString da entidade {@link IndividualGoal}.
+     */
+    @Test
+    void testIndividualGoalEntity() {
+        IndividualGoal goal = new IndividualGoal();
+        goal.setId(1L);
+        goal.setTitle("Meta Teste");
+        goal.setDescription("Descrição teste");
+        goal.setType("MORTALITY");
+        goal.setStatus("IN_PROGRESS");
+        goal.setTargetValue(new BigDecimal("2.5000"));
+        goal.setIdFarm(10L);
+
+        assertEquals(1L, goal.getId());
+        assertEquals("Meta Teste", goal.getTitle());
+        assertEquals("Descrição teste", goal.getDescription());
+        assertEquals("MORTALITY", goal.getType());
+        assertEquals("IN_PROGRESS", goal.getStatus());
+        assertEquals(new BigDecimal("2.5000"), goal.getTargetValue());
+        assertEquals(10L, goal.getIdFarm());
+
+        IndividualGoal built = IndividualGoal.builder()
+                .id(2L)
+                .title("Meta Built")
+                .description("Desc Built")
+                .type("WATER_CONSUMPTION")
+                .status("PENDING")
+                .targetValue(new BigDecimal("150.0000"))
+                .idFarm(20L)
+                .build();
+
+        assertEquals(2L, built.getId());
+        assertTrue(built.toString().contains("Meta Built"));
+    }
+
+    /**
      * Testa instanciação, sanitização, validação cruzada e interoperabilidade JSON de {@link StateGoalRequestDTO}.
      */
     @Test
@@ -1984,6 +2022,126 @@ class DTOAndEntityTest {
 
         RegionGoalRequestDTO invalidRegion = new RegionGoalRequestDTO("");
         assertFalse(validator.validate(invalidRegion).isEmpty());
+    }
+
+    /**
+     * Testa instanciação, sanitização e interoperabilidade JSON de {@link IndividualGoalRequestDTO}.
+     */
+    @Test
+    void testIndividualGoalRequestDTO() throws JsonProcessingException {
+        IndividualGoalRequestDTO valid = new IndividualGoalRequestDTO(
+                "  Reduzir Consumo  ",
+                "  Otimizar ventilação  ",
+                "  ENERGY_CONSUMPTION  ",
+                "  IN_PROGRESS  ",
+                new BigDecimal("420.5000"),
+                1L
+        );
+        assertEquals("Reduzir Consumo", valid.title());
+        assertEquals("Otimizar ventilação", valid.description());
+        assertEquals("ENERGY_CONSUMPTION", valid.type());
+        assertEquals("IN_PROGRESS", valid.status());
+        assertEquals(new BigDecimal("420.5000"), valid.targetValue());
+        assertEquals(1L, valid.idFarm());
+        assertTrue(validator.validate(valid).isEmpty());
+
+        // DTO inválido com campos nulos e valores negativos
+        IndividualGoalRequestDTO invalid = new IndividualGoalRequestDTO(
+                "", null, "", "", new BigDecimal("-10.0000"), -1L
+        );
+        Set<ConstraintViolation<IndividualGoalRequestDTO>> violations = validator.validate(invalid);
+        assertFalse(violations.isEmpty());
+
+        // Desserialização snake_case
+        String snakeJson = """
+                {
+                    "title": "Reduzir Consumo",
+                    "description": "Descricao",
+                    "type": "ENERGY_CONSUMPTION",
+                    "status": "IN_PROGRESS",
+                    "target_value": 420.50,
+                    "id_farm": 1
+                }
+                """;
+        IndividualGoalRequestDTO fromSnake = objectMapper.readValue(snakeJson, IndividualGoalRequestDTO.class);
+        assertEquals("Reduzir Consumo", fromSnake.title());
+        assertEquals(new BigDecimal("420.50"), fromSnake.targetValue());
+        assertEquals(1L, fromSnake.idFarm());
+
+        // Desserialização camelCase
+        String camelJson = """
+                {
+                    "title": "Reduzir Consumo",
+                    "description": "Descricao",
+                    "type": "ENERGY_CONSUMPTION",
+                    "status": "IN_PROGRESS",
+                    "targetValue": 420.50,
+                    "idFarm": 1
+                }
+                """;
+        IndividualGoalRequestDTO fromCamel = objectMapper.readValue(camelJson, IndividualGoalRequestDTO.class);
+        assertEquals("Reduzir Consumo", fromCamel.title());
+        assertEquals(new BigDecimal("420.50"), fromCamel.targetValue());
+        assertEquals(1L, fromCamel.idFarm());
+    }
+
+    /**
+     * Testa instanciação, serialização e conversão de entidade para {@link IndividualGoalResponseDTO}.
+     */
+    @Test
+    void testIndividualGoalResponseDTO() throws JsonProcessingException {
+        IndividualGoal goal = IndividualGoal.builder()
+                .id(1L)
+                .title("Meta Individual")
+                .description("Descrição")
+                .type("MORTALITY")
+                .status("IN_PROGRESS")
+                .targetValue(new BigDecimal("2.5000"))
+                .idFarm(10L)
+                .build();
+
+        IndividualGoalResponseDTO dto = IndividualGoalResponseDTO.fromEntity(goal);
+        assertEquals(1L, dto.id());
+        assertEquals("Meta Individual", dto.title());
+        assertEquals("Descrição", dto.description());
+        assertEquals("MORTALITY", dto.type());
+        assertEquals("IN_PROGRESS", dto.status());
+        assertEquals(new BigDecimal("2.5000"), dto.targetValue());
+        assertEquals(10L, dto.idFarm());
+
+        String json = objectMapper.writeValueAsString(dto);
+        assertTrue(json.contains("\"target_value\":2.5000"));
+        assertTrue(json.contains("\"id_farm\":10"));
+
+        assertThrows(NullPointerException.class, () -> IndividualGoalResponseDTO.fromEntity(null));
+    }
+
+    /**
+     * Testa comportamento, validações e método hasUpdates de {@link IndividualGoalUpdateDTO}.
+     */
+    @Test
+    void testIndividualGoalUpdateDTO() {
+        IndividualGoalUpdateDTO updateWithAll = new IndividualGoalUpdateDTO(
+                "  Novo Titulo  ",
+                "  Nova Descricao  ",
+                "  ACHIEVED  ",
+                new BigDecimal("400.0000")
+        );
+        assertEquals("Novo Titulo", updateWithAll.title());
+        assertEquals("Nova Descricao", updateWithAll.description());
+        assertEquals("ACHIEVED", updateWithAll.status());
+        assertEquals(new BigDecimal("400.0000"), updateWithAll.targetValue());
+        assertTrue(updateWithAll.hasUpdates());
+        assertTrue(validator.validate(updateWithAll).isEmpty());
+
+        IndividualGoalUpdateDTO emptyDto = new IndividualGoalUpdateDTO(null, null, null, null);
+        assertFalse(emptyDto.hasUpdates());
+
+        IndividualGoalUpdateDTO blankDto = new IndividualGoalUpdateDTO("  ", null, "  ", null);
+        assertFalse(blankDto.hasUpdates());
+
+        IndividualGoalUpdateDTO clearDescriptionDto = new IndividualGoalUpdateDTO(null, "", null, null);
+        assertTrue(clearDescriptionDto.hasUpdates());
     }
 }
 

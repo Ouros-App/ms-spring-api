@@ -100,18 +100,19 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Intercepta erros de conversão de corpo ou sintaxe JSON inválida (payload malformado).
+     * Intercepta erros de leitura e desserialização de JSON na requisição (ex.: payload malformatado ou tipo incompatível).
+     * Retorna status 400 Bad Request em formato ProblemDetail.
      *
-     * @param ex exceção de leitura/conversão de mensagem HTTP disparada
-     * @return {@link ProblemDetail} formatado com status 400 Bad Request
+     * @param ex exceção de leitura HTTP disparada pelo Spring MVC
+     * @return {@link ProblemDetail} formatado com status 400
      */
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ProblemDetail handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ProblemDetail handleHttpMessageNotReadableException(org.springframework.http.converter.HttpMessageNotReadableException ex) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST,
-                "Corpo da requisição inválido ou malformado"
+                "Corpo da requisição inválido ou malformatado"
         );
-        problemDetail.setTitle("Bad Request");
+        problemDetail.setTitle("Malformed JSON Request");
         problemDetail.setType(URI.create("about:blank"));
         problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
@@ -165,7 +166,10 @@ public class GlobalExceptionHandler {
      * @return {@link ProblemDetail} formatado com status 500
      */
     @ExceptionHandler(Exception.class)
-    public ProblemDetail handleGenericException(Exception ex) {
+    public ProblemDetail handleGenericException(Exception ex) throws Exception {
+        if (ex instanceof org.springframework.security.access.AccessDeniedException) {
+            throw ex;
+        }
         log.error("Erro interno inesperado na API: ", ex);
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.INTERNAL_SERVER_ERROR,
