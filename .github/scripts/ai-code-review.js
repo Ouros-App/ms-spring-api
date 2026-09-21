@@ -55,7 +55,14 @@ async function main() {
   const shortCommit = commitSha ? commitSha.substring(0, 7) : 'latest';
   console.log(`Iniciando sessão do Jules para Code Review da PR #${prNumber} (Branch: ${prBranch}, Commit: ${shortCommit})...`);
 
-  // 1. Obter título e descrição da PR via GitHub API
+  // 1. Carregar conteúdo completo da Skill revisor-de-codigo
+  let skillContent = '';
+  const skillPath = path.join(process.cwd(), '.github', 'skills', 'revisor-de-codigo', 'SKILL.md');
+  if (fs.existsSync(skillPath)) {
+    skillContent = fs.readFileSync(skillPath, 'utf8');
+  }
+
+  // 2. Obter título e descrição da PR via GitHub API
   let prTitle = '';
   let prBody = '';
   if (token) {
@@ -77,32 +84,43 @@ async function main() {
     }
   }
 
-  // 2. Resolver Source no Jules
+  // 3. Resolver Source no Jules
   const sourceName = await getJulesSource(julesApiKey, repoFullName);
 
-  // 3. Montar Prompt Estrito para o Jules (Review único agrupando todos os comentários inline)
-  const prompt = `Você é o Jules executando o Code Review da Pull Request #${prNumber} no repositório ${repoFullName}.
+  // 4. Montar Prompt com as instruções completas da Skill diretamente no texto
+  const prompt = `Você é o Jules atuando como o Revisor de Código oficial para a Pull Request #${prNumber} no repositório ${repoFullName}.
 
 === INFORMAÇÕES DA PULL REQUEST ===
 - **Número da PR:** #${prNumber}
 - **Branch:** ${prBranch}
 - **Commit Atual:** ${shortCommit}
 - **Título:** ${prTitle || 'Sem título'}
-- **Descrição da PR:**
+- **Descrição da PR (Objetivo, Contexto e Escopo):**
 ${prBody || 'Nenhuma descrição detalhada fornecida.'}
 
-=== DIRETRIZES DE REVISÃO (AGENTS.md & SKILL) ===
-1. Siga rigorosamente as diretrizes em AGENTS.md e .github/skills/revisor-de-codigo/SKILL.md.
-2. Analise exclusivamente as linhas e arquivos modificados no diff da branch ${prBranch} em relação à main.
-3. NÃO faça resumos longos no texto principal. NÃO crie nova PR e NÃO abra nova branch.
+=== DIRETRIZES DA SKILL DE CODE REVIEW (revisor-de-codigo) ===
+${skillContent || `
+1. Diretrizes de Análise:
+   - Foco estrito no diff das alterações da branch em relação à main.
+   - Analisar bugs, concorrência, casos de borda, vazamento de recursos.
+   - Segurança e autorização RBAC (ADM, COMPANY_EMPLOYEE, FARM_OWNER).
+   - Contratos de APIs e padrões do AGENTS.md (DTOs record, Spring Boot 3.4 @MockitoBean, etc.).
+   - Não executar testes no Gradle durante a análise.
+   - Código Java em inglês; explicações e sugestões em Português (PT-BR).
+`}
 
 === FORMATO OBRIGATÓRIO DE PUBLICAÇÃO VIA GITHUB API ===
 Você possui a variável de ambiente \`GITHUB_TOKEN\` disponível no seu ambiente.
 Você deve publicar a revisão usando a API oficial de Pull Request Reviews do GitHub (\`POST /repos/${repoFullName}/pulls/${prNumber}/reviews\`).
 
-REGRAS CRÍTICAS DE PUBLICAÇÃO:
+REGRAS CRÍTICAS DE EXECUÇÃO:
 1. Você deve fazer **EXATAMENTE UMA ÚNICA CHAMADA** para a API de Reviews. NUNCA execute em loop e NUNCA crie múltiplos reviews separados.
-2. Monte um único arquivo \`review_payload.json\` contendo o cabeçalho no "body" e **TODOS os apontamentos de TODOS os arquivos juntos no array "comments"**:
+2. Escolha exatamente um dos cenários abaixo para montar o arquivo \`review_payload.json\`:
+
+---
+
+### 🔴 CENÁRIO 1: FORAM IDENTIFICADOS APONTAMENTOS / PROBLEMAS
+Defina \`"event": "COMMENT"\`, coloque o checkbox único no \`"body"\` e reúna **TODOS os apontamentos de TODOS os arquivos no array "comments"**:
 
 \`\`\`bash
 cat << 'EOF' > review_payload.json
@@ -130,14 +148,26 @@ EOF
 gh api repos/${repoFullName}/pulls/${prNumber}/reviews --input review_payload.json
 \`\`\`
 
-Atenção:
-- O campo "body" DEVE SER EXATAMENTE o texto curto com o checkbox único:
-  "Revisão detalhada de código realizada com base nas diretrizes do \`AGENTS.md\`. Seguem os apontamentos identificados com sugestões prontas para aplicação em 1 clique.\\n\\n- [ ] **Corrigir todos os apontamentos automaticamente**"
-- Todos os arquivos e linhas com problemas devem estar reunidos no mesmo array "comments".
-- Se não houver nenhum problema identificado no diff, envie o array "comments" vazio \`[]\` e o "body" como: "Revisão de código realizada com base nas diretrizes do \`AGENTS.md\`. Nenhum problema identificado. Código aprovado!"
+---
+
+### 🟢 CENÁRIO 2: NENHUM PROBLEMA IDENTIFICADO (CÓDIGO 100% EM CONFORMIDADE)
+Defina \`"event": "APPROVE"\`, envie o array \`"comments": []\` vazio e **APROVE A PULL REQUEST**:
+
+\`\`\`bash
+cat << 'EOF' > review_payload.json
+{
+  "commit_id": "${commitSha || ''}",
+  "body": "Revisão de código realizada com base nas diretrizes do \`AGENTS.md\`. Nenhum problema identificado. Pull Request aprovada com sucesso! ✅",
+  "event": "APPROVE",
+  "comments": []
+}
+EOF
+
+gh api repos/${repoFullName}/pulls/${prNumber}/reviews --input review_payload.json
+\`\`\`
 `;
 
-  // 4. Criar Sessão no jules.google.com via API Oficial
+  // 5. Criar Sessão no jules.google.com via API Oficial
   console.log(`Disparando POST ${JULES_API_BASE}/sessions no jules.google.com...`);
   const sessionPayload = {
     title: `Code Review PR #${prNumber} - ${shortCommit}`,

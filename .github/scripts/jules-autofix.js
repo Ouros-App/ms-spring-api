@@ -40,6 +40,8 @@ async function main() {
   console.log(`Obtendo detalhes da PR #${prNumber}...`);
   let prBranch = '';
   let prTitle = '';
+  let reviewCommentsText = '';
+
   if (token) {
     try {
       const prResponse = await fetch(`https://api.github.com/repos/${repoFullName}/pulls/${prNumber}`, {
@@ -53,6 +55,26 @@ async function main() {
         const prData = await prResponse.json();
         prBranch = prData.head?.ref || '';
         prTitle = prData.title || '';
+      }
+
+      // Buscar todos os comentários inline de revisão feitos na PR
+      console.log(`Buscando apontamentos e sugestões inline da PR #${prNumber}...`);
+      const commentsResponse = await fetch(`https://api.github.com/repos/${repoFullName}/pulls/${prNumber}/comments?per_page=100`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'ms-spring-api-jules-autofix'
+        }
+      });
+
+      if (commentsResponse.ok) {
+        const commentsData = await commentsResponse.json();
+        if (Array.isArray(commentsData) && commentsData.length > 0) {
+          reviewCommentsText = commentsData.map((c, idx) => {
+            const line = c.line || c.original_line || 'N/A';
+            return `### Apontamento ${idx + 1}:\n**Arquivo:** \`${c.path}\` (Linha: ${line})\n**Conteúdo / Sugestão:**\n${c.body}`;
+          }).join('\n\n---\n\n');
+        }
       }
     } catch (err) {
       console.error('Erro ao buscar dados da PR:', err.message);
@@ -69,7 +91,7 @@ async function main() {
   // 2. Resolver Source no Jules
   const sourceName = await getJulesSource(julesApiKey, repoFullName);
 
-  // 3. Montar Prompt de Correção para o Jules
+  // 3. Montar Prompt de Correção para o Jules com a lista completa dos apontamentos
   const prompt = `Você é o Jules atuando como o executor de correções automáticas (Auto-Fix) da Pull Request #${prNumber} no repositório ${repoFullName}.
 
 === INFORMAÇÕES DA PR ===
@@ -77,22 +99,26 @@ async function main() {
 - **Título:** ${prTitle}
 - **Branch de Trabalho:** ${prBranch}
 
-=== ITENS SELECIONADOS PARA CORREÇÃO PELO DESENVOLVEDOR ===
-O desenvolvedor marcou os seguintes itens no checklist de revisão ou solicitou correções:
-"""
-${commentBody}
-"""
+=== LISTA DE APONTAMENTOS E SUGESTÕES PARA CORRIGIR ===
+${reviewCommentsText || commentBody || 'Aplique as correções sugeridas na revisão de código da PR.'}
 
 === DIRETRIZES OBRIGATÓRIAS DE EXECUÇÃO ===
 1. **Regras do Projeto:** Leia o arquivo AGENTS.md na raiz do repositório para garantir que qualquer alteração respeite a arquitetura, idioma (código em inglês, mensagens em PT-BR), DTOs record e segurança RBAC.
 2. **Aplicar Correções na Branch Existente:**
-   - Faça as alterações de código solicitadas diretamente na branch \`${prBranch}\`.
+   - Faça as alterações de código dos apontamentos listados acima diretamente na branch \`${prBranch}\`.
    - **NÃO crie uma nova branch** e **NÃO abra uma nova Pull Request**.
 3. **Validação de Testes:**
    - Execute \`./gradlew test\` no seu ambiente para garantir que a compilação e todos os testes automatizados passaram sem erros.
-4. **Enviar Commits:**
-   - Faça o commit das alterações com uma mensagem no padrão Conventional Commits (ex: \`fix(review): aplicar correções solicitadas na PR #${prNumber}\`).
-   - Envie os commits diretamente para a branch \`${prBranch}\` utilizando o seu \`GITHUB_TOKEN\`.
+4. **Configuração do Git, Commit e Push (Padrão Obrigatório):**
+   - Utilize a variável de ambiente \`GITHUB_TOKEN\` disponível no seu ambiente.
+   - Execute os comandos exatamente no seguinte padrão para comitar e enviar as alterações para a branch da PR:
+
+\`\`\`bash
+git add -A
+git config user.email "jules@google.com" && git config user.name "Jules"
+git commit -m "fix(review): aplicar correções solicitadas na PR #${prNumber}"
+git push https://x-access-token:\${GITHUB_TOKEN}@github.com/${repoFullName}.git HEAD:refs/heads/${prBranch}
+\`\`\`
 `;
 
   // 4. Criar Sessão de Auto-Fix no Jules
