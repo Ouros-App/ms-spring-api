@@ -100,9 +100,11 @@ ${prBody || 'Nenhuma descrição detalhada fornecida.'}
 
 === DIRETRIZES DA SKILL DE CODE REVIEW (revisor-de-codigo) ===
 ${skillContent || `
-1. Diretrizes de Análise:
+1. Diretrizes de Análise e Postura do Revisor:
+   - Postura construtiva e pragmática: Atue como colaborador. Não crie falsos problemas ou apontamentos sobre preferências pessoais de estilo se o código atender com qualidade ao AGENTS.md.
+   - Sempre enviar sugestões de código: Para QUALQUER apontamento ou melhoria, inclua OBRIGATORIAMENTE o bloco de substituição \`\`\`suggestion para aplicação em 1 clique.
    - Foco estrito no diff das alterações da branch em relação à main.
-   - Analisar bugs, concorrência, casos de borda, vazamento de recursos.
+   - Analisar bugs reais, concorrência, casos de borda, vazamento de recursos.
    - Segurança e autorização RBAC (ADM, COMPANY_EMPLOYEE, FARM_OWNER).
    - Contratos de APIs e padrões do AGENTS.md (DTOs record, Spring Boot 3.4 @MockitoBean, etc.).
    - Não executar testes no Gradle durante a análise.
@@ -115,7 +117,8 @@ Você deve publicar a revisão usando a API oficial de Pull Request Reviews do G
 
 REGRAS CRÍTICAS DE EXECUÇÃO:
 1. Você deve fazer **EXATAMENTE UMA ÚNICA CHAMADA** para a API de Reviews. NUNCA execute em loop e NUNCA crie múltiplos reviews separados.
-2. Escolha exatamente um dos cenários abaixo para montar o arquivo \`review_payload.json\`:
+2. Cada apontamento DEVE conter a explicação em PT-BR acompanhada da sugestão pronta no formato \`\`\`suggestion.
+3. Escolha exatamente um dos cenários abaixo para montar o arquivo \`review_payload.json\`:
 
 ---
 
