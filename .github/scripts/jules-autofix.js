@@ -59,7 +59,7 @@ async function main() {
 
       // Buscar todos os comentários inline de revisão feitos na PR
       console.log(`Buscando apontamentos e sugestões inline da PR #${prNumber}...`);
-      const commentsResponse = await fetch(`https://api.github.com/repos/${repoFullName}/pulls/${prNumber}/comments`, {
+      const commentsResponse = await fetch(`https://api.github.com/repos/${repoFullName}/pulls/${prNumber}/comments?per_page=100`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github.v3+json',
