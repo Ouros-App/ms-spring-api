@@ -131,7 +131,7 @@ echo "git push https://x-access-token:\${GITHUB_TOKEN}@github.com/${repoFullName
    - **NÃO pergunte ao usuário no chat se deve abrir nova branch ou PR.**
    - **NÃO solicite ações manuais.**
    - O push direto na branch \`${prBranch}\` é o fluxo esperado e aprovado. Assim que o push for concluído, o pipeline CI/CD do repositório cuidará de revalidar e aprovar a Pull Request automaticamente.
-\`;
+`;
 
   // 4. Criar Sessão de Auto-Fix no Jules
   const sessionPayload = {

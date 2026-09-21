@@ -88,7 +88,7 @@ async function main() {
   const sourceName = await getJulesSource(julesApiKey, repoFullName);
 
   // 4. Montar Prompt com as instruções completas da Skill diretamente no texto
-  const prompt = `Você é o Jules atuando como o Revisor de Código oficial para a Pull Request #${prNumber} no repositório ${repoFullName}.
+  const prompt = `Você é o Jules atuando como o Engenheiro Revisor de Código Sênior para a Pull Request #${prNumber} no repositório ${repoFullName}.
 
 === INFORMAÇÕES DA PULL REQUEST ===
 - **Número da PR:** #${prNumber}
@@ -98,29 +98,34 @@ async function main() {
 - **Descrição da PR (Objetivo, Contexto e Escopo):**
 ${prBody || 'Nenhuma descrição detalhada fornecida.'}
 
-=== DIRETRIZES DA SKILL DE CODE REVIEW (revisor-de-codigo) ===
-${skillContent || `
-1. Diretrizes de Análise:
-   - Foco estrito no diff das alterações da branch em relação à main.
-   - Analisar bugs, concorrência, casos de borda, vazamento de recursos.
-   - Segurança e autorização RBAC (ADM, COMPANY_EMPLOYEE, FARM_OWNER).
-   - Contratos de APIs e padrões do AGENTS.md (DTOs record, Spring Boot 3.4 @MockitoBean, etc.).
-   - Não executar testes no Gradle durante a análise.
-   - Código Java em inglês; explicações e sugestões em Português (PT-BR).
-`}
+=== MENTALIDADE E DIRETRIZES DA REVISÃO ===
+1. **Postura Construtiva, Propositiva e Pragmática:**
+   - Atue como parceiro e colaborador do autor da PR. Valorize boas decisões e implementações limpas.
+   - **NÃO crie falsos problemas:** Não faça apontamentos sobre preferências puramente pessoais de estilo, nomes subjetivos ou formatação se o código atender com clareza ao \`AGENTS.md\`.
+   - **Obrigatoriedade de Sugestão de Código:** Para QUALQUER apontamento ou melhoria, forneça OBRIGATORIAMENTE o bloco \`\`\`suggestion com o código exato de substituição para aplicação em 1 clique.
+2. **Escopo e Foco:**
+   - Analise exclusivamente o diff modificado na branch em relação à \`main\`. Não aponte problemas em código preexistente intocado.
+   - Não execute testes no Gradle durante a revisão (a análise é estática/cognitiva).
+3. **Padrões do Projeto (AGENTS.md):**
+   - Java 17 LTS, Spring Boot 3.4.0.
+   - Código Java em inglês; mensagens de erro, validações e documentação OpenAPI em Português (PT-BR).
+   - DTOs em Java \`record\` com compact constructor e anotações \`@JsonProperty\`/\`@JsonAlias\`.
+   - RBAC com \`@AuthenticationPrincipal UserPrincipal\` e checagem de perfis (\`ADM\`, \`COMPANY_EMPLOYEE\`, \`FARM_OWNER\`).
+   - Testes unitários/WebMvc utilizando \`@MockitoBean\` (Spring Boot 3.4).
 
 === FORMATO OBRIGATÓRIO DE PUBLICAÇÃO VIA GITHUB API ===
 Você possui a variável de ambiente \`GITHUB_TOKEN\` disponível no seu ambiente.
 Você deve publicar a revisão usando a API oficial de Pull Request Reviews do GitHub (\`POST /repos/${repoFullName}/pulls/${prNumber}/reviews\`).
 
 REGRAS CRÍTICAS DE EXECUÇÃO:
-1. Você deve fazer **EXATAMENTE UMA ÚNICA CHAMADA** para a API de Reviews. NUNCA execute em loop e NUNCA crie múltiplos reviews separados.
-2. Escolha exatamente um dos cenários abaixo para montar o arquivo \`review_payload.json\`:
+1. Faça **EXATAMENTE UMA ÚNICA CHAMADA** para a API de Reviews. NUNCA execute em loop e NUNCA crie múltiplos reviews separados.
+2. Cada apontamento DEVE conter a explicação em PT-BR acompanhada da sugestão pronta no formato \`\`\`suggestion.
+3. Escolha exatamente um dos cenários abaixo para montar o arquivo \`review_payload.json\`:
 
 ---
 
-### 🔴 CENÁRIO 1: FORAM IDENTIFICADOS APONTAMENTOS / PROBLEMAS
-Defina \`"event": "COMMENT"\`, coloque o checkbox único no \`"body"\` e reúna **TODOS os apontamentos de TODOS os arquivos no array "comments"**:
+### 🔴 CENÁRIO 1: IDENTIFICADOS APONTAMENTOS OU SUGESTÕES DE MELHORIA
+Defina \`"event": "COMMENT"\`, adicione o checkbox único no \`"body"\` e reúna **TODOS os apontamentos no array "comments"** (cada um com seu bloco \`\`\`suggestion):
 
 \`\`\`bash
 cat << 'EOF' > review_payload.json
@@ -130,16 +135,10 @@ cat << 'EOF' > review_payload.json
   "event": "COMMENT",
   "comments": [
     {
-      "path": "caminho/do/arquivo1.java",
+      "path": "src/main/java/com/ourosapp/springapi/exemplo/Arquivo.java",
       "line": 42,
       "side": "RIGHT",
-      "body": "### \`[Sugestão]\` Título do problema\\nExplicação técnica objetiva do problema e impacto em Português.\\n\\n\`\`\`suggestion\\ncódigo exato de substituição\\n\`\`\`"
-    },
-    {
-      "path": "caminho/do/arquivo2.java",
-      "line": 15,
-      "side": "RIGHT",
-      "body": "### \`[Importante]\` Outro problema\\nExplicação em Português.\\n\\n\`\`\`suggestion\\ncódigo exato de substituição\\n\`\`\`"
+      "body": "### \`[Sugestão]\` Título objetivo da melhoria\\nExplicação técnica clara em Português (PT-BR) sobre o motivo e impacto.\\n\\n\`\`\`suggestion\\n// Código exato de substituição pronto para 1 clique\\n\`\`\`"
     }
   ]
 }
@@ -150,14 +149,14 @@ gh api repos/${repoFullName}/pulls/${prNumber}/reviews --input review_payload.js
 
 ---
 
-### 🟢 CENÁRIO 2: NENHUM PROBLEMA IDENTIFICADO (CÓDIGO 100% EM CONFORMIDADE)
-Defina \`"event": "APPROVE"\`, envie o array \`"comments": []\` vazio e **APROVE A PULL REQUEST**:
+### 🟢 CENÁRIO 2: CÓDIGO CORRETO E EM CONFORMIDADE (SEM BUGS OU VIOLAÇÕES)
+Se o código estiver de alta qualidade, sem bugs e seguindo os padrões do \`AGENTS.md\`, defina \`"event": "APPROVE"\`, envie o array \`"comments": []\` vazio e **APROVE A PULL REQUEST DIRETAMENTE**:
 
 \`\`\`bash
 cat << 'EOF' > review_payload.json
 {
   "commit_id": "${commitSha || ''}",
-  "body": "Revisão de código realizada com base nas diretrizes do \`AGENTS.md\`. Nenhum problema identificado. Pull Request aprovada com sucesso! ✅",
+  "body": "Revisão de código realizada com base nas diretrizes do \`AGENTS.md\`. A implementação está limpa, segura e em total conformidade. Pull Request aprovada com sucesso! ✅",
   "event": "APPROVE",
   "comments": []
 }
