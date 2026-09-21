@@ -154,6 +154,19 @@ class DTOAndEntityTest {
         assertEquals("https://storage.ourosapp.com/profiles/2.jpg", built.getFotoUrl());
         assertTrue(built.toString().contains("Ana"));
         assertFalse(built.toString().contains("pass2"));
+
+        FarmOwner nullableOwner = FarmOwner.builder()
+                .id(3L)
+                .name(null)
+                .documentNumber(null)
+                .telephone(null)
+                .email("sem.dados@fazenda.com")
+                .password("pass3")
+                .idFarm(10L)
+                .build();
+        assertNull(nullableOwner.getName());
+        assertNull(nullableOwner.getDocumentNumber());
+        assertNull(nullableOwner.getTelephone());
     }
 
     /**
@@ -1124,7 +1137,10 @@ class DTOAndEntityTest {
         assertFalse(validator.validate(oversizedEmailRequest).isEmpty());
 
         FarmOwnerUpdateDTO oversizedEmailUpdate = new FarmOwnerUpdateDTO(
+                null,
+                null,
                 oversizedEmail,
+                null,
                 null,
                 null,
                 null,
@@ -1210,45 +1226,74 @@ class DTOAndEntityTest {
 
         // FarmOwnerUpdateDTO
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                "  Sebastião Silva  ",
+                "  123.456.789-09  ",
                 "  NOVO@FAZENDA.COM.BR  ",
                 "  11999998888  ",
                 "NovaSenha@123",
                 false,
-                "  https://storage.ourosapp.com/profiles/new.jpg  "
+                "  https://storage.ourosapp.com/profiles/new.jpg  ",
+                10L
         );
+        assertEquals("Sebastião Silva", updateDTO.name());
+        assertEquals("12345678909", updateDTO.documentNumber());
         assertEquals("novo@fazenda.com.br", updateDTO.email());
         assertEquals("11999998888", updateDTO.telephone());
         assertEquals("NovaSenha@123", updateDTO.password());
         assertFalse(updateDTO.firstAccess());
         assertEquals("https://storage.ourosapp.com/profiles/new.jpg", updateDTO.fotoUrl());
+        assertEquals(10L, updateDTO.idFarm());
         assertTrue(updateDTO.hasUpdates());
         assertTrue(validator.validate(updateDTO).isEmpty());
 
-        assertTrue(new FarmOwnerUpdateDTO("email@teste.com", null, null, null, null).hasUpdates());
-        assertTrue(new FarmOwnerUpdateDTO(null, "11999999999", null, null, null).hasUpdates());
-        assertTrue(new FarmOwnerUpdateDTO(null, null, "Senha@123", null, null).hasUpdates());
-        assertTrue(new FarmOwnerUpdateDTO(null, null, null, true, null).hasUpdates());
-        assertTrue(new FarmOwnerUpdateDTO(null, null, null, null, "https://url.com").hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO("Nome", null, null, null, null, null, null, null).hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO(null, "12345678909", null, null, null, null, null, null).hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO(null, null, "email@teste.com", null, null, null, null, null).hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO(null, null, null, "11999999999", null, null, null, null).hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO(null, null, null, null, "Senha@123", null, null, null).hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO(null, null, null, null, null, true, null, null).hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO(null, null, null, null, null, null, "https://url.com", null).hasUpdates());
+        assertTrue(new FarmOwnerUpdateDTO(null, null, null, null, null, null, null, 1L).hasUpdates());
 
-        FarmOwnerUpdateDTO emptyUpdate = new FarmOwnerUpdateDTO(null, null, null, null, null);
+        FarmOwnerUpdateDTO emptyUpdate = new FarmOwnerUpdateDTO(null, null, null, null, null, null, null, null);
         assertFalse(emptyUpdate.hasUpdates());
 
-        FarmOwnerUpdateDTO blankUpdate = new FarmOwnerUpdateDTO("   ", "   ", "   ", null, null);
+        FarmOwnerUpdateDTO blankUpdate = new FarmOwnerUpdateDTO("   ", "   ", "   ", "   ", "   ", null, null, null);
         assertFalse(blankUpdate.hasUpdates());
 
-        FarmOwnerUpdateDTO clearFotoUpdate = new FarmOwnerUpdateDTO(null, null, null, null, "   ");
+        FarmOwnerUpdateDTO clearFotoUpdate = new FarmOwnerUpdateDTO(null, null, null, null, null, null, "   ", null);
         assertTrue(clearFotoUpdate.hasUpdates());
 
+        // Validação CPF válido
+        FarmOwnerUpdateDTO validCpfUpdate = new FarmOwnerUpdateDTO(null, "12345678909", null, null, null, null, null, null);
+        assertTrue(validator.validate(validCpfUpdate).isEmpty());
+
+        // Validação CPF inválido
+        FarmOwnerUpdateDTO invalidCpfUpdate = new FarmOwnerUpdateDTO(null, "11111111111", null, null, null, null, null, null);
+        assertFalse(validator.validate(invalidCpfUpdate).isEmpty());
+
+        // Validação id_farm positivo
+        FarmOwnerUpdateDTO validFarmUpdate = new FarmOwnerUpdateDTO(null, null, null, null, null, null, null, 1L);
+        assertTrue(validator.validate(validFarmUpdate).isEmpty());
+
+        // Validação id_farm inválido
+        FarmOwnerUpdateDTO invalidFarmUpdate = new FarmOwnerUpdateDTO(null, null, null, null, null, null, null, 0L);
+        assertFalse(validator.validate(invalidFarmUpdate).isEmpty());
+
         // Desserialização snake_case e camelCase (@JsonAlias)
-        String updateSnakeJson = "{\"first_acess\": false, \"foto_url\": \"https://photo.com/1.jpg\"}";
+        String updateSnakeJson = "{\"first_acess\": false, \"foto_url\": \"https://photo.com/1.jpg\", \"document_number\": \"12345678909\", \"id_farm\": 5}";
         FarmOwnerUpdateDTO fromUpdateSnake = objectMapper.readValue(updateSnakeJson, FarmOwnerUpdateDTO.class);
         assertFalse(fromUpdateSnake.firstAccess());
         assertEquals("https://photo.com/1.jpg", fromUpdateSnake.fotoUrl());
+        assertEquals("12345678909", fromUpdateSnake.documentNumber());
+        assertEquals(5L, fromUpdateSnake.idFarm());
 
-        String updateCamelJson = "{\"firstAccess\": true, \"photoUrl\": \"https://photo.com/2.jpg\"}";
+        String updateCamelJson = "{\"firstAccess\": true, \"photoUrl\": \"https://photo.com/2.jpg\", \"documentNumber\": \"12345678909\", \"idFarm\": 5}";
         FarmOwnerUpdateDTO fromUpdateCamel = objectMapper.readValue(updateCamelJson, FarmOwnerUpdateDTO.class);
         assertTrue(fromUpdateCamel.firstAccess());
         assertEquals("https://photo.com/2.jpg", fromUpdateCamel.fotoUrl());
+        assertEquals("12345678909", fromUpdateCamel.documentNumber());
+        assertEquals(5L, fromUpdateCamel.idFarm());
     }
 
     /**

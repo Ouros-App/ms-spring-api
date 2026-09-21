@@ -604,27 +604,37 @@ class FarmOwnerServiceTest {
     }
 
     /**
-     * Testa atualização completa de e-mail, telefone e senha de produtor rural com sucesso.
+     * Testa atualização completa de nome, documento/CPF, fazenda, e-mail, telefone, senha, primeiro acesso e foto com sucesso.
      */
     @Test
     @DisplayName("Deve atualizar produtor rural com sucesso (PATCH /farm-owners/{id})")
     void testUpdateFarmOwnerFullSuccess() {
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                "Sebastião Novo",
+                "98765432100",
                 "sebastiao.novo@fazenda.com.br",
                 "11999998888",
                 "NovaSenha@123",
                 false,
-                "https://storage.ourosapp.com/profiles/1-updated.jpg"
+                "https://storage.ourosapp.com/profiles/1-updated.jpg",
+                20L
         );
 
+        Farm farm20 = Farm.builder().id(20L).idEnterprise(100L).build();
+
         when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
+        when(farmOwnerRepository.findByDocumentNumber("98765432100")).thenReturn(Optional.empty());
+        when(farmRepository.findById(20L)).thenReturn(Optional.of(farm20));
         when(farmOwnerRepository.findByEmailIgnoreCase("sebastiao.novo@fazenda.com.br")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("NovaSenha@123")).thenReturn("new_encoded_pwd");
         when(farmOwnerRepository.save(any(FarmOwner.class))).thenReturn(sampleFarmOwner);
 
-        FarmOwnerResponseDTO response = farmOwnerService.updateFarmOwner(1L, updateDTO, farmOwnerPrincipal);
+        FarmOwnerResponseDTO response = farmOwnerService.updateFarmOwner(1L, updateDTO, admPrincipal);
 
         assertNotNull(response);
+        assertEquals("Sebastião Novo", sampleFarmOwner.getName());
+        assertEquals("98765432100", sampleFarmOwner.getDocumentNumber());
+        assertEquals(20L, sampleFarmOwner.getIdFarm());
         assertEquals("sebastiao.novo@fazenda.com.br", sampleFarmOwner.getEmail());
         assertEquals("11999998888", sampleFarmOwner.getTelephone());
         assertEquals("new_encoded_pwd", sampleFarmOwner.getPassword());
@@ -646,7 +656,10 @@ class FarmOwnerServiceTest {
                 null,
                 null,
                 null,
-                "   "
+                null,
+                null,
+                "   ",
+                null
         );
 
         when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
@@ -660,20 +673,24 @@ class FarmOwnerServiceTest {
     }
 
     /**
-     * Testa atualização mantendo o mesmo e-mail pertencente ao próprio produtor.
+     * Testa atualização mantendo o mesmo e-mail e documento pertencentes ao próprio produtor.
      */
     @Test
-    @DisplayName("Deve atualizar produtor rural mantendo o mesmo e-mail dele próprio")
-    void testUpdateFarmOwnerKeepingSameEmail() {
+    @DisplayName("Deve atualizar produtor rural mantendo o mesmo e-mail e CPF dele próprio")
+    void testUpdateFarmOwnerKeepingSameEmailAndDocument() {
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                null,
+                "12345678909",
                 "sebastiao.silva@fazenda.com.br",
                 "11999998888",
+                null,
                 null,
                 null,
                 null
         );
 
         when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
+        when(farmOwnerRepository.findByDocumentNumber("12345678909")).thenReturn(Optional.of(sampleFarmOwner));
         when(farmOwnerRepository.findByEmailIgnoreCase("sebastiao.silva@fazenda.com.br")).thenReturn(Optional.of(sampleFarmOwner));
         when(farmOwnerRepository.save(any(FarmOwner.class))).thenReturn(sampleFarmOwner);
 
@@ -690,13 +707,78 @@ class FarmOwnerServiceTest {
     @Test
     @DisplayName("Deve retornar dados existentes sem salvar quando payload não contiver atualizações")
     void testUpdateFarmOwnerWithoutUpdates() {
-        FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(null, null, null, null, null);
+        FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(null, null, null, null, null, null, null, null);
 
         when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
 
         FarmOwnerResponseDTO response = farmOwnerService.updateFarmOwner(1L, updateDTO, farmOwnerPrincipal);
 
         assertNotNull(response);
+        verify(farmOwnerRepository, never()).save(any());
+    }
+
+    /**
+     * Testa lançamento de erro 409 quando o novo documento/CPF já pertencer a outro produtor rural.
+     */
+    @Test
+    @DisplayName("Deve lançar 409 Conflict ao atualizar para documento já utilizado por outro produtor")
+    void testUpdateFarmOwnerDuplicateDocument() {
+        FarmOwner otherOwner = FarmOwner.builder()
+                .id(2L)
+                .documentNumber("98765432100")
+                .build();
+
+        FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                null,
+                "98765432100",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
+        when(farmOwnerRepository.findByDocumentNumber("98765432100")).thenReturn(Optional.of(otherOwner));
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> farmOwnerService.updateFarmOwner(1L, updateDTO, farmOwnerPrincipal)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("documento"));
+        verify(farmOwnerRepository, never()).save(any());
+    }
+
+    /**
+     * Testa lançamento de erro 404 quando a nova fazenda informada não existir.
+     */
+    @Test
+    @DisplayName("Deve lançar 404 Not Found ao atualizar para fazenda inexistente")
+    void testUpdateFarmOwnerFarmNotFound() {
+        FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                99L
+        );
+
+        when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
+        when(farmRepository.findById(99L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> farmOwnerService.updateFarmOwner(1L, updateDTO, farmOwnerPrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Fazenda não encontrada"));
         verify(farmOwnerRepository, never()).save(any());
     }
 
@@ -712,7 +794,10 @@ class FarmOwnerServiceTest {
                 .build();
 
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                null,
+                null,
                 "outro@fazenda.com.br",
+                null,
                 null,
                 null,
                 null,

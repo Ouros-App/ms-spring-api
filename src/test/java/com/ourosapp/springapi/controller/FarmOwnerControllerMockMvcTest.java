@@ -334,19 +334,22 @@ class FarmOwnerControllerMockMvcTest {
     @DisplayName("PATCH /farm-owners/{id} - Deve atualizar parcialmente e retornar 200 OK")
     void testUpdateFarmOwnerSuccess() throws Exception {
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                "Sebastião da Silva",
+                "98765432100",
                 "sebastiao.novo@fazenda.com.br",
                 "11999998888",
                 "NovaSenha@123",
                 false,
-                "https://storage.ourosapp.com/profiles/1-updated.jpg"
+                "https://storage.ourosapp.com/profiles/1-updated.jpg",
+                20L
         );
         FarmOwnerResponseDTO response = new FarmOwnerResponseDTO(
                 1L,
                 "Sebastião da Silva",
-                "12345678909",
+                "98765432100",
                 "sebastiao.novo@fazenda.com.br",
                 "11999998888",
-                10L,
+                20L,
                 false,
                 "https://storage.ourosapp.com/profiles/1-updated.jpg"
         );
@@ -358,8 +361,11 @@ class FarmOwnerControllerMockMvcTest {
                         .content(objectMapper.writeValueAsString(updateDTO)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.name").value("Sebastião da Silva"))
+                .andExpect(jsonPath("$.document_number").value("98765432100"))
                 .andExpect(jsonPath("$.email").value("sebastiao.novo@fazenda.com.br"))
                 .andExpect(jsonPath("$.telephone").value("11999998888"))
+                .andExpect(jsonPath("$.id_farm").value(20L))
                 .andExpect(jsonPath("$.first_access").value(false))
                 .andExpect(jsonPath("$.foto_url").value("https://storage.ourosapp.com/profiles/1-updated.jpg"));
     }
@@ -374,7 +380,10 @@ class FarmOwnerControllerMockMvcTest {
     @DisplayName("PATCH /farm-owners/{id} - Deve retornar 404 Not Found quando produtor não existir")
     void testUpdateFarmOwnerNotFound() throws Exception {
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                null,
+                null,
                 "sebastiao.novo@fazenda.com.br",
+                null,
                 null,
                 null,
                 null,
@@ -400,7 +409,10 @@ class FarmOwnerControllerMockMvcTest {
     @DisplayName("PATCH /farm-owners/{id} - Deve retornar 409 Conflict quando e-mail pertencer a outro produtor")
     void testUpdateFarmOwnerConflict() throws Exception {
         FarmOwnerUpdateDTO updateDTO = new FarmOwnerUpdateDTO(
+                null,
+                null,
                 "duplicado@fazenda.com.br",
+                null,
                 null,
                 null,
                 null,
