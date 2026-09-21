@@ -292,12 +292,12 @@ public class FarmOwnerService {
         }
 
         if (request.idFarm() != null) {
-            if (!farmRepository.existsById(request.idFarm())) {
-                throw new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Fazenda não encontrada para o ID: " + request.idFarm()
-                );
-            }
+            Farm farm = farmRepository.findById(request.idFarm())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Fazenda não encontrada para o ID: " + request.idFarm()
+                    ));
+            validateFarmOwnerCreationPermission(farm, principal);
             owner.setIdFarm(request.idFarm());
         }
 

@@ -620,14 +620,16 @@ class FarmOwnerServiceTest {
                 20L
         );
 
+        Farm farm20 = Farm.builder().id(20L).idEnterprise(100L).build();
+
         when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
         when(farmOwnerRepository.findByDocumentNumber("98765432100")).thenReturn(Optional.empty());
-        when(farmRepository.existsById(20L)).thenReturn(true);
+        when(farmRepository.findById(20L)).thenReturn(Optional.of(farm20));
         when(farmOwnerRepository.findByEmailIgnoreCase("sebastiao.novo@fazenda.com.br")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("NovaSenha@123")).thenReturn("new_encoded_pwd");
         when(farmOwnerRepository.save(any(FarmOwner.class))).thenReturn(sampleFarmOwner);
 
-        FarmOwnerResponseDTO response = farmOwnerService.updateFarmOwner(1L, updateDTO, farmOwnerPrincipal);
+        FarmOwnerResponseDTO response = farmOwnerService.updateFarmOwner(1L, updateDTO, admPrincipal);
 
         assertNotNull(response);
         assertEquals("Sebastião Novo", sampleFarmOwner.getName());
@@ -768,7 +770,7 @@ class FarmOwnerServiceTest {
         );
 
         when(farmOwnerRepository.findById(1L)).thenReturn(Optional.of(sampleFarmOwner));
-        when(farmRepository.existsById(99L)).thenReturn(false);
+        when(farmRepository.findById(99L)).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
