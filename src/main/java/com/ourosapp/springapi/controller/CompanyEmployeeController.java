@@ -89,14 +89,14 @@ public class CompanyEmployeeController {
         return ResponseEntity.ok(companyEmployeeService.getCompanyEmployeeById(id, principal));
     }
 
-    @Operation(summary = "Atualizar funcionário parcialmente", description = "Atualiza telefone, e-mail e/ou senha de um funcionário existente.")
+    @Operation(summary = "Atualizar funcionário parcialmente", description = "Atualiza nome, CPF, empresa vinculada, telefone, e-mail e/ou senha de um funcionário existente.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Funcionário atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
-            @ApiResponse(responseCode = "404", description = "Funcionário não encontrado"),
-            @ApiResponse(responseCode = "409", description = "E-mail já pertence a outro funcionário")
+            @ApiResponse(responseCode = "404", description = "Funcionário ou empresa integradora não encontrada"),
+            @ApiResponse(responseCode = "409", description = "Documento/CPF ou e-mail já pertence a outro funcionário")
     })
     @PatchMapping("/{id}")
     public ResponseEntity<CompanyEmployeeResponseDTO> updateCompanyEmployee(

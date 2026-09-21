@@ -137,17 +137,20 @@ class CompanyEmployeeControllerTest {
     @DisplayName("Deve atualizar funcionário por ID e retornar status 200 OK")
     void testUpdateCompanyEmployee() {
         CompanyEmployeeUpdateDTO request = new CompanyEmployeeUpdateDTO(
+                "Carlos Eduardo Novo",
+                "98765432100",
                 "carlos.novo@empresa.com.br",
                 "11999998888",
-                "NovaSenha@123"
+                "NovaSenha@123",
+                20L
         );
         CompanyEmployeeResponseDTO expectedResponse = new CompanyEmployeeResponseDTO(
                 1L,
-                "Carlos Eduardo Pereira",
-                "12345678909",
+                "Carlos Eduardo Novo",
+                "98765432100",
                 "carlos.novo@empresa.com.br",
                 "11999998888",
-                10L
+                20L
         );
 
         when(companyEmployeeService.updateCompanyEmployee(eq(1L), eq(request), any(UserPrincipal.class))).thenReturn(expectedResponse);
@@ -156,8 +159,11 @@ class CompanyEmployeeControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
+        assertEquals("Carlos Eduardo Novo", response.getBody().name());
+        assertEquals("98765432100", response.getBody().documentNumber());
         assertEquals("carlos.novo@empresa.com.br", response.getBody().email());
         assertEquals("11999998888", response.getBody().telephone());
+        assertEquals(20L, response.getBody().idEnterprise());
         verify(companyEmployeeService, times(1)).updateCompanyEmployee(eq(1L), eq(request), any(UserPrincipal.class));
     }
 

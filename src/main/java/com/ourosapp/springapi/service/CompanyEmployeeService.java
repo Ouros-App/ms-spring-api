@@ -133,6 +133,32 @@ public class CompanyEmployeeService {
             return CompanyEmployeeResponseDTO.fromEntity(employee);
         }
 
+        if (request.name() != null && !request.name().isBlank()) {
+            employee.setName(request.name());
+        }
+
+        if (request.documentNumber() != null && !request.documentNumber().isBlank()) {
+            companyEmployeeRepository.findByDocumentNumber(request.documentNumber())
+                    .filter(existing -> !existing.getId().equals(id))
+                    .ifPresent(existing -> {
+                        throw new ResponseStatusException(
+                                HttpStatus.CONFLICT,
+                                "Já existe outro funcionário cadastrado com este documento"
+                        );
+                    });
+            employee.setDocumentNumber(request.documentNumber());
+        }
+
+        if (request.idEnterprise() != null) {
+            if (!enterpriseRepository.existsById(request.idEnterprise())) {
+                throw new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Empresa integradora não encontrada para o ID: " + request.idEnterprise()
+                );
+            }
+            employee.setIdEnterprise(request.idEnterprise());
+        }
+
         if (request.email() != null && !request.email().isBlank()) {
             companyEmployeeRepository.findByEmailIgnoreCase(request.email())
                     .filter(existing -> !existing.getId().equals(id))

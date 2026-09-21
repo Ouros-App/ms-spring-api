@@ -337,18 +337,23 @@ class CompanyEmployeeServiceTest {
     }
 
     /**
-     * Testa atualização completa de e-mail, telefone e senha de funcionário com sucesso.
+     * Testa atualização completa de nome, documento/CPF, empresa vinculada, e-mail, telefone e senha de funcionário com sucesso.
      */
     @Test
-    @DisplayName("Deve atualizar e-mail, telefone e senha do funcionário com sucesso")
+    @DisplayName("Deve atualizar nome, documento/CPF, empresa vinculada, e-mail, telefone e senha do funcionário com sucesso")
     void testUpdateCompanyEmployeeFullUpdateSuccess() {
         CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                "Carlos Eduardo Novo",
+                "98765432100",
                 "carlos.novo@empresa.com.br",
                 "11999998888",
-                "NovaSenha@123"
+                "NovaSenha@123",
+                20L
         );
 
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
+        when(companyEmployeeRepository.findByDocumentNumber("98765432100")).thenReturn(Optional.empty());
+        when(enterpriseRepository.existsById(20L)).thenReturn(true);
         when(companyEmployeeRepository.findByEmailIgnoreCase("carlos.novo@empresa.com.br")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("NovaSenha@123")).thenReturn("new_encoded_password");
         when(companyEmployeeRepository.save(any(CompanyEmployee.class))).thenReturn(sampleEmployee);
@@ -356,6 +361,9 @@ class CompanyEmployeeServiceTest {
         CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, adminPrincipal);
 
         assertNotNull(response);
+        assertEquals("Carlos Eduardo Novo", sampleEmployee.getName());
+        assertEquals("98765432100", sampleEmployee.getDocumentNumber());
+        assertEquals(20L, sampleEmployee.getIdEnterprise());
         assertEquals("carlos.novo@empresa.com.br", sampleEmployee.getEmail());
         assertEquals("11999998888", sampleEmployee.getTelephone());
         assertEquals("new_encoded_password", sampleEmployee.getPassword());
@@ -363,18 +371,22 @@ class CompanyEmployeeServiceTest {
     }
 
     /**
-     * Testa atualização de funcionário mantendo o mesmo e-mail já pertencente a ele próprio.
+     * Testa atualização de funcionário mantendo o mesmo e-mail e documento já pertencentes a ele próprio.
      */
     @Test
-    @DisplayName("Deve atualizar funcionário mantendo o mesmo e-mail do próprio funcionário")
-    void testUpdateCompanyEmployeeKeepingSameEmail() {
+    @DisplayName("Deve atualizar funcionário mantendo o mesmo e-mail e CPF do próprio funcionário")
+    void testUpdateCompanyEmployeeKeepingSameEmailAndDocument() {
         CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                null,
+                "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11999998888",
+                null,
                 null
         );
 
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
+        when(companyEmployeeRepository.findByDocumentNumber("12345678909")).thenReturn(Optional.of(sampleEmployee));
         when(companyEmployeeRepository.findByEmailIgnoreCase("carlos.pereira@empresa.com.br")).thenReturn(Optional.of(sampleEmployee));
         when(companyEmployeeRepository.save(any(CompanyEmployee.class))).thenReturn(sampleEmployee);
 
@@ -392,7 +404,7 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve retornar dados do funcionário sem chamar save quando payload não tiver alterações")
     void testUpdateCompanyEmployeeWithoutUpdates() {
-        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(null, null, null);
+        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(null, null, null, null, null, null);
 
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
 
@@ -401,6 +413,67 @@ class CompanyEmployeeServiceTest {
         assertNotNull(response);
         assertEquals(sampleEmployee.getId(), response.id());
         assertEquals(sampleEmployee.getName(), response.name());
+        verify(companyEmployeeRepository, never()).save(any());
+    }
+
+    /**
+     * Testa lançamento de erro 409 ao tentar atualizar para documento/CPF pertencente a outro funcionário.
+     */
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 409 ao tentar atualizar para documento de outro funcionário")
+    void testUpdateCompanyEmployeeDuplicateDocumentOtherUser() {
+        CompanyEmployee otherEmployee = CompanyEmployee.builder()
+                .id(2L)
+                .documentNumber("98765432100")
+                .build();
+
+        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                null,
+                "98765432100",
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
+        when(companyEmployeeRepository.findByDocumentNumber("98765432100")).thenReturn(Optional.of(otherEmployee));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> companyEmployeeService.updateCompanyEmployee(1L, updateDTO, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("documento"));
+        verify(companyEmployeeRepository, never()).save(any());
+    }
+
+    /**
+     * Testa lançamento de erro 404 ao tentar atualizar para empresa inexistente.
+     */
+    @Test
+    @DisplayName("Deve lançar ResponseStatusException 404 ao tentar atualizar para empresa inexistente")
+    void testUpdateCompanyEmployeeEnterpriseNotFound() {
+        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                null,
+                null,
+                null,
+                null,
+                null,
+                99L
+        );
+
+        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
+        when(enterpriseRepository.existsById(99L)).thenReturn(false);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> companyEmployeeService.updateCompanyEmployee(1L, updateDTO, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("Empresa integradora não encontrada"));
         verify(companyEmployeeRepository, never()).save(any());
     }
 
@@ -416,7 +489,10 @@ class CompanyEmployeeServiceTest {
                 .build();
 
         CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                null,
+                null,
                 "outro@empresa.com.br",
+                null,
                 null,
                 null
         );
@@ -441,7 +517,10 @@ class CompanyEmployeeServiceTest {
     @DisplayName("Deve lançar ResponseStatusException 404 ao tentar atualizar funcionário inexistente")
     void testUpdateCompanyEmployeeNotFound() {
         CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                null,
+                null,
                 "novo@empresa.com.br",
+                null,
                 null,
                 null
         );
@@ -577,7 +656,7 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve permitir COMPANY_EMPLOYEE atualizar próprios dados")
     void testUpdateCompanyEmployee_AsCompanyEmployee_OwnData_Success() {
-        CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO("novo@empresa.com", "11999999999", "NovaSenha@123");
+        CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO(null, null, "novo@empresa.com", "11999999999", "NovaSenha@123", null);
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
         when(companyEmployeeRepository.findByEmailIgnoreCase("novo@empresa.com")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("NovaSenha@123")).thenReturn("encoded_new");
@@ -591,7 +670,7 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve proibir COMPANY_EMPLOYEE de atualizar outro funcionário")
     void testUpdateCompanyEmployee_AsCompanyEmployee_OtherEmployee_Forbidden() {
-        CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO("novo@empresa.com", "11999999999", "NovaSenha@123");
+        CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO(null, null, "novo@empresa.com", "11999999999", "NovaSenha@123", null);
         
         CompanyEmployee targetEmployee = CompanyEmployee.builder().id(2L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(targetEmployee));
@@ -624,7 +703,7 @@ class CompanyEmployeeServiceTest {
     @Test
     @DisplayName("Deve lançar ResponseStatusException 409 em conflito de integridade ao atualizar")
     void testUpdateCompanyEmployee_DataIntegrityViolation() {
-        CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO("novo@empresa.com", "11999999999", "NovaSenha@123");
+        CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO(null, null, "novo@empresa.com", "11999999999", "NovaSenha@123", null);
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
         when(companyEmployeeRepository.findByEmailIgnoreCase("novo@empresa.com")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("NovaSenha@123")).thenReturn("encoded_new");

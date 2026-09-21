@@ -108,6 +108,19 @@ class DTOAndEntityTest {
         assertEquals("Maria", built.getName());
         assertTrue(built.toString().contains("Maria"));
         assertFalse(built.toString().contains("pass2"));
+
+        CompanyEmployee nullableEmp = CompanyEmployee.builder()
+                .id(3L)
+                .name(null)
+                .documentNumber(null)
+                .telephone(null)
+                .email("sem.dados@empresa.com")
+                .password("pass3")
+                .idEnterprise(10L)
+                .build();
+        assertNull(nullableEmp.getName());
+        assertNull(nullableEmp.getDocumentNumber());
+        assertNull(nullableEmp.getTelephone());
     }
 
     /**
@@ -571,29 +584,47 @@ class DTOAndEntityTest {
     @Test
     void testCompanyEmployeeUpdateDTO() {
         CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                "Carlos Silva",
+                "12345678901",
                 "novo@empresa.com.br",
                 "11999998888",
-                "NovaSenha@123"
+                "NovaSenha@123",
+                5L
         );
+        assertEquals("Carlos Silva", updateDTO.name());
+        assertEquals("12345678901", updateDTO.documentNumber());
         assertEquals("novo@empresa.com.br", updateDTO.email());
         assertEquals("11999998888", updateDTO.telephone());
         assertEquals("NovaSenha@123", updateDTO.password());
+        assertEquals(5L, updateDTO.idEnterprise());
         assertTrue(updateDTO.hasUpdates());
 
         CompanyEmployeeUpdateDTO normalizedUpdate = new CompanyEmployeeUpdateDTO(
+                "  Carlos Silva  ",
+                "  123.456.789-01  ",
                 "  NOVO@EMPRESA.COM.BR  ",
                 "  11999998888  ",
-                "  NovaSenha@123  "
+                "  NovaSenha@123  ",
+                null
         );
+        assertEquals("Carlos Silva", normalizedUpdate.name());
+        assertEquals("12345678901", normalizedUpdate.documentNumber());
         assertEquals("novo@empresa.com.br", normalizedUpdate.email());
         assertEquals("11999998888", normalizedUpdate.telephone());
         assertEquals("  NovaSenha@123  ", normalizedUpdate.password());
 
-        CompanyEmployeeUpdateDTO emptyUpdate = new CompanyEmployeeUpdateDTO(null, null, null);
+        CompanyEmployeeUpdateDTO emptyUpdate = new CompanyEmployeeUpdateDTO(null, null, null, null, null, null);
         assertFalse(emptyUpdate.hasUpdates());
 
-        CompanyEmployeeUpdateDTO blankUpdate = new CompanyEmployeeUpdateDTO("  ", "  ", "  ");
+        CompanyEmployeeUpdateDTO blankUpdate = new CompanyEmployeeUpdateDTO("  ", "  ", "  ", "  ", "  ", null);
         assertFalse(blankUpdate.hasUpdates());
+
+        assertTrue(new CompanyEmployeeUpdateDTO("Nome", null, null, null, null, null).hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO(null, "12345678901", null, null, null, null).hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO(null, null, "email@teste.com", null, null, null).hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO(null, null, null, "11999999999", null, null).hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO(null, null, null, null, "Senha@123", null).hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO(null, null, null, null, null, 1L).hasUpdates());
     }
 
     /**
@@ -691,20 +722,36 @@ class DTOAndEntityTest {
     @Test
     void testCompanyEmployeeUpdateDTOPasswordValidation() {
         // Senha válida
-        CompanyEmployeeUpdateDTO validDto = new CompanyEmployeeUpdateDTO(null, null, "NovaSenha@123");
+        CompanyEmployeeUpdateDTO validDto = new CompanyEmployeeUpdateDTO(null, null, null, null, "NovaSenha@123", null);
         assertTrue(validator.validate(validDto).isEmpty());
 
         // Senha nula (válido na atualização parcial)
-        CompanyEmployeeUpdateDTO nullPass = new CompanyEmployeeUpdateDTO(null, null, null);
+        CompanyEmployeeUpdateDTO nullPass = new CompanyEmployeeUpdateDTO(null, null, null, null, null, null);
         assertTrue(validator.validate(nullPass).isEmpty());
 
         // Senha vazia (válido na atualização parcial)
-        CompanyEmployeeUpdateDTO emptyPass = new CompanyEmployeeUpdateDTO(null, null, "");
+        CompanyEmployeeUpdateDTO emptyPass = new CompanyEmployeeUpdateDTO(null, null, null, null, "", null);
         assertTrue(validator.validate(emptyPass).isEmpty());
 
         // Senha inválida (sem requisitos)
-        CompanyEmployeeUpdateDTO invalidPass = new CompanyEmployeeUpdateDTO(null, null, "senha123");
+        CompanyEmployeeUpdateDTO invalidPass = new CompanyEmployeeUpdateDTO(null, null, null, null, "senha123", null);
         assertFalse(validator.validate(invalidPass).isEmpty());
+
+        // CPF válido
+        CompanyEmployeeUpdateDTO validCpf = new CompanyEmployeeUpdateDTO(null, "12345678909", null, null, null, null);
+        assertTrue(validator.validate(validCpf).isEmpty());
+
+        // CPF inválido
+        CompanyEmployeeUpdateDTO invalidCpf = new CompanyEmployeeUpdateDTO(null, "11111111111", null, null, null, null);
+        assertFalse(validator.validate(invalidCpf).isEmpty());
+
+        // ID empresa positivo
+        CompanyEmployeeUpdateDTO validEnterprise = new CompanyEmployeeUpdateDTO(null, null, null, null, null, 1L);
+        assertTrue(validator.validate(validEnterprise).isEmpty());
+
+        // ID empresa inválido (zero ou negativo)
+        CompanyEmployeeUpdateDTO invalidEnterprise = new CompanyEmployeeUpdateDTO(null, null, null, null, null, 0L);
+        assertFalse(validator.validate(invalidEnterprise).isEmpty());
     }
 
     /**

@@ -21,16 +21,16 @@ public class CompanyEmployee {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name", length = 100, nullable = false)
+    @Column(name = "name", length = 100)
     private String name;
 
-    @Column(name = "document_number", length = 11, unique = true, nullable = false)
+    @Column(name = "document_number", length = 11, unique = true)
     private String documentNumber;
 
     @Column(name = "email", length = 50, nullable = false, unique = true)
     private String email;
 
-    @Column(name = "telephone", length = 13, nullable = false)
+    @Column(name = "telephone", length = 13)
     private String telephone;
 
     @ToString.Exclude

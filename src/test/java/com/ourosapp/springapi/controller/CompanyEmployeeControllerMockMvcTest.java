@@ -336,17 +336,20 @@ class CompanyEmployeeControllerMockMvcTest {
     @DisplayName("PATCH /company-employees/{id} - Deve atualizar funcionário e retornar 200 OK quando válido")
     void testUpdateCompanyEmployeeSuccess() throws Exception {
         CompanyEmployeeUpdateDTO request = new CompanyEmployeeUpdateDTO(
+                "Carlos Eduardo Novo",
+                "98765432100",
                 "carlos.novo@empresa.com.br",
                 "11999998888",
-                "NovaSenha@123"
+                "NovaSenha@123",
+                20L
         );
         CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
                 1L,
-                "Carlos Eduardo Pereira",
-                "12345678909",
+                "Carlos Eduardo Novo",
+                "98765432100",
                 "carlos.novo@empresa.com.br",
                 "11999998888",
-                10L
+                20L
         );
 
         when(companyEmployeeService.updateCompanyEmployee(eq(1L), any(CompanyEmployeeUpdateDTO.class), eq(defaultPrincipal))).thenReturn(response);
@@ -357,17 +360,23 @@ class CompanyEmployeeControllerMockMvcTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.name").value("Carlos Eduardo Novo"))
+                .andExpect(jsonPath("$.document_number").value("98765432100"))
                 .andExpect(jsonPath("$.email").value("carlos.novo@empresa.com.br"))
-                .andExpect(jsonPath("$.telephone").value("11999998888"));
+                .andExpect(jsonPath("$.telephone").value("11999998888"))
+                .andExpect(jsonPath("$.id_enterprise").value(20L));
     }
 
     @Test
     @DisplayName("PATCH /company-employees/{id} - Deve retornar 404 Not Found ao tentar atualizar funcionário inexistente")
     void testUpdateCompanyEmployeeNotFound() throws Exception {
         CompanyEmployeeUpdateDTO request = new CompanyEmployeeUpdateDTO(
+                "Carlos Eduardo Novo",
+                "98765432100",
                 "carlos.novo@empresa.com.br",
                 "11999998888",
-                "NovaSenha@123"
+                "NovaSenha@123",
+                20L
         );
 
         when(companyEmployeeService.updateCompanyEmployee(eq(99L), any(CompanyEmployeeUpdateDTO.class), eq(defaultPrincipal)))
@@ -385,9 +394,12 @@ class CompanyEmployeeControllerMockMvcTest {
     @DisplayName("PATCH /company-employees/{id} - Deve retornar 400 Bad Request quando payload for inválido")
     void testUpdateCompanyEmployeeInvalidPayload() throws Exception {
         CompanyEmployeeUpdateDTO invalidRequest = new CompanyEmployeeUpdateDTO(
+                null,
+                "cpf-invalido",
                 "email-invalido",
                 "123",
-                "fraca"
+                "fraca",
+                -1L
         );
 
         mockMvc.perform(patch("/company-employees/1")
