@@ -20,7 +20,7 @@ public class FarmOwner {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name", length = 100, nullable = false)
+    @Column(name = "name", length = 100)
     private String name;
 
     @ToString.Exclude
@@ -30,10 +30,10 @@ public class FarmOwner {
     @Column(name = "email", length = 50, nullable = false, unique = true)
     private String email;
 
-    @Column(name = "document_number", unique = true, nullable = false)
+    @Column(name = "document_number", unique = true)
     private String documentNumber;
 
-    @Column(name = "telephone", length = 20, nullable = false)
+    @Column(name = "telephone", length = 20)
     private String telephone;
 
     @Builder.Default

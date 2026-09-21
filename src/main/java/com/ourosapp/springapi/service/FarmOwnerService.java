@@ -275,6 +275,32 @@ public class FarmOwnerService {
             return FarmOwnerResponseDTO.fromEntity(owner);
         }
 
+        if (request.name() != null && !request.name().isBlank()) {
+            owner.setName(request.name());
+        }
+
+        if (request.documentNumber() != null && !request.documentNumber().isBlank()) {
+            farmOwnerRepository.findByDocumentNumber(request.documentNumber())
+                    .filter(existing -> !existing.getId().equals(id))
+                    .ifPresent(existing -> {
+                        throw new ResponseStatusException(
+                                HttpStatus.CONFLICT,
+                                "Já existe outro produtor rural cadastrado com este documento"
+                        );
+                    });
+            owner.setDocumentNumber(request.documentNumber());
+        }
+
+        if (request.idFarm() != null) {
+            Farm farm = farmRepository.findById(request.idFarm())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Fazenda não encontrada para o ID: " + request.idFarm()
+                    ));
+            validateFarmOwnerCreationPermission(farm, principal);
+            owner.setIdFarm(request.idFarm());
+        }
+
         if (request.email() != null && !request.email().isBlank()) {
             farmOwnerRepository.findByEmailIgnoreCase(request.email())
                     .filter(existing -> !existing.getId().equals(id))
