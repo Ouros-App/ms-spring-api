@@ -36,7 +36,7 @@ import java.util.List;
  * Testes de integração Web via MockMvc para o controlador {@link IndividualGoalController}.
  */
 @WebMvcTest(IndividualGoalController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, KeycloakJwtAuthenticationConverter.class})
 class IndividualGoalControllerMockMvcTest {
 
     @Autowired

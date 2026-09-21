@@ -153,8 +153,8 @@ class GlobalExceptionHandlerTest {
 
         assertNotNull(result);
         assertEquals(HttpStatus.BAD_REQUEST.value(), result.getStatus());
-        assertEquals("Bad Request", result.getTitle());
-        assertEquals("Corpo da requisição inválido ou malformado", result.getDetail());
+        assertEquals("Malformed JSON Request", result.getTitle());
+        assertEquals("Corpo da requisição inválido ou malformatado", result.getDetail());
         assertNotNull(result.getProperties());
         assertTrue(result.getProperties().containsKey("timestamp"));
     }
