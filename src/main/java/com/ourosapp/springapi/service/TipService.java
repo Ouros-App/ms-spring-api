@@ -61,8 +61,7 @@ public class TipService {
             );
         }
 
-        Long farmId = resolveFarmIdForCreation(request.idFarm(), principal);
-        Farm farm = findFarmByIdOrThrow(farmId);
+        Farm farm = findFarmByIdOrThrow(request.idFarm());
         validateFarmAccessPermission(farm, principal, "cadastrar dicas técnicas nesta fazenda");
 
         List<Category> categories = validateAndFetchCategories(request.categoryIds());
@@ -341,17 +340,6 @@ public class TipService {
             );
         }
         return categories;
-    }
-
-    private Long resolveFarmIdForCreation(Long idFarm, UserPrincipal principal) {
-        if (idFarm != null) {
-            return idFarm;
-        }
-
-        throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "O ID da fazenda é obrigatório para cadastrar uma dica técnica"
-        );
     }
 
     private void validateTipReadPermission(Tip tip, Farm primaryFarm, UserPrincipal principal, String action) {

@@ -78,6 +78,13 @@ public class CategoryService {
             }
         }
 
+        if (categoryRepository.existsByCategoryIgnoreCase(request.category())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Já existe uma categoria cadastrada com este nome"
+            );
+        }
+
         Category category = Category.builder()
                 .category(request.category())
                 .idTip(tip.getId())
