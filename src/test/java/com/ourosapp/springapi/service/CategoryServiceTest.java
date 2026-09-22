@@ -59,15 +59,27 @@ class CategoryServiceTest {
     @BeforeEach
     void setUp() {
         adminPrincipal = new UserPrincipal(
-                1L, "admin@ouros.com", "pass", "ADM", List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+            1L,
+            "admin@ouros.com",
+            "pass",
+            "ADM",
+            List.of(new SimpleGrantedAuthority("ROLE_ADM"))
         );
 
         employeePrincipal = new UserPrincipal(
-                2L, "employee@empresa.com", "pass", "COMPANY_EMPLOYEE", List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE"))
+            2L,
+            "employee@empresa.com",
+            "pass",
+            "COMPANY_EMPLOYEE",
+            List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE"))
         );
 
         farmOwnerPrincipal = new UserPrincipal(
-                3L, "producer@fazenda.com", "pass", "FARM_OWNER", List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
+            3L,
+            "producer@fazenda.com",
+            "pass",
+            "FARM_OWNER",
+            List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
         );
 
         sampleFarm = Farm.builder()

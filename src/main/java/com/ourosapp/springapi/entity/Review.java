@@ -1,10 +1,20 @@
 package com.ourosapp.springapi.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 /**
- * Entidade JPA que representa uma Avaliação/Comentário de uma Dica Técnica no sistema Ouros App.
+ * Entidade JPA que representa uma Avaliação / Review de uma Dica Técnica no sistema Ouros App.
  * Mapeada para a tabela "reviews" no banco de dados relacional.
  */
 @Entity

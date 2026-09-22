@@ -21,7 +21,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -347,10 +346,14 @@ public class TipService {
 
         boolean isAuthorized = switch (principal.getRole()) {
             case ADM -> true;
-            case COMPANY_EMPLOYEE -> Objects.equals(
-                    primaryFarm.getIdEnterprise(),
-                    getCompanyEmployeeOrThrow(principal.getId()).getIdEnterprise()
-            );
+            case COMPANY_EMPLOYEE -> {
+                Long idEnterprise = getCompanyEmployeeOrThrow(principal.getId()).getIdEnterprise();
+                boolean isPrimaryFarmOfEnterprise = Objects.equals(primaryFarm.getIdEnterprise(), idEnterprise);
+                boolean isSharedWithEnterprise = farmTipRepository.findByIdTip(tip.getId()).stream()
+                        .map(ft -> findFarmByIdOrThrow(ft.getIdFarm()))
+                        .anyMatch(f -> Objects.equals(f.getIdEnterprise(), idEnterprise));
+                yield isPrimaryFarmOfEnterprise || isSharedWithEnterprise;
+            }
             case FARM_OWNER -> {
                 FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
                 yield Objects.equals(primaryFarm.getId(), owner.getIdFarm())
