@@ -177,11 +177,19 @@ class GlobalExceptionHandlerTest {
                 )
         );
 
+        ProblemDetail noResourceFound = exceptionHandler.handleNoResourceFoundException(
+                new org.springframework.web.servlet.resource.NoResourceFoundException(
+                        org.springframework.http.HttpMethod.GET, "tips"
+                )
+        );
+
         assertEquals(HttpStatus.METHOD_NOT_ALLOWED.value(), methodNotAllowed.getStatus());
         assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), unsupportedMediaType.getStatus());
         assertEquals(HttpStatus.BAD_REQUEST.value(), missingParameter.getStatus());
         assertEquals(HttpStatus.BAD_REQUEST.value(), typeMismatch.getStatus());
+        assertEquals(HttpStatus.NOT_FOUND.value(), noResourceFound.getStatus());
         assertTrue(missingParameter.getDetail().contains("farm_id"));
         assertTrue(typeMismatch.getDetail().contains("farm_id"));
+        assertTrue(noResourceFound.getDetail().contains("tips"));
     }
 }

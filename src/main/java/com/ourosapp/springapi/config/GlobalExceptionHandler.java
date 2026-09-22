@@ -150,6 +150,14 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ProblemDetail handleNoResourceFoundException(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        return buildProblemDetail(
+                HttpStatus.NOT_FOUND,
+                "Recurso ou rota não encontrada: " + ex.getResourcePath()
+        );
+    }
+
     private ProblemDetail buildProblemDetail(HttpStatus status, String detail) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
         problemDetail.setTitle(status.getReasonPhrase());
