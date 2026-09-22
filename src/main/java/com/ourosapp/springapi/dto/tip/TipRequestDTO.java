@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 import java.util.List;
@@ -12,7 +13,7 @@ import java.util.List;
  * DTO de requisição para cadastro de Dica Técnica (POST /tips).
  *
  * @param tip         Conteúdo textual da dica técnica operacional
- * @param idFarm      Identificador da fazenda vinculada (obrigatório para ADM e COMPANY_EMPLOYEE; inferido para FARM_OWNER)
+ * @param idFarm      Identificador da fazenda vinculada
  * @param categoryIds Lista de identificadores das categorias associadas à dica
  */
 @Schema(description = "Dados para cadastro de uma nova dica técnica operacional")
@@ -25,6 +26,7 @@ public record TipRequestDTO(
         @Schema(description = "Identificador da fazenda vinculada", example = "1")
         @JsonProperty("id_farm")
         @JsonAlias("idFarm")
+        @NotNull(message = "O ID da fazenda é obrigatório")
         @Positive(message = "O ID da fazenda deve ser maior que zero")
         Long idFarm,
 

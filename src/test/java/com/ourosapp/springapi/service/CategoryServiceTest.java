@@ -59,15 +59,27 @@ class CategoryServiceTest {
     @BeforeEach
     void setUp() {
         adminPrincipal = new UserPrincipal(
-                1L, "admin@ouros.com", "pass", "ADM", List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+            1L,
+            "admin@ouros.com",
+            "pass",
+            "ADM",
+            List.of(new SimpleGrantedAuthority("ROLE_ADM"))
         );
 
         employeePrincipal = new UserPrincipal(
-                2L, "employee@empresa.com", "pass", "COMPANY_EMPLOYEE", List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE"))
+            2L,
+            "employee@empresa.com",
+            "pass",
+            "COMPANY_EMPLOYEE",
+            List.of(new SimpleGrantedAuthority("ROLE_COMPANY_EMPLOYEE"))
         );
 
         farmOwnerPrincipal = new UserPrincipal(
-                3L, "producer@fazenda.com", "pass", "FARM_OWNER", List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
+            3L,
+            "producer@fazenda.com",
+            "pass",
+            "FARM_OWNER",
+            List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
         );
 
         sampleFarm = Farm.builder()
@@ -105,7 +117,7 @@ class CategoryServiceTest {
         Category savedCategory = Category.builder()
                 .id(1L)
                 .category("Ambiência")
-                
+                .idTip(100L)
                 .build();
 
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
@@ -117,7 +129,7 @@ class CategoryServiceTest {
         assertNotNull(response);
         assertEquals(1L, response.id());
         assertEquals("Ambiência", response.category());
-        
+        assertEquals(100L, response.idTip());
         verify(tipCategoryRepository, times(1)).save(any(TipCategory.class));
     }
 
@@ -128,7 +140,7 @@ class CategoryServiceTest {
         Category savedCategory = Category.builder()
                 .id(2L)
                 .category("Nutrição")
-                
+                .idTip(100L)
                 .build();
 
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
@@ -207,17 +219,18 @@ class CategoryServiceTest {
         when(categoryRepository.save(any(Category.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate key"));
 
-        assertThrows(DataIntegrityViolationException.class, () ->
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 categoryService.createCategory(request, adminPrincipal)
         );
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test
     @DisplayName("getCategories - Deve retornar lista de categorias para ADM, COMPANY_EMPLOYEE e FARM_OWNER")
     void deveListarCategoriasParaTodosPerfisAutorizados() {
         List<Category> categories = List.of(
-                Category.builder().id(1L).category("Ambiência").build(),
-                Category.builder().id(2L).category("Sanitização").build()
+                Category.builder().id(1L).category("Ambiência").idTip(100L).build(),
+                Category.builder().id(2L).category("Sanitização").idTip(100L).build()
         );
         when(categoryRepository.findAll()).thenReturn(categories);
 

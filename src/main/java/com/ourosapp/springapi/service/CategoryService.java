@@ -19,6 +19,7 @@ import com.ourosapp.springapi.repository.TipCategoryRepository;
 import com.ourosapp.springapi.repository.TipRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,20 +78,36 @@ public class CategoryService {
             }
         }
 
-        Category category = Category.builder()
-                .category(request.category())
-                .build();
-
-        Category saved = categoryRepository.save(category);
-
-        if (!tipCategoryRepository.existsByIdTipAndIdCategory(tip.getId(), saved.getId())) {
-            tipCategoryRepository.save(TipCategory.builder()
-                    .idTip(tip.getId())
-                    .idCategory(saved.getId())
-                    .build());
+        if (categoryRepository.existsByCategoryIgnoreCase(request.category())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Já existe uma categoria cadastrada com este nome"
+            );
         }
 
-        return CategoryResponseDTO.fromEntity(saved);
+        Category category = Category.builder()
+                .category(request.category())
+                .idTip(tip.getId())
+                .build();
+
+        try {
+            Category saved = categoryRepository.save(category);
+
+            if (!tipCategoryRepository.existsByIdTipAndIdCategory(tip.getId(), saved.getId())) {
+                tipCategoryRepository.save(TipCategory.builder()
+                        .idTip(tip.getId())
+                        .idCategory(saved.getId())
+                        .build());
+            }
+
+            return CategoryResponseDTO.fromEntity(saved);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Conflito de integridade de dados ao cadastrar categoria",
+                    ex
+            );
+        }
     }
 
     /**

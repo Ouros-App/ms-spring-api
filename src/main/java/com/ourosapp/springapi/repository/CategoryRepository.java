@@ -12,6 +12,8 @@ import java.util.List;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
+    List<Category> findByIdTip(Long idTip);
+
     List<Category> findByIdIn(List<Long> ids);
 
     boolean existsByCategoryIgnoreCase(String category);

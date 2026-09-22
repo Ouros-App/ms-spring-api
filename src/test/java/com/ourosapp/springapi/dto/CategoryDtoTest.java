@@ -27,7 +27,7 @@ class CategoryDtoTest {
         Category category = Category.builder()
                 .id(10L)
                 .category("Biosseguridade")
-                
+                .idTip(20L)
                 .build();
 
         CategoryResponseDTO response = CategoryResponseDTO.fromEntity(category);
@@ -35,7 +35,7 @@ class CategoryDtoTest {
         assertNotNull(response);
         assertEquals(10L, response.id());
         assertEquals("Biosseguridade", response.category());
-        
+        assertEquals(20L, response.idTip());
     }
 
     @Test

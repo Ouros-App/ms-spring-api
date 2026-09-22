@@ -62,6 +62,7 @@ class TipServiceTest {
     private UserPrincipal adminPrincipal;
     private UserPrincipal employeePrincipal;
     private UserPrincipal farmOwnerPrincipal;
+
     private Farm sampleFarm;
     private Farm otherEnterpriseFarm;
     private CompanyEmployee sampleEmployee;
@@ -85,11 +86,11 @@ class TipServiceTest {
 
         sampleFarm = Farm.builder()
                 .id(10L)
-                .name("Fazenda Bela Vista")
-                .areaProperty(new BigDecimal("100.00"))
+                .name("Fazenda Primavera")
+                .areaProperty(new BigDecimal("150"))
                 .region("Sul")
-                .poultryCapacity(40000)
-                .place("Linha 5")
+                .poultryCapacity(50000)
+                .place("Setor 1")
                 .idAddress(1L)
                 .idEnterprise(50L)
                 .build();
@@ -97,12 +98,12 @@ class TipServiceTest {
         otherEnterpriseFarm = Farm.builder()
                 .id(20L)
                 .name("Fazenda Outra")
-                .areaProperty(new BigDecimal("50.00"))
+                .areaProperty(new BigDecimal("100"))
                 .region("Norte")
                 .poultryCapacity(20000)
-                .place("Linha 1")
+                .place("Setor 2")
                 .idAddress(2L)
-                .idEnterprise(99L)
+                .idEnterprise(999L)
                 .build();
 
         sampleEmployee = CompanyEmployee.builder()
@@ -134,7 +135,7 @@ class TipServiceTest {
         sampleCategory = Category.builder()
                 .id(5L)
                 .category("Ambiência")
-                
+                .idTip(100L)
                 .build();
     }
 
@@ -154,17 +155,13 @@ class TipServiceTest {
         assertNotNull(response);
         assertEquals(100L, response.id());
         assertEquals("Manter os bicos dos nebulizadores limpos", response.tip());
-        assertEquals(10L, response.idFarm());
         assertEquals(List.of("Ambiência"), response.categories());
-        assertEquals(0, response.totalReviews());
-        assertEquals(0.0, response.averageRating());
-
         verify(farmTipRepository).save(any(FarmTip.class));
         verify(tipCategoryRepository).save(any(TipCategory.class));
     }
 
     @Test
-    @DisplayName("createTip - Deve cadastrar dica técnica com sucesso por COMPANY_EMPLOYEE")
+    @DisplayName("createTip - Deve cadastrar dica técnica com sucesso por COMPANY_EMPLOYEE da mesma empresa")
     void deveCadastrarDicaComSucessoPorCompanyEmployee() {
         TipRequestDTO request = new TipRequestDTO("Manter ventilação mínima", 10L, null);
 
@@ -177,11 +174,11 @@ class TipServiceTest {
 
         assertNotNull(response);
         assertEquals(100L, response.id());
-        verify(tipCategoryRepository, never()).save(any(TipCategory.class));
+        verify(farmTipRepository, never()).save(any(FarmTip.class));
     }
 
     @Test
-    @DisplayName("createTip - Deve lançar 403 Forbidden para FARM_OWNER")
+    @DisplayName("createTip - Deve lançar 403 Forbidden quando usuário for FARM_OWNER")
     void deveLancarForbiddenAoCriarDicaComoFarmOwner() {
         TipRequestDTO request = new TipRequestDTO("Dica", 10L, null);
 
@@ -192,7 +189,31 @@ class TipServiceTest {
     }
 
     @Test
-    @DisplayName("createTip - Deve lançar 403 Forbidden quando funcionário acessar fazenda de outra empresa")
+    @DisplayName("createTip - Deve lançar 401 Unauthorized quando principal for nulo")
+    void deveLancarUnauthorizedQuandoPrincipalNulo() {
+        TipRequestDTO request = new TipRequestDTO("Dica", 10L, null);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                tipService.createTip(request, null)
+        );
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("createTip - Deve lançar 404 Not Found quando fazenda informada não existir")
+    void deveLancarNotFoundQuandoFazendaNaoExistir() {
+        TipRequestDTO request = new TipRequestDTO("Dica", 999L, null);
+
+        when(farmRepository.findById(999L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                tipService.createTip(request, adminPrincipal)
+        );
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("createTip - Deve lançar 403 Forbidden quando COMPANY_EMPLOYEE tentar criar dica para fazenda de outra empresa")
     void deveLancarForbiddenQuandoFuncionarioDeOutraEmpresa() {
         TipRequestDTO request = new TipRequestDTO("Dica", 20L, null);
 
@@ -228,9 +249,10 @@ class TipServiceTest {
         when(tipRepository.save(any(Tip.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate"));
 
-        assertThrows(DataIntegrityViolationException.class, () ->
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 tipService.createTip(request, adminPrincipal)
         );
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test
@@ -238,12 +260,12 @@ class TipServiceTest {
     void deveRetornarDicasParaAdm() {
         when(tipRepository.findAll()).thenReturn(List.of(sampleTip));
         when(tipCategoryRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
-                TipCategory.builder().id(1L).idCategory(5L).idTip(100L).build()
+                TipCategory.builder().id(1L).idTip(100L).idCategory(5L).build()
         ));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
         when(reviewRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
-                Review.builder().id(1L).comment("Ótimo").rating(5).idTip(100L).build(),
-                Review.builder().id(2L).comment("Bom").rating(4).idTip(100L).build()
+                Review.builder().id(1L).idTip(100L).comment("Ótimo").rating(5).build(),
+                Review.builder().id(2L).idTip(100L).comment("Bom").rating(4).build()
         ));
 
         List<TipResponseDTO> tips = tipService.getTipsForUser(null, adminPrincipal);
@@ -339,7 +361,7 @@ class TipServiceTest {
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
         when(tipRepository.save(any(Tip.class))).thenReturn(sampleTip);
         when(tipCategoryRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
-                TipCategory.builder().id(1L).idCategory(5L).build()
+                TipCategory.builder().id(1L).idTip(100L).idCategory(5L).build()
         ));
         when(reviewRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of());
 

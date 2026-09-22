@@ -57,8 +57,8 @@ public class TipController {
     ) {
         TipResponseDTO response = tipService.createTip(request, principal);
         URI location = ServletUriComponentsBuilder
-                .fromCurrentContextPath()
-                .path("/tips/{id}")
+                .fromCurrentRequest()
+                .path("/{id}")
                 .buildAndExpand(response.id())
                 .toUri();
         return ResponseEntity.created(location).body(response);

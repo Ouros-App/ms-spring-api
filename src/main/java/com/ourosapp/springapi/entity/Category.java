@@ -23,4 +23,7 @@ public class Category {
 
     @Column(name = "category", length = 50, nullable = false)
     private String category;
+
+    @Column(name = "id_tip", nullable = false)
+    private Long idTip;
 }

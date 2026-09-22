@@ -12,6 +12,7 @@ import com.ourosapp.springapi.entity.*;
 import com.ourosapp.springapi.repository.*;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +21,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -60,8 +60,7 @@ public class TipService {
             );
         }
 
-        Long farmId = resolveFarmIdForCreation(request.idFarm(), principal);
-        Farm farm = findFarmByIdOrThrow(farmId);
+        Farm farm = findFarmByIdOrThrow(request.idFarm());
         validateFarmAccessPermission(farm, principal, "cadastrar dicas técnicas nesta fazenda");
 
         List<Category> categories = validateAndFetchCategories(request.categoryIds());
@@ -71,32 +70,40 @@ public class TipService {
                 .idFarm(farm.getId())
                 .build();
 
-        Tip saved = tipRepository.save(tip);
+        try {
+            Tip saved = tipRepository.save(tip);
 
-        if (!farmTipRepository.existsByIdFarmAndIdTip(farm.getId(), saved.getId())) {
-            farmTipRepository.save(FarmTip.builder()
-                    .idFarm(farm.getId())
-                    .idTip(saved.getId())
-                    .build());
-        }
+            if (!farmTipRepository.existsByIdFarmAndIdTip(farm.getId(), saved.getId())) {
+                farmTipRepository.save(FarmTip.builder()
+                        .idFarm(farm.getId())
+                        .idTip(saved.getId())
+                        .build());
+            }
 
-        if (!categories.isEmpty()) {
-            for (Category cat : categories) {
-                if (!tipCategoryRepository.existsByIdTipAndIdCategory(saved.getId(), cat.getId())) {
-                    tipCategoryRepository.save(TipCategory.builder()
-                            .idTip(saved.getId())
-                            .idCategory(cat.getId())
-                            .build());
+            if (!categories.isEmpty()) {
+                for (Category cat : categories) {
+                    if (!tipCategoryRepository.existsByIdTipAndIdCategory(saved.getId(), cat.getId())) {
+                        tipCategoryRepository.save(TipCategory.builder()
+                                .idTip(saved.getId())
+                                .idCategory(cat.getId())
+                                .build());
+                    }
                 }
             }
+
+            List<String> categoryNames = categories.stream()
+                    .map(Category::getCategory)
+                    .distinct()
+                    .toList();
+
+            return TipResponseDTO.fromEntity(saved, categoryNames, 0, 0.0);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Conflito de integridade de dados ao cadastrar dica técnica",
+                    ex
+            );
         }
-
-        List<String> categoryNames = categories.stream()
-                .map(Category::getCategory)
-                .distinct()
-                .toList();
-
-        return TipResponseDTO.fromEntity(saved, categoryNames, 0, 0.0);
     }
 
     /**
@@ -217,8 +224,16 @@ public class TipService {
             }
         }
 
-        Tip updated = tipRepository.save(tip);
-        return enrichTips(List.of(updated)).get(0);
+        try {
+            Tip updated = tipRepository.save(tip);
+            return enrichTips(List.of(updated)).get(0);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Conflito de integridade de dados ao atualizar dica técnica",
+                    ex
+            );
+        }
     }
 
     /**
@@ -243,10 +258,18 @@ public class TipService {
         Farm farm = findFarmByIdOrThrow(tip.getIdFarm());
         validateFarmAccessPermission(farm, principal, "remover dica técnica desta fazenda");
 
-        tipCategoryRepository.deleteByIdTip(tip.getId());
-        farmTipRepository.deleteByIdTip(tip.getId());
-        reviewRepository.deleteByIdTip(tip.getId());
-        tipRepository.delete(tip);
+        try {
+            tipCategoryRepository.deleteByIdTip(tip.getId());
+            farmTipRepository.deleteByIdTip(tip.getId());
+            reviewRepository.deleteByIdTip(tip.getId());
+            tipRepository.delete(tip);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Não é possível remover a dica técnica pois existem dados vinculados a ela",
+                    ex
+            );
+        }
     }
 
     private List<TipResponseDTO> getTipsForSingleFarm(Farm farm) {
@@ -316,17 +339,6 @@ public class TipService {
             );
         }
         return categories;
-    }
-
-    private Long resolveFarmIdForCreation(Long idFarm, UserPrincipal principal) {
-        if (idFarm != null) {
-            return idFarm;
-        }
-
-        throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "O ID da fazenda é obrigatório para cadastrar uma dica técnica"
-        );
     }
 
     private void validateTipReadPermission(Tip tip, Farm primaryFarm, UserPrincipal principal, String action) {
