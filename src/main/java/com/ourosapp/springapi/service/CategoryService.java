@@ -80,7 +80,6 @@ public class CategoryService {
 
         Category category = Category.builder()
                 .category(request.category())
-                .idTip(tip.getId())
                 .build();
 
         Category saved = categoryRepository.save(category);

@@ -13,6 +13,7 @@ import com.ourosapp.springapi.repository.FarmOwnerRepository;
 import com.ourosapp.springapi.repository.FarmRepository;
 import com.ourosapp.springapi.repository.ReviewRepository;
 import com.ourosapp.springapi.repository.TipRepository;
+import com.ourosapp.springapi.repository.FarmTipRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -54,6 +55,9 @@ class ReviewServiceTest {
 
     @Mock
     private FarmOwnerRepository farmOwnerRepository;
+
+    @Mock
+    private FarmTipRepository farmTipRepository;
 
     @InjectMocks
     private ReviewService reviewService;

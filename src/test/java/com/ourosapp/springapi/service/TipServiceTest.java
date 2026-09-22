@@ -134,7 +134,7 @@ class TipServiceTest {
         sampleCategory = Category.builder()
                 .id(5L)
                 .category("Ambiência")
-                .idTip(100L)
+                
                 .build();
     }
 
@@ -238,12 +238,12 @@ class TipServiceTest {
     void deveRetornarDicasParaAdm() {
         when(tipRepository.findAll()).thenReturn(List.of(sampleTip));
         when(tipCategoryRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
-                TipCategory.builder().id(1L).idTip(100L).idCategory(5L).build()
+                TipCategory.builder().id(1L).idCategory(5L).idTip(100L).build()
         ));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
         when(reviewRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
-                Review.builder().id(1L).idTip(100L).comment("Ótimo").rating(5).build(),
-                Review.builder().id(2L).idTip(100L).comment("Bom").rating(4).build()
+                Review.builder().id(1L).comment("Ótimo").rating(5).idTip(100L).build(),
+                Review.builder().id(2L).comment("Bom").rating(4).idTip(100L).build()
         ));
 
         List<TipResponseDTO> tips = tipService.getTipsForUser(null, adminPrincipal);
@@ -339,7 +339,7 @@ class TipServiceTest {
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
         when(tipRepository.save(any(Tip.class))).thenReturn(sampleTip);
         when(tipCategoryRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
-                TipCategory.builder().id(1L).idTip(100L).idCategory(5L).build()
+                TipCategory.builder().id(1L).idCategory(5L).build()
         ));
         when(reviewRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of());
 

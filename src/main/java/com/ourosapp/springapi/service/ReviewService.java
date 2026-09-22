@@ -42,6 +42,7 @@ public class ReviewService {
     private final FarmRepository farmRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final FarmOwnerRepository farmOwnerRepository;
+    private final com.ourosapp.springapi.repository.FarmTipRepository farmTipRepository;
 
     /**
      * Cadastra uma nova avaliação/review para uma dica técnica específica.
@@ -219,7 +220,8 @@ public class ReviewService {
 
         if (FARM_OWNER.equals(role)) {
             FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-            if (!Objects.equals(tip.getIdFarm(), owner.getIdFarm())) {
+            if (!Objects.equals(tip.getIdFarm(), owner.getIdFarm()) && 
+                (owner.getIdFarm() == null || !farmTipRepository.existsByIdFarmAndIdTip(owner.getIdFarm(), tip.getId()))) {
                 throw new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
                         "Acesso negado para " + action + " da dica técnica vinculada a outra fazenda"

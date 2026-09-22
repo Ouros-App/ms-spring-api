@@ -56,8 +56,7 @@ public class CategoryController {
         CategoryResponseDTO response = categoryService.createCategory(request, principal);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(response.id())
+                .build()
                 .toUri();
         return ResponseEntity.created(location).body(response);
     }

@@ -19,12 +19,7 @@ public record CategoryResponseDTO(
         Long id,
 
         @Schema(description = "Nome descritivo da categoria", example = "Manejo de Ambiência")
-        String category,
-
-        @Schema(description = "Identificador da dica técnica vinculada", example = "1")
-        @JsonProperty("id_tip")
-        @JsonAlias("idTip")
-        Long idTip
+        String category
 ) {
     /**
      * Constrói um {@link CategoryResponseDTO} a partir de uma entidade {@link Category}.
@@ -38,8 +33,7 @@ public record CategoryResponseDTO(
         }
         return new CategoryResponseDTO(
                 entity.getId(),
-                entity.getCategory(),
-                entity.getIdTip()
+                entity.getCategory()
         );
     }
 }

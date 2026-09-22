@@ -66,7 +66,7 @@ class CategoryControllerMockMvcTest {
     @DisplayName("POST /categories - Deve cadastrar categoria e retornar 201 Created com Location")
     void deveCadastrarCategoriaComSucesso() throws Exception {
         CategoryRequestDTO request = new CategoryRequestDTO("Ambiência", 10L);
-        CategoryResponseDTO response = new CategoryResponseDTO(1L, "Ambiência", 10L);
+        CategoryResponseDTO response = new CategoryResponseDTO(1L, "Ambiência");
 
         when(categoryService.createCategory(any(CategoryRequestDTO.class), eq(mockPrincipal)))
                 .thenReturn(response);
@@ -76,10 +76,9 @@ class CategoryControllerMockMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/categories/1")))
+                .andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/categories")))
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.category").value("Ambiência"))
-                .andExpect(jsonPath("$.id_tip").value(10L));
+                .andExpect(jsonPath("$.category").value("Ambiência"));
     }
 
     @Test
@@ -98,8 +97,8 @@ class CategoryControllerMockMvcTest {
     @DisplayName("GET /categories - Deve listar categorias e retornar 200 OK")
     void deveListarCategoriasComSucesso() throws Exception {
         List<CategoryResponseDTO> responses = List.of(
-                new CategoryResponseDTO(1L, "Ambiência", 10L),
-                new CategoryResponseDTO(2L, "Sanitização", 10L)
+                new CategoryResponseDTO(1L, "Ambiência"),
+                new CategoryResponseDTO(2L, "Sanitização")
         );
 
         when(categoryService.getCategories(eq(mockPrincipal))).thenReturn(responses);

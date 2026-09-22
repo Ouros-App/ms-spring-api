@@ -105,7 +105,7 @@ class CategoryServiceTest {
         Category savedCategory = Category.builder()
                 .id(1L)
                 .category("Ambiência")
-                .idTip(100L)
+                
                 .build();
 
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
@@ -117,7 +117,7 @@ class CategoryServiceTest {
         assertNotNull(response);
         assertEquals(1L, response.id());
         assertEquals("Ambiência", response.category());
-        assertEquals(100L, response.idTip());
+        
         verify(tipCategoryRepository, times(1)).save(any(TipCategory.class));
     }
 
@@ -128,7 +128,7 @@ class CategoryServiceTest {
         Category savedCategory = Category.builder()
                 .id(2L)
                 .category("Nutrição")
-                .idTip(100L)
+                
                 .build();
 
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
@@ -216,8 +216,8 @@ class CategoryServiceTest {
     @DisplayName("getCategories - Deve retornar lista de categorias para ADM, COMPANY_EMPLOYEE e FARM_OWNER")
     void deveListarCategoriasParaTodosPerfisAutorizados() {
         List<Category> categories = List.of(
-                Category.builder().id(1L).category("Ambiência").idTip(100L).build(),
-                Category.builder().id(2L).category("Sanitização").idTip(100L).build()
+                Category.builder().id(1L).category("Ambiência").build(),
+                Category.builder().id(2L).category("Sanitização").build()
         );
         when(categoryRepository.findAll()).thenReturn(categories);
 
