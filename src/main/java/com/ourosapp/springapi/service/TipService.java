@@ -12,7 +12,6 @@ import com.ourosapp.springapi.entity.*;
 import com.ourosapp.springapi.repository.*;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

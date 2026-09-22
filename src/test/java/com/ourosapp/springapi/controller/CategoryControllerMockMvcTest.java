@@ -76,7 +76,7 @@ class CategoryControllerMockMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/categories")))
+                .andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/categories/1")))
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.category").value("Ambiência"));
     }
