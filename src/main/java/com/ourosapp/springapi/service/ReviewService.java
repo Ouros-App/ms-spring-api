@@ -208,8 +208,13 @@ public class ReviewService {
 
         if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            Farm farm = findFarmByIdOrThrow(tip.getIdFarm());
-            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
+            Farm primaryFarm = findFarmByIdOrThrow(tip.getIdFarm());
+            boolean isPrimaryFarmOfEnterprise = Objects.equals(primaryFarm.getIdEnterprise(), employee.getIdEnterprise());
+            boolean isSharedWithEnterprise = farmTipRepository.findByIdTip(tip.getId()).stream()
+                    .map(ft -> findFarmByIdOrThrow(ft.getIdFarm()))
+                    .anyMatch(f -> Objects.equals(f.getIdEnterprise(), employee.getIdEnterprise()));
+
+            if (!isPrimaryFarmOfEnterprise && !isSharedWithEnterprise) {
                 throw new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
                         "Acesso negado para " + action + " da dica técnica vinculada a outra empresa"
