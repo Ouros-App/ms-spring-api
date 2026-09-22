@@ -252,11 +252,9 @@ class ReviewServiceTest {
         when(reviewRepository.save(any(Review.class)))
                 .thenThrow(new DataIntegrityViolationException("FK constraint"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 reviewService.createReview(100L, sampleRequest, adminPrincipal)
         );
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     // =========================================================================
@@ -480,11 +478,9 @@ class ReviewServiceTest {
 
         ReviewUpdateDTO updateDTO = new ReviewUpdateDTO("Novo comentário", 4);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 reviewService.updateReview(50L, updateDTO, adminPrincipal)
         );
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     // =========================================================================
@@ -555,10 +551,8 @@ class ReviewServiceTest {
         doThrow(new DataIntegrityViolationException("Constraint violation"))
                 .when(reviewRepository).delete(sampleReview);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 reviewService.deleteReview(50L, adminPrincipal)
         );
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 }

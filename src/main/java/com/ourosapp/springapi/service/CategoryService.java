@@ -83,24 +83,16 @@ public class CategoryService {
                 .idTip(tip.getId())
                 .build();
 
-        try {
-            Category saved = categoryRepository.save(category);
+        Category saved = categoryRepository.save(category);
 
-            if (!tipCategoryRepository.existsByIdTipAndIdCategory(tip.getId(), saved.getId())) {
-                tipCategoryRepository.save(TipCategory.builder()
-                        .idTip(tip.getId())
-                        .idCategory(saved.getId())
-                        .build());
-            }
-
-            return CategoryResponseDTO.fromEntity(saved);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar categoria",
-                    ex
-            );
+        if (!tipCategoryRepository.existsByIdTipAndIdCategory(tip.getId(), saved.getId())) {
+            tipCategoryRepository.save(TipCategory.builder()
+                    .idTip(tip.getId())
+                    .idCategory(saved.getId())
+                    .build());
         }
+
+        return CategoryResponseDTO.fromEntity(saved);
     }
 
     /**

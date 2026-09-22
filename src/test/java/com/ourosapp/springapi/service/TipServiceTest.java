@@ -228,10 +228,9 @@ class TipServiceTest {
         when(tipRepository.save(any(Tip.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 tipService.createTip(request, adminPrincipal)
         );
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test

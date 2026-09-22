@@ -207,10 +207,9 @@ class CategoryServiceTest {
         when(categoryRepository.save(any(Category.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate key"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 categoryService.createCategory(request, adminPrincipal)
         );
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test

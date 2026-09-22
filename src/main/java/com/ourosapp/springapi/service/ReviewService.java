@@ -78,16 +78,8 @@ public class ReviewService {
                 .idTip(tip.getId())
                 .build();
 
-        try {
-            Review saved = reviewRepository.save(review);
-            return ReviewResponseDTO.fromEntity(saved);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar avaliação",
-                    ex
-            );
-        }
+        Review saved = reviewRepository.save(review);
+        return ReviewResponseDTO.fromEntity(saved);
     }
 
     /**
@@ -173,16 +165,8 @@ public class ReviewService {
             review.setRating(request.rating());
         }
 
-        try {
-            Review updated = reviewRepository.save(review);
-            return ReviewResponseDTO.fromEntity(updated);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao atualizar avaliação",
-                    ex
-            );
-        }
+        Review updated = reviewRepository.save(review);
+        return ReviewResponseDTO.fromEntity(updated);
     }
 
     /**
@@ -203,16 +187,8 @@ public class ReviewService {
         Tip tip = findTipByIdOrThrow(review.getIdTip());
         validateTipAccess(tip, principal, "remover esta avaliação");
 
-        try {
-            reviewRepository.delete(review);
-            reviewRepository.flush();
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Não é possível remover a avaliação pois existem outros dados vinculados a ela",
-                    ex
-            );
-        }
+        reviewRepository.delete(review);
+        reviewRepository.flush();
     }
 
     /**

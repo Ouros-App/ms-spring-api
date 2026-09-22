@@ -72,40 +72,32 @@ public class TipService {
                 .idFarm(farm.getId())
                 .build();
 
-        try {
-            Tip saved = tipRepository.save(tip);
+        Tip saved = tipRepository.save(tip);
 
-            if (!farmTipRepository.existsByIdFarmAndIdTip(farm.getId(), saved.getId())) {
-                farmTipRepository.save(FarmTip.builder()
-                        .idFarm(farm.getId())
-                        .idTip(saved.getId())
-                        .build());
-            }
+        if (!farmTipRepository.existsByIdFarmAndIdTip(farm.getId(), saved.getId())) {
+            farmTipRepository.save(FarmTip.builder()
+                    .idFarm(farm.getId())
+                    .idTip(saved.getId())
+                    .build());
+        }
 
-            if (!categories.isEmpty()) {
-                for (Category cat : categories) {
-                    if (!tipCategoryRepository.existsByIdTipAndIdCategory(saved.getId(), cat.getId())) {
-                        tipCategoryRepository.save(TipCategory.builder()
-                                .idTip(saved.getId())
-                                .idCategory(cat.getId())
-                                .build());
-                    }
+        if (!categories.isEmpty()) {
+            for (Category cat : categories) {
+                if (!tipCategoryRepository.existsByIdTipAndIdCategory(saved.getId(), cat.getId())) {
+                    tipCategoryRepository.save(TipCategory.builder()
+                            .idTip(saved.getId())
+                            .idCategory(cat.getId())
+                            .build());
                 }
             }
-
-            List<String> categoryNames = categories.stream()
-                    .map(Category::getCategory)
-                    .distinct()
-                    .toList();
-
-            return TipResponseDTO.fromEntity(saved, categoryNames, 0, 0.0);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar dica técnica",
-                    ex
-            );
         }
+
+        List<String> categoryNames = categories.stream()
+                .map(Category::getCategory)
+                .distinct()
+                .toList();
+
+        return TipResponseDTO.fromEntity(saved, categoryNames, 0, 0.0);
     }
 
     /**
@@ -226,16 +218,8 @@ public class TipService {
             }
         }
 
-        try {
-            Tip updated = tipRepository.save(tip);
-            return enrichTips(List.of(updated)).get(0);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao atualizar dica técnica",
-                    ex
-            );
-        }
+        Tip updated = tipRepository.save(tip);
+        return enrichTips(List.of(updated)).get(0);
     }
 
     /**
@@ -260,18 +244,10 @@ public class TipService {
         Farm farm = findFarmByIdOrThrow(tip.getIdFarm());
         validateFarmAccessPermission(farm, principal, "remover dica técnica desta fazenda");
 
-        try {
-            tipCategoryRepository.deleteByIdTip(tip.getId());
-            farmTipRepository.deleteByIdTip(tip.getId());
-            reviewRepository.deleteByIdTip(tip.getId());
-            tipRepository.delete(tip);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Não é possível remover a dica técnica pois existem dados vinculados a ela",
-                    ex
-            );
-        }
+        tipCategoryRepository.deleteByIdTip(tip.getId());
+        farmTipRepository.deleteByIdTip(tip.getId());
+        reviewRepository.deleteByIdTip(tip.getId());
+        tipRepository.delete(tip);
     }
 
     private List<TipResponseDTO> getTipsForSingleFarm(Farm farm) {
