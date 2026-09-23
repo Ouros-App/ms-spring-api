@@ -22,7 +22,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -70,12 +69,12 @@ class LotControllerMockMvcTest {
     @DisplayName("POST /lots - Deve cadastrar lote e retornar 201 Created com cabeçalho Location")
     void testCreateLotSuccess() throws Exception {
         LotRequestDTO request = new LotRequestDTO(
-                50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+                50000, 48500, LocalDate.of(2026, 10, 15),
+                1500, 12500.50, 1L, 2L
         );
         LotResponseDTO response = new LotResponseDTO(
-                10L, 50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+                10L, 50000, 48500, LocalDate.of(2026, 10, 15),
+                1500, 12500.50, 1L, 2L
         );
 
         when(lotService.createLot(any(LotRequestDTO.class), eq(mockPrincipal))).thenReturn(response);
@@ -89,9 +88,7 @@ class LotControllerMockMvcTest {
                 .andExpect(jsonPath("$.id").value(10L))
                 .andExpect(jsonPath("$.received_chickens").value(50000))
                 .andExpect(jsonPath("$.delivered_chickens").value(48500))
-                .andExpect(jsonPath("$.date_birth").value("2026-09-01"))
                 .andExpect(jsonPath("$.delivery_date").value("2026-10-15"))
-                .andExpect(jsonPath("$.gain").value(2.8500))
                 .andExpect(jsonPath("$.losts").value(1500))
                 .andExpect(jsonPath("$.cost").value(12500.50))
                 .andExpect(jsonPath("$.id_enterprise").value(1L))
@@ -105,9 +102,7 @@ class LotControllerMockMvcTest {
                 {
                     "receivedChickens": 50000,
                     "deliveredChickens": 48500,
-                    "dateBirth": "2026-09-01",
                     "deliveryDate": "2026-10-15",
-                    "gain": 2.8500,
                     "losts": 1500,
                     "cost": 12500.50,
                     "idEnterprise": 1,
@@ -115,8 +110,8 @@ class LotControllerMockMvcTest {
                 }
                 """;
         LotResponseDTO response = new LotResponseDTO(
-                10L, 50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+                10L, 50000, 48500, LocalDate.of(2026, 10, 15),
+                1500, 12500.50, 1L, 2L
         );
 
         when(lotService.createLot(any(LotRequestDTO.class), eq(mockPrincipal))).thenReturn(response);
@@ -135,7 +130,7 @@ class LotControllerMockMvcTest {
         String invalidPayload = """
                 {
                     "received_chickens": -50,
-                    "date_birth": null,
+                    "delivery_date": null,
                     "id_enterprise": null,
                     "id_farm": -1
                 }
@@ -155,28 +150,7 @@ class LotControllerMockMvcTest {
                 {
                     "received_chickens": 1000,
                     "delivered_chickens": 2000,
-                    "date_birth": "2026-09-01",
                     "delivery_date": "2026-10-15",
-                    "id_enterprise": 1,
-                    "id_farm": 2
-                }
-                """;
-
-        mockMvc.perform(post("/lots")
-                        .with(user(mockPrincipal))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidPayload))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("POST /lots - Deve retornar 400 Bad Request quando delivery_date for anterior a date_birth")
-    void testCreateLotCrossValidationDeliveryDateBeforeDateBirth() throws Exception {
-        String invalidPayload = """
-                {
-                    "received_chickens": 1000,
-                    "date_birth": "2026-09-15",
-                    "delivery_date": "2026-09-01",
                     "id_enterprise": 1,
                     "id_farm": 2
                 }
@@ -193,8 +167,8 @@ class LotControllerMockMvcTest {
     @DisplayName("POST /lots - Deve retornar 401 Unauthorized quando não autenticado")
     void testCreateLotUnauthorized() throws Exception {
         LotRequestDTO request = new LotRequestDTO(
-                50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+                50000, 48500, LocalDate.of(2026, 10, 15),
+                1500, 12500.50, 1L, 2L
         );
 
         mockMvc.perform(post("/lots")
@@ -207,8 +181,8 @@ class LotControllerMockMvcTest {
     @DisplayName("POST /lots - Deve retornar 403 Forbidden quando usuário sem permissão")
     void testCreateLotForbidden() throws Exception {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, 1L, 2L
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, 1L, 2L
         );
         when(lotService.createLot(any(LotRequestDTO.class), eq(mockPrincipal)))
                 .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado"));
@@ -224,8 +198,8 @@ class LotControllerMockMvcTest {
     @DisplayName("POST /lots - Deve retornar 409 Conflict quando ocorre violação de integridade")
     void testCreateLotConflict() throws Exception {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, 1L, 2L
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, 1L, 2L
         );
         when(lotService.createLot(any(LotRequestDTO.class), eq(mockPrincipal)))
                 .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Conflito de integridade"));
@@ -241,8 +215,8 @@ class LotControllerMockMvcTest {
     @DisplayName("GET /lots - Deve retornar lista de lotes com status 200 OK")
     void testGetLotsForUserSuccess() throws Exception {
         LotResponseDTO lot = new LotResponseDTO(
-                1L, 50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+                1L, 50000, 48500, LocalDate.of(2026, 10, 15),
+                1500, 12500.50, 1L, 2L
         );
         when(lotService.getLotsForUser(eq(2L), eq(1L), eq(mockPrincipal))).thenReturn(List.of(lot));
 
@@ -266,8 +240,8 @@ class LotControllerMockMvcTest {
     @DisplayName("GET /lots/{id} - Deve retornar lote com status 200 OK")
     void testGetLotByIdSuccess() throws Exception {
         LotResponseDTO lot = new LotResponseDTO(
-                1L, 50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+                1L, 50000, 48500, LocalDate.of(2026, 10, 15),
+                1500, 12500.50, 1L, 2L
         );
         when(lotService.getLotById(eq(1L), eq(mockPrincipal))).thenReturn(lot);
 
@@ -304,12 +278,12 @@ class LotControllerMockMvcTest {
     @DisplayName("PATCH /lots/{id} - Deve atualizar parcialmente lote com status 200 OK")
     void testUpdateLotSuccess() throws Exception {
         LotUpdateDTO request = new LotUpdateDTO(
-                null, 49000, null, LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.9500"), 1000, 13000.0
+                null, 49000, LocalDate.of(2026, 10, 15),
+                1000, 13000.0
         );
         LotResponseDTO response = new LotResponseDTO(
-                1L, 50000, 49000, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.9500"), 1000, 13000.0, 1L, 2L
+                1L, 50000, 49000, LocalDate.of(2026, 10, 15),
+                1000, 13000.0, 1L, 2L
         );
 
         when(lotService.updateLot(eq(1L), any(LotUpdateDTO.class), eq(mockPrincipal))).thenReturn(response);
@@ -319,8 +293,7 @@ class LotControllerMockMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.delivered_chickens").value(49000))
-                .andExpect(jsonPath("$.gain").value(2.9500));
+                .andExpect(jsonPath("$.delivered_chickens").value(49000));
     }
 
     @Test
@@ -330,7 +303,6 @@ class LotControllerMockMvcTest {
                 {
                     "received_chickens": -10,
                     "delivered_chickens": -5,
-                    "gain": -1.0,
                     "cost": -100.0
                 }
                 """;
@@ -345,7 +317,7 @@ class LotControllerMockMvcTest {
     @Test
     @DisplayName("PATCH /lots/{id} - Deve retornar 404 Not Found quando lote não existir")
     void testUpdateLotNotFound() throws Exception {
-        LotUpdateDTO request = new LotUpdateDTO(null, 49000, null, null, null, null, null);
+        LotUpdateDTO request = new LotUpdateDTO(null, 49000, null, null, null);
         when(lotService.updateLot(eq(99L), any(LotUpdateDTO.class), eq(mockPrincipal)))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Lote não encontrado"));
 
