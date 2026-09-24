@@ -59,16 +59,8 @@ public class ChickenLeftService {
                 .idFarm(farmId)
                 .build();
 
-        try {
-            ChickenLeft saved = chickenLeftRepository.save(chickenLeft);
-            return ChickenLeftResponseDTO.fromEntity(saved);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar saída de aves",
-                    ex
-            );
-        }
+        ChickenLeft saved = chickenLeftRepository.save(chickenLeft);
+        return ChickenLeftResponseDTO.fromEntity(saved);
     }
 
     /**
@@ -158,16 +150,8 @@ public class ChickenLeftService {
         farm.setChickensNow(balance + entry.getChickensCount());
         farmRepository.save(farm);
 
-        try {
-            chickenLeftRepository.delete(entry);
-            chickenLeftRepository.flush();
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Não é possível remover o registro de saída de aves pois existem outros dados vinculados a ele",
-                    ex
-            );
-        }
+        chickenLeftRepository.delete(entry);
+        chickenLeftRepository.flush();
     }
 
     private void deductFlockQuantity(Farm farm, int requestedDeduction) {

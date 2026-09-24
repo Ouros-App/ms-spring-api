@@ -309,11 +309,9 @@ class ChickenLeftServiceTest {
         when(chickenLeftRepository.save(any(ChickenLeft.class)))
                 .thenThrow(new DataIntegrityViolationException("Erro de FK"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 chickenLeftService.createChickenLeft(sampleRequest, adminPrincipal)
         );
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     // =========================================================================
@@ -731,12 +729,9 @@ class ChickenLeftServiceTest {
         doThrow(new DataIntegrityViolationException("FK constraint"))
                 .when(chickenLeftRepository).delete(sampleChickenLeft);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 chickenLeftService.deleteChickenLeft(100L, adminPrincipal)
         );
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("Não é possível remover o registro de saída de aves"));
     }
 
     @Test
