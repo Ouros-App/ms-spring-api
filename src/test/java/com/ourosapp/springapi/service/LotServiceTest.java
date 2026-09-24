@@ -24,7 +24,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -81,17 +80,15 @@ class LotServiceTest {
     @DisplayName("Deve cadastrar lote com sucesso quando usuário for ADM")
     void deveCadastrarLoteComSucessoAdm() {
         LotRequestDTO request = new LotRequestDTO(
-                50000, 48000, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.8500"), 2000, 15000.0, 1L, 10L
+                50000, 48000, LocalDate.of(2026, 10, 15),
+                2000, 15000.0, 1L, 10L
         );
         Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
         Lot savedLot = Lot.builder()
                 .id(100L)
                 .receivedChickens(50000)
                 .deliveredChickens(48000)
-                .dateBirth(LocalDate.of(2026, 9, 1))
                 .deliveryDate(LocalDate.of(2026, 10, 15))
-                .gain(new BigDecimal("2.8500"))
                 .losts(2000)
                 .cost(15000.0)
                 .idEnterprise(1L)
@@ -117,8 +114,8 @@ class LotServiceTest {
     @DisplayName("Deve cadastrar lote com sucesso aplicando valores padrão quando campos de fechamento forem nulos")
     void deveCadastrarLoteComSucessoAplicandoDefaults() {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, 1L, 10L
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, 1L, 10L
         );
         Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
@@ -137,8 +134,7 @@ class LotServiceTest {
         assertNotNull(response);
         assertEquals(101L, response.id());
         assertEquals(0, response.deliveredChickens());
-        assertEquals(LocalDate.of(2026, 9, 1), response.deliveryDate());
-        assertEquals(BigDecimal.ZERO, response.gain());
+        assertEquals(LocalDate.of(2026, 10, 15), response.deliveryDate());
         assertEquals(0, response.losts());
         assertEquals(0.0, response.cost());
     }
@@ -147,8 +143,8 @@ class LotServiceTest {
     @DisplayName("Deve cadastrar lote com sucesso inferindo id_enterprise a partir do funcionário autenticado quando omitido")
     void deveCadastrarLoteComSucessoInferindoEmpresaDoFuncionario() {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, null, 10L
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, null, 10L
         );
         Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
@@ -174,8 +170,8 @@ class LotServiceTest {
     @DisplayName("Deve cadastrar lote com sucesso inferindo id_enterprise a partir da fazenda quando ADM omitir")
     void deveCadastrarLoteComSucessoInferindoEmpresaDaFazendaQuandoAdm() {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, null, 10L
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, null, 10L
         );
         Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
 
@@ -199,8 +195,8 @@ class LotServiceTest {
     @DisplayName("Deve lançar 404 quando empresa integradora não existir")
     void deveLancar404QuandoEmpresaNaoExistirAoCriarLote() {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, 99L, 10L
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, 99L, 10L
         );
         Farm farm = Farm.builder().id(10L).idEnterprise(99L).build();
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
@@ -217,8 +213,8 @@ class LotServiceTest {
     @DisplayName("Deve lançar 404 quando fazenda não existir ao criar lote")
     void deveLancar404QuandoFazendaNaoExistirAoCriarLote() {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, 1L, 99L
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, 1L, 99L
         );
         when(farmRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -233,8 +229,8 @@ class LotServiceTest {
     @DisplayName("Deve lançar 400 quando fazenda pertencer a outra empresa ao criar lote")
     void deveLancar400QuandoFazendaPertencerAOutraEmpresa() {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, 1L, 10L
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, 1L, 10L
         );
         Farm farm = Farm.builder().id(10L).idEnterprise(2L).build();
 
@@ -252,8 +248,8 @@ class LotServiceTest {
     @DisplayName("Deve lançar 403 quando funcionário tentar criar lote para outra empresa")
     void deveLancar403QuandoFuncionarioCriarLoteParaOutraEmpresa() {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, 2L, 10L
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, 2L, 10L
         );
         Farm farm = Farm.builder().id(10L).idEnterprise(2L).build();
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
@@ -271,8 +267,8 @@ class LotServiceTest {
     @DisplayName("Deve lançar 403 quando produtor rural tentar criar lote")
     void deveLancar403QuandoProdutorRuralTentarCriarLote() {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, 1L, 10L
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, 1L, 10L
         );
         Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
 
@@ -288,8 +284,8 @@ class LotServiceTest {
     @DisplayName("Deve lançar 409 quando ocorrer DataIntegrityViolationException ao salvar lote")
     void deveLancar409QuandoOcorrerViolacaoDeIntegridade() {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, 1L, 10L
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, 1L, 10L
         );
         Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
 
@@ -310,7 +306,7 @@ class LotServiceTest {
     @Test
     @DisplayName("Deve listar todos os lotes para ADM sem filtros")
     void deveListarTodosLotesParaAdm() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
         when(lotRepository.findAll()).thenReturn(List.of(lot));
 
         List<LotResponseDTO> result = lotService.getLotsForUser(null, null, admPrincipal);
@@ -322,7 +318,7 @@ class LotServiceTest {
     @Test
     @DisplayName("Deve listar lotes para ADM filtrando por idFarm e idEnterprise")
     void deveListarLotesParaAdmComFiltrosCompletos() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
         when(lotRepository.findAllByIdEnterpriseAndIdFarm(1L, 10L)).thenReturn(List.of(lot));
 
         List<LotResponseDTO> result = lotService.getLotsForUser(10L, 1L, admPrincipal);
@@ -333,7 +329,7 @@ class LotServiceTest {
     @Test
     @DisplayName("Deve listar lotes para ADM filtrando por idEnterprise")
     void deveListarLotesParaAdmComFiltroEmpresa() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
         when(lotRepository.findAllByIdEnterprise(1L)).thenReturn(List.of(lot));
 
         List<LotResponseDTO> result = lotService.getLotsForUser(null, 1L, admPrincipal);
@@ -344,7 +340,7 @@ class LotServiceTest {
     @Test
     @DisplayName("Deve listar lotes para ADM filtrando por idFarm")
     void deveListarLotesParaAdmComFiltroFazenda() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
         when(lotRepository.findAllByIdFarm(10L)).thenReturn(List.of(lot));
 
         List<LotResponseDTO> result = lotService.getLotsForUser(10L, null, admPrincipal);
@@ -356,7 +352,7 @@ class LotServiceTest {
     @DisplayName("Deve listar lotes para COMPANY_EMPLOYEE da sua empresa")
     void deveListarLotesParaFuncionario() {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
 
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(lotRepository.findAllByIdEnterprise(1L)).thenReturn(List.of(lot));
@@ -371,7 +367,7 @@ class LotServiceTest {
     void deveListarLotesParaFuncionarioComFiltroFazendaValida() {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
         Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
 
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
@@ -413,7 +409,7 @@ class LotServiceTest {
     @DisplayName("Deve listar lotes para FARM_OWNER da sua própria fazenda")
     void deveListarLotesParaProdutorRural() {
         FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
 
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
         when(lotRepository.findAllByIdFarm(10L)).thenReturn(List.of(lot));
@@ -451,7 +447,7 @@ class LotServiceTest {
     void deveListarLotesParaProdutorRuralComFiltroEmpresaValida() {
         FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
         Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
 
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
@@ -498,7 +494,7 @@ class LotServiceTest {
     void deveListarLotesParaProdutorRuralComFiltrosValidos() {
         FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
         Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
 
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
@@ -525,7 +521,7 @@ class LotServiceTest {
     @Test
     @DisplayName("Deve buscar lote por ID com sucesso para ADM")
     void deveBuscarLotePorIdComSucessoAdm() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
 
         LotResponseDTO response = lotService.getLotById(1L, admPrincipal);
@@ -538,7 +534,7 @@ class LotServiceTest {
     @DisplayName("Deve buscar lote por ID com sucesso para COMPANY_EMPLOYEE da mesma empresa")
     void deveBuscarLotePorIdComSucessoFuncionario() {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
 
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
@@ -553,7 +549,7 @@ class LotServiceTest {
     @DisplayName("Deve buscar lote por ID com sucesso para FARM_OWNER da mesma fazenda")
     void deveBuscarLotePorIdComSucessoProdutor() {
         FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
 
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
@@ -588,7 +584,7 @@ class LotServiceTest {
     @DisplayName("Deve lançar 403 quando COMPANY_EMPLOYEE tentar acessar lote de outra integradora")
     void deveLancar403QuandoFuncionarioAcessarLoteDeOutraEmpresa() {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
-        Lot lot = Lot.builder().id(1L).idEnterprise(2L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(2L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
 
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
@@ -603,7 +599,7 @@ class LotServiceTest {
     @DisplayName("Deve lançar 403 quando FARM_OWNER tentar acessar lote de outra fazenda")
     void deveLancar403QuandoProdutorAcessarLoteDeOutraFazenda() {
         FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(20L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(20L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
 
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
@@ -625,9 +621,7 @@ class LotServiceTest {
                 .id(1L)
                 .receivedChickens(50000)
                 .deliveredChickens(0)
-                .dateBirth(LocalDate.of(2026, 9, 1))
                 .deliveryDate(LocalDate.of(2026, 9, 1))
-                .gain(BigDecimal.ZERO)
                 .losts(0)
                 .cost(0.0)
                 .idEnterprise(1L)
@@ -635,8 +629,8 @@ class LotServiceTest {
                 .build();
 
         LotUpdateDTO updateDTO = new LotUpdateDTO(
-                null, 49000, null, LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.9500"), 1000, 18000.50
+                null, 49000, LocalDate.of(2026, 10, 15),
+                1000, 18000.50
         );
 
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
@@ -647,7 +641,6 @@ class LotServiceTest {
         assertNotNull(response);
         assertEquals(49000, response.deliveredChickens());
         assertEquals(LocalDate.of(2026, 10, 15), response.deliveryDate());
-        assertEquals(new BigDecimal("2.9500"), response.gain());
         assertEquals(1000, response.losts());
         assertEquals(18000.50, response.cost());
     }
@@ -655,8 +648,8 @@ class LotServiceTest {
     @Test
     @DisplayName("Deve retornar lote original quando não houver atualizações no DTO")
     void deveRetornarOriginalQuandoSemAtualizacoes() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
-        LotUpdateDTO emptyUpdate = new LotUpdateDTO(null, null, null, null, null, null, null);
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
+        LotUpdateDTO emptyUpdate = new LotUpdateDTO(null, null, null, null, null);
 
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
 
@@ -670,8 +663,8 @@ class LotServiceTest {
     @Test
     @DisplayName("Deve lançar 400 quando deliveredChickens for maior que receivedChickens no update")
     void deveLancar400QuandoEntreguesMaiorQueRecebidasNoUpdate() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.of(2026, 9, 1)).deliveryDate(LocalDate.of(2026, 10, 1)).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
-        LotUpdateDTO updateDTO = new LotUpdateDTO(null, 1500, null, null, null, null, null);
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.of(2026, 10, 1)).losts(0).cost(0.0).build();
+        LotUpdateDTO updateDTO = new LotUpdateDTO(null, 1500, null, null, null);
 
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
 
@@ -683,25 +676,10 @@ class LotServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 400 quando deliveryDate for anterior a dateBirth no update")
-    void deveLancar400QuandoDataEntregaAnteriorNascimentoNoUpdate() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.of(2026, 9, 1)).deliveryDate(LocalDate.of(2026, 10, 1)).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
-        LotUpdateDTO updateDTO = new LotUpdateDTO(null, null, null, LocalDate.of(2026, 8, 15), null, null, null);
-
-        when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                lotService.updateLot(1L, updateDTO, admPrincipal));
-
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("data de entrega deve ser posterior"));
-    }
-
-    @Test
     @DisplayName("Deve lançar 403 quando FARM_OWNER tentar atualizar lote")
     void deveLancar403QuandoProdutorAtualizarLote() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
-        LotUpdateDTO updateDTO = new LotUpdateDTO(null, 950, null, null, null, null, null);
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
+        LotUpdateDTO updateDTO = new LotUpdateDTO(null, 950, null, null, null);
 
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
 
@@ -718,7 +696,7 @@ class LotServiceTest {
     @Test
     @DisplayName("Deve remover lote com sucesso quando usuário for ADM")
     void deveRemoverLoteComSucessoAdm() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
 
         assertDoesNotThrow(() -> lotService.deleteLot(1L, admPrincipal));
@@ -731,7 +709,7 @@ class LotServiceTest {
     @DisplayName("Deve remover lote com sucesso quando funcionário for da mesma empresa")
     void deveRemoverLoteComSucessoFuncionario() {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
 
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
@@ -744,7 +722,7 @@ class LotServiceTest {
     @Test
     @DisplayName("Deve lançar 403 quando FARM_OWNER tentar remover lote")
     void deveLancar403QuandoProdutorTentarRemoverLote() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
@@ -757,7 +735,7 @@ class LotServiceTest {
     @Test
     @DisplayName("Deve lançar 409 quando houver restrição de integridade ao remover lote")
     void deveLancar409QuandoHouverConflitoAoRemoverLote() {
-        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).dateBirth(LocalDate.now()).deliveryDate(LocalDate.now()).gain(BigDecimal.ZERO).losts(0).cost(0.0).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
         doThrow(new DataIntegrityViolationException("FK constraint")).when(lotRepository).flush();
 

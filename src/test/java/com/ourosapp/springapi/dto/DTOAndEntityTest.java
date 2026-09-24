@@ -1608,9 +1608,7 @@ class DTOAndEntityTest {
         lot.setId(1L);
         lot.setReceivedChickens(50000);
         lot.setDeliveredChickens(48500);
-        lot.setDateBirth(LocalDate.of(2026, 9, 1));
         lot.setDeliveryDate(LocalDate.of(2026, 10, 15));
-        lot.setGain(new BigDecimal("2.8500"));
         lot.setLosts(1500);
         lot.setCost(12500.50);
         lot.setIdEnterprise(10L);
@@ -1619,9 +1617,7 @@ class DTOAndEntityTest {
         assertEquals(1L, lot.getId());
         assertEquals(50000, lot.getReceivedChickens());
         assertEquals(48500, lot.getDeliveredChickens());
-        assertEquals(LocalDate.of(2026, 9, 1), lot.getDateBirth());
         assertEquals(LocalDate.of(2026, 10, 15), lot.getDeliveryDate());
-        assertEquals(new BigDecimal("2.8500"), lot.getGain());
         assertEquals(1500, lot.getLosts());
         assertEquals(12500.50, lot.getCost());
         assertEquals(10L, lot.getIdEnterprise());
@@ -1631,9 +1627,7 @@ class DTOAndEntityTest {
                 .id(2L)
                 .receivedChickens(60000)
                 .deliveredChickens(59000)
-                .dateBirth(LocalDate.of(2026, 8, 1))
                 .deliveryDate(LocalDate.of(2026, 9, 15))
-                .gain(new BigDecimal("3.1000"))
                 .losts(1000)
                 .cost(15000.0)
                 .idEnterprise(11L)
@@ -1650,37 +1644,27 @@ class DTOAndEntityTest {
     @Test
     void testLotRequestDTO() throws JsonProcessingException {
         LotRequestDTO valid = new LotRequestDTO(
-                50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+                50000, 48500, LocalDate.of(2026, 10, 15),
+                1500, 12500.50, 1L, 2L
         );
         assertTrue(validator.validate(valid).isEmpty());
         assertTrue(valid.isDeliveredChickensValid());
-        assertTrue(valid.isDeliveryDateValid());
 
         // Aves entregues maior que recebidas
         LotRequestDTO invalidChickens = new LotRequestDTO(
-                1000, 2000, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                BigDecimal.ZERO, 0, 0.0, 1L, 2L
+                1000, 2000, LocalDate.of(2026, 10, 15),
+                0, 0.0, 1L, 2L
         );
         assertFalse(validator.validate(invalidChickens).isEmpty());
         assertFalse(invalidChickens.isDeliveredChickensValid());
 
-        // Data de entrega anterior ao nascimento
-        LotRequestDTO invalidDates = new LotRequestDTO(
-                1000, 900, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 9, 1),
-                BigDecimal.ZERO, 0, 0.0, 1L, 2L
-        );
-        assertFalse(validator.validate(invalidDates).isEmpty());
-        assertFalse(invalidDates.isDeliveryDateValid());
-
         // Valores nulos nos campos opcionais (incluindo id_enterprise que é opcional)
         LotRequestDTO nullOptionals = new LotRequestDTO(
-                1000, null, LocalDate.of(2026, 9, 1), null,
-                null, null, null, null, 2L
+                1000, null, LocalDate.of(2026, 10, 15),
+                null, null, null, 2L
         );
         assertTrue(validator.validate(nullOptionals).isEmpty());
         assertTrue(nullOptionals.isDeliveredChickensValid());
-        assertTrue(nullOptionals.isDeliveryDateValid());
         assertNull(nullOptionals.idEnterprise());
         assertEquals(2L, nullOptionals.idFarm());
 
@@ -1689,9 +1673,7 @@ class DTOAndEntityTest {
                 {
                     "received_chickens": 50000,
                     "delivered_chickens": 48500,
-                    "date_birth": "2026-09-01",
                     "delivery_date": "2026-10-15",
-                    "gain": 2.8500,
                     "losts": 1500,
                     "cost": 12500.50,
                     "id_enterprise": 1,
@@ -1701,6 +1683,7 @@ class DTOAndEntityTest {
         LotRequestDTO fromSnake = objectMapper.readValue(snakeJson, LotRequestDTO.class);
         assertEquals(50000, fromSnake.receivedChickens());
         assertEquals(48500, fromSnake.deliveredChickens());
+        assertEquals(LocalDate.of(2026, 10, 15), fromSnake.deliveryDate());
         assertEquals(1L, fromSnake.idEnterprise());
         assertEquals(2L, fromSnake.idFarm());
 
@@ -1709,9 +1692,7 @@ class DTOAndEntityTest {
                 {
                     "receivedChickens": 50000,
                     "deliveredChickens": 48500,
-                    "dateBirth": "2026-09-01",
                     "deliveryDate": "2026-10-15",
-                    "gain": 2.8500,
                     "losts": 1500,
                     "cost": 12500.50,
                     "idEnterprise": 1,
@@ -1720,6 +1701,7 @@ class DTOAndEntityTest {
                 """;
         LotRequestDTO fromCamel = objectMapper.readValue(camelJson, LotRequestDTO.class);
         assertEquals(50000, fromCamel.receivedChickens());
+        assertEquals(LocalDate.of(2026, 10, 15), fromCamel.deliveryDate());
         assertEquals(1L, fromCamel.idEnterprise());
         assertEquals(2L, fromCamel.idFarm());
     }
@@ -1733,9 +1715,7 @@ class DTOAndEntityTest {
                 .id(1L)
                 .receivedChickens(50000)
                 .deliveredChickens(48500)
-                .dateBirth(LocalDate.of(2026, 9, 1))
                 .deliveryDate(LocalDate.of(2026, 10, 15))
-                .gain(new BigDecimal("2.8500"))
                 .losts(1500)
                 .cost(12500.50)
                 .idEnterprise(10L)
@@ -1746,9 +1726,7 @@ class DTOAndEntityTest {
         assertEquals(1L, dto.id());
         assertEquals(50000, dto.receivedChickens());
         assertEquals(48500, dto.deliveredChickens());
-        assertEquals(LocalDate.of(2026, 9, 1), dto.dateBirth());
         assertEquals(LocalDate.of(2026, 10, 15), dto.deliveryDate());
-        assertEquals(new BigDecimal("2.8500"), dto.gain());
         assertEquals(1500, dto.losts());
         assertEquals(12500.50, dto.cost());
         assertEquals(10L, dto.idEnterprise());
@@ -1769,36 +1747,30 @@ class DTOAndEntityTest {
     @Test
     void testLotUpdateDTO() {
         LotUpdateDTO dtoWithUpdates = new LotUpdateDTO(
-                50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.8500"), 1500, 12500.50
+                50000, 48500, LocalDate.of(2026, 10, 15),
+                1500, 12500.50
         );
         assertTrue(dtoWithUpdates.hasUpdates());
         assertTrue(validator.validate(dtoWithUpdates).isEmpty());
         assertTrue(dtoWithUpdates.isDeliveredChickensValid());
-        assertTrue(dtoWithUpdates.isDeliveryDateValid());
 
-        LotUpdateDTO emptyDto = new LotUpdateDTO(null, null, null, null, null, null, null);
+        LotUpdateDTO emptyDto = new LotUpdateDTO(null, null, null, null, null);
         assertFalse(emptyDto.hasUpdates());
 
         // Validação de valores negativos
-        LotUpdateDTO invalidNegatives = new LotUpdateDTO(-10, -5, null, null, new BigDecimal("-1.0"), -1, -50.0);
+        LotUpdateDTO invalidNegatives = new LotUpdateDTO(-10, -5, null, -1, -50.0);
         assertFalse(validator.validate(invalidNegatives).isEmpty());
 
         // Validação de entregues > recebidos no DTO
-        LotUpdateDTO invalidAmounts = new LotUpdateDTO(100, 200, null, null, null, null, null);
+        LotUpdateDTO invalidAmounts = new LotUpdateDTO(100, 200, null, null, null);
         assertFalse(validator.validate(invalidAmounts).isEmpty());
         assertFalse(invalidAmounts.isDeliveredChickensValid());
 
-        // Validação de data de entrega < nascimento
-        LotUpdateDTO invalidDateOrder = new LotUpdateDTO(null, null, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 9, 1), null, null, null);
-        assertFalse(validator.validate(invalidDateOrder).isEmpty());
-        assertFalse(invalidDateOrder.isDeliveryDateValid());
-
         // Jackson deserialization
-        String snakeJson = "{\"delivered_chickens\": 49000, \"gain\": 2.9500}";
+        String snakeJson = "{\"delivered_chickens\": 49000, \"cost\": 13000.50}";
         LotUpdateDTO fromSnake = assertDoesNotThrow(() -> objectMapper.readValue(snakeJson, LotUpdateDTO.class));
         assertEquals(49000, fromSnake.deliveredChickens());
-        assertEquals(new BigDecimal("2.9500"), fromSnake.gain());
+        assertEquals(13000.50, fromSnake.cost());
     }
 
     /**
