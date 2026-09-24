@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Testes de integração Web via MockMvc para o controlador {@link ChickenLeftController}.
  */
 @WebMvcTest(ChickenLeftController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, KeycloakJwtAuthenticationConverter.class})
 class ChickenLeftControllerMockMvcTest {
 
     @Autowired

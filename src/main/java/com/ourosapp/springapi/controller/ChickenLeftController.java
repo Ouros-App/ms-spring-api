@@ -60,7 +60,7 @@ public class ChickenLeftController {
     ) {
         ChickenLeftResponseDTO created = chickenLeftService.createChickenLeft(request, principal);
         return ResponseEntity
-                .created(ServletUriComponentsBuilder.fromCurrentContextPath().path("/chicken-left/{id}").buildAndExpand(created.id()).toUri())
+                .created(ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(created.id()).toUri())
                 .body(created);
     }
 
