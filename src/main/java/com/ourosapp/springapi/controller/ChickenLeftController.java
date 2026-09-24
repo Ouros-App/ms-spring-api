@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.net.URI;
 import java.util.List;
 
 /**
@@ -44,13 +43,9 @@ public class ChickenLeftController {
 
     /**
      * Endpoint para cadastrar uma nova saída de aves.
-     *
-     * @param request   corpo da requisição com os dados da saída de aves
-     * @param principal dados do usuário autenticado via token JWT
-     * @return resposta HTTP 201 (Created), cabeçalho Location e o DTO do registro cadastrado
      */
     @Operation(summary = "Cadastrar saída de aves", description = "Registra uma nova saída de aves vinculada a uma Fazenda e abate a quantidade do saldo atual de aves.")
-    @ApiResponses(value = {
+    @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Registro de saída de aves cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos ou quantidade superior ao saldo atual de aves"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
@@ -63,24 +58,17 @@ public class ChickenLeftController {
             @RequestBody @Valid ChickenLeftRequestDTO request,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        ChickenLeftResponseDTO response = chickenLeftService.createChickenLeft(request, principal);
-        URI location = ServletUriComponentsBuilder
-                .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(response.id())
-                .toUri();
-        return ResponseEntity.created(location).body(response);
+        ChickenLeftResponseDTO created = chickenLeftService.createChickenLeft(request, principal);
+        return ResponseEntity
+                .created(ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(created.id()).toUri())
+                .body(created);
     }
 
     /**
      * Endpoint para listar registros de saída de aves acessíveis ao usuário autenticado.
-     *
-     * @param farmId    identificador opcional da fazenda para filtragem
-     * @param principal dados do usuário autenticado via token JWT
-     * @return resposta HTTP 200 (OK) com a lista de registros de saída de aves
      */
     @Operation(summary = "Listar registros de saída de aves", description = "Lista todos os registros de saída de aves da fazenda acessíveis ao usuário autenticado.")
-    @ApiResponses(value = {
+    @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lista de registros de saída de aves retornada com sucesso"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
@@ -97,13 +85,9 @@ public class ChickenLeftController {
 
     /**
      * Endpoint para buscar os detalhes de um registro específico de saída de aves pelo ID.
-     *
-     * @param id        identificador único do registro de saída de aves
-     * @param principal dados do usuário autenticado via token JWT
-     * @return resposta HTTP 200 (OK) com os detalhes do registro
      */
     @Operation(summary = "Buscar registro de saída de aves por ID", description = "Retorna os detalhes de um registro específico de saída de aves.")
-    @ApiResponses(value = {
+    @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Registro de saída de aves retornado com sucesso"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
@@ -120,14 +104,9 @@ public class ChickenLeftController {
 
     /**
      * Endpoint para atualizar parcialmente um registro de saída de aves.
-     *
-     * @param id        identificador único do registro a ser atualizado
-     * @param request   corpo da requisição com os campos parciais
-     * @param principal dados do usuário autenticado via token JWT
-     * @return resposta HTTP 200 (OK) com o registro atualizado
      */
     @Operation(summary = "Atualizar saída de aves parcialmente", description = "Atualiza a quantidade ou data de um registro de saída de aves, recalculando o saldo na fazenda.")
-    @ApiResponses(value = {
+    @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Registro de saída de aves atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos ou novo saldo de aves insuficiente"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
@@ -146,13 +125,9 @@ public class ChickenLeftController {
 
     /**
      * Endpoint para remover um registro de saída de aves do sistema e estornar o saldo.
-     *
-     * @param id        identificador único do registro a ser removido
-     * @param principal dados do usuário autenticado via token JWT
-     * @return resposta HTTP 204 (No Content) sem corpo
      */
     @Operation(summary = "Remover registro de saída de aves", description = "Exclui um registro de saída de aves e estorna a quantidade ao saldo de aves da fazenda.")
-    @ApiResponses(value = {
+    @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Registro de saída de aves removido com sucesso"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),

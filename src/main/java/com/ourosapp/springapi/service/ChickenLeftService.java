@@ -28,7 +28,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Serviço responsável pela lógica de negócios e operações de persistência da entidade {@link ChickenLeft}.
+ * Serviço responsável pela gestão de saída e baixa de aves (abate/mortalidade/transferência)
+ * e sincronização do saldo de aves do plantel na fazenda.
  */
 @Service
 @RequiredArgsConstructor
@@ -40,45 +41,22 @@ public class ChickenLeftService {
     private final FarmOwnerRepository farmOwnerRepository;
 
     /**
-     * Cadastra um novo Registro de Saída de Aves vinculado a uma Fazenda.
-     * Atualiza atomicamente o saldo de aves atual (chickens_now) na fazenda.
-     *
-     * @param request   payload da requisição contendo os dados da saída de aves
-     * @param principal dados do usuário logado extraídos do token JWT
-     * @return DTO com os dados do registro de saída cadastrado
-     * @throws ResponseStatusException HTTP 400 se os dados forem inválidos ou se o saldo de aves for insuficiente
-     * @throws ResponseStatusException HTTP 401 se não autenticado
-     * @throws ResponseStatusException HTTP 403 se o perfil não tiver permissão para cadastrar na fazenda
-     * @throws ResponseStatusException HTTP 404 se a fazenda informada não existir
-     * @throws ResponseStatusException HTTP 409 se houver conflito de integridade de dados
+     * Cadastra um novo registro de saída de aves e decrementa o saldo atual do plantel na fazenda.
      */
     @Transactional
     public ChickenLeftResponseDTO createChickenLeft(ChickenLeftRequestDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
-        ensureAuthenticated(principal);
+        validateAuthentication(principal);
 
-        Long resolvedFarmId = resolveAndValidateFarmForCreation(request.idFarm(), principal);
-        Farm farm = findFarmByIdOrThrow(resolvedFarmId);
+        Long farmId = determineAuthorizedFarmId(request.idFarm(), principal);
+        Farm targetFarm = lookupFarm(farmId);
 
-        int currentChickens = farm.getChickensNow() != null ? farm.getChickensNow() : 0;
-        if (currentChickens < request.chickensCount()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    String.format(
-                            "A quantidade de saída de aves (%d) é maior que o saldo de aves atual na fazenda (%d)",
-                            request.chickensCount(),
-                            currentChickens
-                    )
-            );
-        }
-
-        farm.setChickensNow(currentChickens - request.chickensCount());
-        farmRepository.save(farm);
+        deductFlockQuantity(targetFarm, request.chickensCount());
 
         ChickenLeft chickenLeft = ChickenLeft.builder()
                 .chickensCount(request.chickensCount())
                 .exitDate(request.exitDate())
-                .idFarm(resolvedFarmId)
+                .idFarm(farmId)
                 .build();
 
         try {
@@ -94,185 +72,94 @@ public class ChickenLeftService {
     }
 
     /**
-     * Retorna a lista de registros de saída de aves acessíveis ao usuário autenticado.
-     * Permite filtrar por um ID de fazenda específico se o usuário tiver permissão.
-     *
-     * @param farmId    identificador opcional da fazenda para filtro
-     * @param principal dados do usuário logado extraídos do token JWT
-     * @return lista de DTOs com os registros de saída de aves
-     * @throws ResponseStatusException HTTP 401 se não autenticado
-     * @throws ResponseStatusException HTTP 403 se o perfil não tiver permissão
-     * @throws ResponseStatusException HTTP 404 se a fazenda informada não existir
+     * Lista registros de saída de aves conforme escopo do perfil autenticado.
      */
     @Transactional(readOnly = true)
     public List<ChickenLeftResponseDTO> getChickenLeftsForUser(Long farmId, UserPrincipal principal) {
-        ensureAuthenticated(principal);
+        validateAuthentication(principal);
 
-        String role = principal.getRole();
-        if (FARM_OWNER.equals(role)) {
-            return getChickenLeftsForFarmOwner(farmId, principal.getId());
-        } else if (COMPANY_EMPLOYEE.equals(role)) {
-            return getChickenLeftsForCompanyEmployee(farmId, principal.getId());
-        } else if (ADM.equals(role)) {
-            return getChickenLeftsForAdm(farmId);
-        } else {
-            throw new ResponseStatusException(
+        List<ChickenLeft> results = switch (principal.getRole()) {
+            case ADM -> (farmId != null)
+                    ? chickenLeftRepository.findAllByIdFarm(lookupFarm(farmId).getId())
+                    : chickenLeftRepository.findAll();
+            case COMPANY_EMPLOYEE -> queryForCorporateStaff(farmId, principal.getId());
+            case FARM_OWNER -> queryForProducer(farmId, principal.getId());
+            default -> throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Perfil de usuário sem permissão para listar registros de saída de aves"
             );
-        }
-    }
+        };
 
-    private List<ChickenLeftResponseDTO> getChickenLeftsForFarmOwner(Long farmId, Long userId) {
-        FarmOwner owner = getFarmOwnerOrThrow(userId);
-        if (owner.getIdFarm() == null) {
-            return List.of();
-        }
-        if (farmId != null && !Objects.equals(farmId, owner.getIdFarm())) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Acesso negado aos registros de saída de aves de outra fazenda"
-            );
-        }
-        return chickenLeftRepository.findAllByIdFarm(owner.getIdFarm())
-                .stream()
-                .map(ChickenLeftResponseDTO::fromEntity)
-                .toList();
-    }
-
-    private List<ChickenLeftResponseDTO> getChickenLeftsForCompanyEmployee(Long farmId, Long userId) {
-        CompanyEmployee employee = getCompanyEmployeeOrThrow(userId);
-        if (farmId != null) {
-            Farm farm = findFarmByIdOrThrow(farmId);
-            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Acesso negado aos registros de saída de aves de fazenda vinculada a outra empresa"
-                );
-            }
-            return chickenLeftRepository.findAllByIdFarm(farmId)
-                    .stream()
-                    .map(ChickenLeftResponseDTO::fromEntity)
-                    .toList();
-        }
-        List<Farm> enterpriseFarms = farmRepository.findAllByIdEnterprise(employee.getIdEnterprise());
-        List<Long> farmIds = enterpriseFarms.stream().map(Farm::getId).toList();
-        if (farmIds.isEmpty()) {
-            return List.of();
-        }
-        return chickenLeftRepository.findAllByIdFarmIn(farmIds)
-                .stream()
-                .map(ChickenLeftResponseDTO::fromEntity)
-                .toList();
-    }
-
-    private List<ChickenLeftResponseDTO> getChickenLeftsForAdm(Long farmId) {
-        if (farmId != null) {
-            findFarmByIdOrThrow(farmId);
-            return chickenLeftRepository.findAllByIdFarm(farmId)
-                    .stream()
-                    .map(ChickenLeftResponseDTO::fromEntity)
-                    .toList();
-        }
-        return chickenLeftRepository.findAll()
-                .stream()
-                .map(ChickenLeftResponseDTO::fromEntity)
-                .toList();
+        return results.stream().map(ChickenLeftResponseDTO::fromEntity).toList();
     }
 
     /**
-     * Busca os detalhes de um registro de saída de aves específico pelo seu ID.
-     * Valida se o usuário autenticado possui permissão de leitura na fazenda vinculada.
-     *
-     * @param id        identificador único do registro de saída de aves
-     * @param principal dados do usuário logado extraídos do token JWT
-     * @return DTO com os detalhes do registro
-     * @throws ResponseStatusException HTTP 401 se não autenticado
-     * @throws ResponseStatusException HTTP 403 se o usuário não tiver permissão
-     * @throws ResponseStatusException HTTP 404 se o registro não for encontrado
+     * Detalha um registro específico de saída de aves.
      */
     @Transactional(readOnly = true)
     public ChickenLeftResponseDTO getChickenLeftById(Long id, UserPrincipal principal) {
-        ChickenLeft chickenLeft = findChickenLeftByIdOrThrow(id);
-        validateChickenLeftAccess(chickenLeft, principal);
-        return ChickenLeftResponseDTO.fromEntity(chickenLeft);
+        ChickenLeft entry = lookupChickenLeft(id);
+        authorizeFlockOperation(entry.getIdFarm(), principal, "acessar");
+        return ChickenLeftResponseDTO.fromEntity(entry);
     }
 
     /**
-     * Atualiza parcialmente um registro de saída de aves existente (PATCH /chicken-left/{id}).
-     * Ajusta o saldo de aves na fazenda de acordo com o delta da quantidade.
-     *
-     * @param id        identificador único do registro
-     * @param request   payload com os campos parciais a serem atualizados
-     * @param principal dados do usuário logado extraídos do token JWT
-     * @return DTO com os dados atualizados
-     * @throws ResponseStatusException HTTP 400 se o novo saldo de aves for insuficiente
-     * @throws ResponseStatusException HTTP 401 se não autenticado
-     * @throws ResponseStatusException HTTP 403 se o usuário não tiver permissão
-     * @throws ResponseStatusException HTTP 404 se o registro não for encontrado
+     * Atualiza dados de saída de aves e reajusta o saldo remanescente do plantel na fazenda.
      */
     @Transactional
     public ChickenLeftResponseDTO updateChickenLeft(Long id, ChickenLeftUpdateDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
 
-        ChickenLeft chickenLeft = findChickenLeftByIdOrThrow(id);
-        validateChickenLeftMutation(chickenLeft, principal, "alterar");
+        ChickenLeft entry = lookupChickenLeft(id);
+        authorizeFlockOperation(entry.getIdFarm(), principal, "alterar");
 
         if (!request.hasUpdates()) {
-            return ChickenLeftResponseDTO.fromEntity(chickenLeft);
+            return ChickenLeftResponseDTO.fromEntity(entry);
         }
 
-        if (request.chickensCount() != null && !request.chickensCount().equals(chickenLeft.getChickensCount())) {
-            int delta = request.chickensCount() - chickenLeft.getChickensCount();
-            Farm farm = findFarmByIdOrThrow(chickenLeft.getIdFarm());
-            int currentChickens = farm.getChickensNow() != null ? farm.getChickensNow() : 0;
+        if (request.chickensCount() != null && !request.chickensCount().equals(entry.getChickensCount())) {
+            int difference = request.chickensCount() - entry.getChickensCount();
+            Farm farm = lookupFarm(entry.getIdFarm());
+            int balance = farm.getChickensNow() != null ? farm.getChickensNow() : 0;
 
-            if (delta > 0 && currentChickens < delta) {
+            if (difference > 0 && balance < difference) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         String.format(
                                 "A quantidade adicional de aves de saída (%d) é maior que o saldo de aves atual na fazenda (%d)",
-                                delta,
-                                currentChickens
+                                difference,
+                                balance
                         )
                 );
             }
 
-            farm.setChickensNow(currentChickens - delta);
+            farm.setChickensNow(balance - difference);
             farmRepository.save(farm);
-            chickenLeft.setChickensCount(request.chickensCount());
+            entry.setChickensCount(request.chickensCount());
         }
 
         if (request.exitDate() != null) {
-            chickenLeft.setExitDate(request.exitDate());
+            entry.setExitDate(request.exitDate());
         }
 
-        ChickenLeft updated = chickenLeftRepository.save(chickenLeft);
-        return ChickenLeftResponseDTO.fromEntity(updated);
+        return ChickenLeftResponseDTO.fromEntity(chickenLeftRepository.save(entry));
     }
 
     /**
-     * Remove um registro de saída de aves do sistema e estorna a quantidade ao saldo da fazenda.
-     *
-     * @param id        identificador único do registro a ser removido
-     * @param principal dados do usuário logado extraídos do token JWT
-     * @throws ResponseStatusException HTTP 401 se não autenticado
-     * @throws ResponseStatusException HTTP 403 se o usuário não tiver permissão
-     * @throws ResponseStatusException HTTP 404 se o registro não for encontrado
-     * @throws ResponseStatusException HTTP 409 se existirem registros dependentes vinculados
+     * Remove um registro de saída de aves e estorna a quantidade baixada ao saldo do plantel.
      */
     @Transactional
     public void deleteChickenLeft(Long id, UserPrincipal principal) {
-        ChickenLeft chickenLeft = findChickenLeftByIdOrThrow(id);
-        validateChickenLeftMutation(chickenLeft, principal, "remover");
+        ChickenLeft entry = lookupChickenLeft(id);
+        authorizeFlockOperation(entry.getIdFarm(), principal, "remover");
 
-        Farm farm = findFarmByIdOrThrow(chickenLeft.getIdFarm());
-        int currentChickens = farm.getChickensNow() != null ? farm.getChickensNow() : 0;
-        farm.setChickensNow(currentChickens + chickenLeft.getChickensCount());
+        Farm farm = lookupFarm(entry.getIdFarm());
+        int balance = farm.getChickensNow() != null ? farm.getChickensNow() : 0;
+        farm.setChickensNow(balance + entry.getChickensCount());
         farmRepository.save(farm);
 
         try {
-            chickenLeftRepository.delete(chickenLeft);
+            chickenLeftRepository.delete(entry);
             chickenLeftRepository.flush();
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(
@@ -283,198 +170,131 @@ public class ChickenLeftService {
         }
     }
 
-    /**
-     * Resolve e valida o ID da fazenda para cadastro de novo registro conforme o perfil autenticado.
-     *
-     * @param requestedFarmId ID da fazenda enviado no corpo da requisição (pode ser nulo para FARM_OWNER)
-     * @param principal       dados do usuário logado
-     * @return ID resolvido e validado da fazenda
-     */
-    private Long resolveAndValidateFarmForCreation(Long requestedFarmId, UserPrincipal principal) {
-        String role = principal.getRole();
-
-        if (ADM.equals(role)) {
-            if (requestedFarmId == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "O ID da fazenda é obrigatório para cadastro por administrador"
-                );
-            }
-            findFarmByIdOrThrow(requestedFarmId);
-            return requestedFarmId;
+    private void deductFlockQuantity(Farm farm, int requestedDeduction) {
+        int balance = farm.getChickensNow() != null ? farm.getChickensNow() : 0;
+        if (balance < requestedDeduction) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    String.format(
+                            "A quantidade de saída de aves (%d) é maior que o saldo de aves atual na fazenda (%d)",
+                            requestedDeduction,
+                            balance
+                    )
+            );
         }
+        farm.setChickensNow(balance - requestedDeduction);
+        farmRepository.save(farm);
+    }
 
-        if (COMPANY_EMPLOYEE.equals(role)) {
-            if (requestedFarmId == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "O ID da fazenda é obrigatório para cadastro por funcionário"
-                );
+    private Long determineAuthorizedFarmId(Long explicitFarmId, UserPrincipal principal) {
+        return switch (principal.getRole()) {
+            case ADM -> {
+                if (explicitFarmId == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O ID da fazenda é obrigatório para cadastro por administrador");
+                }
+                lookupFarm(explicitFarmId);
+                yield explicitFarmId;
             }
-            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            Farm farm = findFarmByIdOrThrow(requestedFarmId);
+            case COMPANY_EMPLOYEE -> {
+                if (explicitFarmId == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O ID da fazenda é obrigatório para cadastro por funcionário");
+                }
+                CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário logado não encontrado para o ID: " + principal.getId()));
+                Farm target = lookupFarm(explicitFarmId);
+                if (!Objects.equals(target.getIdEnterprise(), employee.getIdEnterprise())) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Funcionário não tem permissão para cadastrar registros em fazendas de outra empresa");
+                }
+                yield explicitFarmId;
+            }
+            case FARM_OWNER -> {
+                FarmOwner owner = farmOwnerRepository.findById(principal.getId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produtor rural logado não encontrado para o ID: " + principal.getId()));
+                if (owner.getIdFarm() == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Produtor rural não possui fazenda vinculada para registrar saída de aves");
+                }
+                if (explicitFarmId != null && !Objects.equals(explicitFarmId, owner.getIdFarm())) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Produtor rural não tem permissão para cadastrar registros em outra fazenda");
+                }
+                yield owner.getIdFarm();
+            }
+            default -> throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Perfil de usuário sem permissão para cadastrar registros de saída de aves");
+        };
+    }
+
+    private void authorizeFlockOperation(Long farmId, UserPrincipal principal, String verb) {
+        validateAuthentication(principal);
+
+        switch (principal.getRole()) {
+            case ADM -> { /* Governança global possui acesso irrestrito */ }
+            case COMPANY_EMPLOYEE -> {
+                CompanyEmployee employee = companyEmployeeRepository.findById(principal.getId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário logado não encontrado para o ID: " + principal.getId()));
+                Farm target = lookupFarm(farmId);
+                if (!Objects.equals(target.getIdEnterprise(), employee.getIdEnterprise())) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para " + verb + " este registro de saída de aves");
+                }
+            }
+            case FARM_OWNER -> {
+                FarmOwner owner = farmOwnerRepository.findById(principal.getId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produtor rural logado não encontrado para o ID: " + principal.getId()));
+                if (!Objects.equals(farmId, owner.getIdFarm())) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para " + verb + " este registro de saída de aves");
+                }
+            }
+            default -> throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Perfil de usuário sem permissão para " + verb + " este registro de saída de aves");
+        }
+    }
+
+    private List<ChickenLeft> queryForCorporateStaff(Long farmId, Long employeeId) {
+        CompanyEmployee employee = companyEmployeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Funcionário logado não encontrado para o ID: " + employeeId));
+
+        if (farmId != null) {
+            Farm farm = lookupFarm(farmId);
             if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Funcionário não tem permissão para cadastrar registros em fazendas de outra empresa"
-                );
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado aos registros de saída de aves de fazenda vinculada a outra empresa");
             }
-            return requestedFarmId;
+            return chickenLeftRepository.findAllByIdFarm(farmId);
         }
 
-        if (FARM_OWNER.equals(role)) {
-            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-            if (owner.getIdFarm() == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Produtor rural não possui fazenda vinculada para registrar saída de aves"
-                );
-            }
-            if (requestedFarmId != null && !Objects.equals(requestedFarmId, owner.getIdFarm())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Produtor rural não tem permissão para cadastrar registros em outra fazenda"
-                );
-            }
-            return owner.getIdFarm();
-        }
-
-        throw new ResponseStatusException(
-                HttpStatus.FORBIDDEN,
-                "Perfil de usuário sem permissão para cadastrar registros de saída de aves"
-        );
+        List<Long> enterpriseFarmIds = farmRepository.findAllByIdEnterprise(employee.getIdEnterprise())
+                .stream().map(Farm::getId).toList();
+        return enterpriseFarmIds.isEmpty() ? List.of() : chickenLeftRepository.findAllByIdFarmIn(enterpriseFarmIds);
     }
 
-    /**
-     * Valida a permissão de leitura sobre um registro de saída de aves.
-     *
-     * @param chickenLeft registro de saída de aves
-     * @param principal   dados do usuário logado
-     */
-    private void validateChickenLeftAccess(ChickenLeft chickenLeft, UserPrincipal principal) {
-        validateChickenLeftMutation(chickenLeft, principal, "acessar");
+    private List<ChickenLeft> queryForProducer(Long farmId, Long ownerId) {
+        FarmOwner owner = farmOwnerRepository.findById(ownerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produtor rural logado não encontrado para o ID: " + ownerId));
+
+        if (owner.getIdFarm() == null) {
+            return List.of();
+        }
+        if (farmId != null && !Objects.equals(farmId, owner.getIdFarm())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado aos registros de saída de aves de outra fazenda");
+        }
+        return chickenLeftRepository.findAllByIdFarm(owner.getIdFarm());
     }
 
-    /**
-     * Valida a permissão de mutação (edição/exclusão) sobre um registro de saída de aves.
-     *
-     * @param chickenLeft registro de saída de aves
-     * @param principal   dados do usuário logado
-     * @param action      descrição textual da ação ("alterar" ou "remover")
-     */
-    private void validateChickenLeftMutation(ChickenLeft chickenLeft, UserPrincipal principal, String action) {
-        ensureAuthenticated(principal);
-
-        String role = principal.getRole();
-        if (ADM.equals(role)) {
-            return;
-        }
-
-        if (COMPANY_EMPLOYEE.equals(role)) {
-            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            Farm farm = findFarmByIdOrThrow(chickenLeft.getIdFarm());
-            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Acesso negado para " + action + " este registro de saída de aves"
-                );
-            }
-            return;
-        }
-
-        if (FARM_OWNER.equals(role)) {
-            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-            if (!Objects.equals(chickenLeft.getIdFarm(), owner.getIdFarm())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Acesso negado para " + action + " este registro de saída de aves"
-                );
-            }
-            return;
-        }
-
-        throw new ResponseStatusException(
-                HttpStatus.FORBIDDEN,
-                "Perfil de usuário sem permissão para " + action + " este registro de saída de aves"
-        );
-    }
-
-    /**
-     * Garante que o usuário autenticado esteja presente no contexto de segurança.
-     *
-     * @param principal dados do usuário logado
-     */
-    private void ensureAuthenticated(UserPrincipal principal) {
+    private void validateAuthentication(UserPrincipal principal) {
         if (principal == null || principal.getId() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, USER_NOT_AUTHENTICATED);
         }
     }
 
-    /**
-     * Busca o funcionário da integradora pelo ID ou lança HTTP 404 Not Found.
-     *
-     * @param id identificador do funcionário
-     * @return funcionário encontrado
-     */
-    private CompanyEmployee getCompanyEmployeeOrThrow(Long id) {
-        return companyEmployeeRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Funcionário logado não encontrado para o ID: " + id
-                ));
-    }
-
-    /**
-     * Busca o produtor rural pelo ID ou lança HTTP 404 Not Found.
-     *
-     * @param id identificador do produtor
-     * @return produtor rural encontrado
-     */
-    private FarmOwner getFarmOwnerOrThrow(Long id) {
-        return farmOwnerRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Produtor rural logado não encontrado para o ID: " + id
-                ));
-    }
-
-    /**
-     * Busca a fazenda pelo ID ou lança HTTP 404 Not Found.
-     *
-     * @param id identificador da fazenda
-     * @return fazenda encontrada
-     */
-    private Farm findFarmByIdOrThrow(Long id) {
-        if (id == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Fazenda não encontrada para o ID: null"
-            );
+    private Farm lookupFarm(Long farmId) {
+        if (farmId == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Fazenda não encontrada para o ID: null");
         }
-        return farmRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Fazenda não encontrada para o ID: " + id
-                ));
+        return farmRepository.findById(farmId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Fazenda não encontrada para o ID: " + farmId));
     }
 
-    /**
-     * Busca o registro de saída de aves pelo ID ou lança HTTP 404 Not Found.
-     *
-     * @param id identificador do registro de saída de aves
-     * @return registro de saída de aves encontrado
-     */
-    private ChickenLeft findChickenLeftByIdOrThrow(Long id) {
+    private ChickenLeft lookupChickenLeft(Long id) {
         if (id == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Registro de saída de aves não encontrado para o ID: null"
-            );
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro de saída de aves não encontrado para o ID: null");
         }
         return chickenLeftRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Registro de saída de aves não encontrado para o ID: " + id
-                ));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro de saída de aves não encontrado para o ID: " + id));
     }
 }
