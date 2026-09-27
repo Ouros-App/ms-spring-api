@@ -182,6 +182,31 @@ class KeycloakJwtAuthenticationConverterTest {
     }
 
     @Test
+    @DisplayName("Deve mapear service account do Prometheus sem role de usuário")
+    void testConvertPrometheusServiceAccount() {
+        Jwt jwt = new Jwt(
+                "token-prometheus",
+                Instant.now(),
+                Instant.now().plusSeconds(3600),
+                Map.of("alg", "RS256"),
+                Map.of(
+                        "sub", "service-account-ouros-prometheus",
+                        "azp", "ouros-prometheus"
+                )
+        );
+
+        AbstractAuthenticationToken auth = converter.convert(jwt);
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+
+        assertEquals("PROMETHEUS", principal.getRole());
+        assertTrue(
+                principal.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_PROMETHEUS"))
+        );
+        verifyNoInteractions(userDetailsService);
+    }
+
+    @Test
     @DisplayName("Deve extrair roles a partir de resource_access para o client configurado")
     void testExtractAuthoritiesFromResourceAccess() {
         Jwt jwt = new Jwt(
