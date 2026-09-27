@@ -28,6 +28,9 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
     private final UserDetailsServiceImpl userDetailsService;
     private final String clientId;
 
+    @Value("${app.security.metrics.authorized-party:ouros-prometheus}")
+    private String metricsAuthorizedParty = "ouros-prometheus";
+
     public KeycloakJwtAuthenticationConverter(
             UserDetailsServiceImpl userDetailsService,
             @Value("${app.security.oauth2.client-id:${app.security.oauth2.audience:ms-spring-api}}") String clientId
@@ -38,6 +41,21 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
+        if (isPrometheusServiceAccount(jwt)) {
+            Collection<GrantedAuthority> authorities = List.of(
+                    new SimpleGrantedAuthority("ROLE_PROMETHEUS")
+            );
+            UserPrincipal servicePrincipal = UserPrincipal.builder()
+                    .id(null)
+                    .keycloakId(jwt.getSubject())
+                    .email(jwt.getSubject())
+                    .password(null)
+                    .role("PROMETHEUS")
+                    .authorities(authorities)
+                    .build();
+            return new KeycloakAuthenticationToken(jwt, servicePrincipal, authorities);
+        }
+
         Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
         String primaryRole = determinePrimaryRole(authorities);
 
@@ -93,6 +111,12 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
         }
 
         return new KeycloakAuthenticationToken(jwt, userPrincipal, authorities);
+    }
+
+    private boolean isPrometheusServiceAccount(Jwt jwt) {
+        String authorizedParty = jwt.getClaimAsString("azp");
+        return authorizedParty != null
+                && authorizedParty.equals(metricsAuthorizedParty);
     }
 
     /**
