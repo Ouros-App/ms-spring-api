@@ -6,9 +6,12 @@ import com.ourosapp.springapi.security.RegistrationRateLimitFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.Order;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -21,6 +24,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
@@ -53,6 +57,46 @@ public class SecurityConfig {
     @Value("${app.security.oauth2.audience:ms-spring-api}")
     private String requiredAudience;
 
+    @Bean
+    @Order(1)
+    public SecurityFilterChain metricsSecurityFilterChain(
+            HttpSecurity http,
+            @Value("${app.security.metrics.authorized-party:ouros-prometheus}")
+            String metricsAuthorizedParty
+    ) throws Exception {
+        return http
+                .securityMatcher("/metrics")
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest()
+                        .access((authentication, context) -> {
+                            var current = authentication.get();
+                            if (!(current instanceof JwtAuthenticationToken jwtAuthentication)) {
+                                return new AuthorizationDecision(false);
+                            }
+                            String authorizedParty = jwtAuthentication
+                                    .getToken()
+                                    .getClaimAsString("azp");
+                            return new AuthorizationDecision(
+                                    metricsAuthorizedParty.equals(authorizedParty)
+                            );
+                        })
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(Customizer.withDefaults())
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(
+                                        HttpServletResponse.SC_UNAUTHORIZED,
+                                        "Acesso não autorizado. Token ausente ou inválido."
+                                )
+                        )
+                )
+                .build();
+    }
+
     /**
      * Configura a cadeia de filtros de segurança HTTP.
      *
@@ -61,6 +105,7 @@ public class SecurityConfig {
      * @throws Exception se ocorrer erro de configuração
      */
     @Bean
+    @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http, RegistrationRateLimitFilter registrationRateLimitFilter) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
@@ -68,7 +113,6 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/farm-owners", "/company-employees").permitAll()
-                        .requestMatchers("/metrics").hasAuthority("ROLE_PROMETHEUS")
                         .requestMatchers(
                                 "/health",
                                 "/",
@@ -79,11 +123,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-                        .anyRequest().hasAnyAuthority(
-                                "ROLE_ADM",
-                                "ROLE_COMPANY_EMPLOYEE",
-                                "ROLE_FARM_OWNER"
-                        )
+                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(registrationRateLimitFilter, BearerTokenAuthenticationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2
