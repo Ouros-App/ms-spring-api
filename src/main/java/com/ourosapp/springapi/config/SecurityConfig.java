@@ -68,6 +68,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/farm-owners", "/company-employees").permitAll()
+                        .requestMatchers("/metrics").hasAuthority("ROLE_PROMETHEUS")
                         .requestMatchers(
                                 "/health",
                                 "/",
@@ -78,7 +79,11 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-                        .anyRequest().authenticated()
+                        .anyRequest().hasAnyAuthority(
+                                "ROLE_ADM",
+                                "ROLE_COMPANY_EMPLOYEE",
+                                "ROLE_FARM_OWNER"
+                        )
                 )
                 .addFilterBefore(registrationRateLimitFilter, BearerTokenAuthenticationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2
