@@ -39,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Testes de integração WebMvc para o {@link PlanController}.
  */
 @WebMvcTest(PlanController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, KeycloakJwtAuthenticationConverter.class})
 class PlanControllerMockMvcTest {
 
     @Autowired
