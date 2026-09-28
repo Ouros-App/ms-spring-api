@@ -108,9 +108,7 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            RegistrationRateLimitFilter registrationRateLimitFilter,
-            @Value("${app.security.metrics.authorized-party:ouros-prometheus}")
-            String metricsAuthorizedParty
+            RegistrationRateLimitFilter registrationRateLimitFilter
     ) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
@@ -128,19 +126,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-                        .anyRequest()
-                        .access((authentication, context) -> {
-                            var current = authentication.get();
-                            if (!(current instanceof JwtAuthenticationToken jwtAuthentication)) {
-                                return new AuthorizationDecision(false);
-                            }
-                            String authorizedParty = jwtAuthentication
-                                    .getToken()
-                                    .getClaimAsString("azp");
-                            return new AuthorizationDecision(
-                                    !metricsAuthorizedParty.equals(authorizedParty)
-                            );
-                        })
+                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(registrationRateLimitFilter, BearerTokenAuthenticationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2
