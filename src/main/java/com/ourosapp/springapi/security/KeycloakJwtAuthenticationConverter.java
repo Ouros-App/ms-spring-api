@@ -28,6 +28,9 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
     private final UserDetailsServiceImpl userDetailsService;
     private final String clientId;
 
+    @Value("${app.security.metrics.authorized-party:ouros-prometheus}")
+    private String metricsAuthorizedParty = "ouros-prometheus";
+
     public KeycloakJwtAuthenticationConverter(
             UserDetailsServiceImpl userDetailsService,
             @Value("${app.security.oauth2.client-id:${app.security.oauth2.audience:ms-spring-api}}") String clientId
@@ -38,6 +41,13 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
+        if (metricsAuthorizedParty.equals(jwt.getClaimAsString("azp"))) {
+            throw new OAuth2AuthenticationException(
+                    new OAuth2Error("invalid_token"),
+                    "A conta de serviço de métricas não pode acessar rotas de negócio."
+            );
+        }
+
         Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
         String primaryRole = determinePrimaryRole(authorities);
 
