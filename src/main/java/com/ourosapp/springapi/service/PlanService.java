@@ -10,7 +10,6 @@ import com.ourosapp.springapi.entity.Plan;
 import com.ourosapp.springapi.repository.PlanRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,16 +52,8 @@ public class PlanService {
                 .price(request.price())
                 .build();
 
-        try {
-            Plan savedPlan = planRepository.save(plan);
-            return PlanResponseDTO.fromEntity(savedPlan);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar plano",
-                    ex
-            );
-        }
+        Plan savedPlan = planRepository.save(plan);
+        return PlanResponseDTO.fromEntity(savedPlan);
     }
 
     /**
@@ -130,16 +121,8 @@ public class PlanService {
             plan.setPrice(request.price());
         }
 
-        try {
-            Plan updatedPlan = planRepository.save(plan);
-            return PlanResponseDTO.fromEntity(updatedPlan);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao atualizar plano",
-                    ex
-            );
-        }
+        Plan updatedPlan = planRepository.save(plan);
+        return PlanResponseDTO.fromEntity(updatedPlan);
     }
 
     /**
@@ -153,16 +136,8 @@ public class PlanService {
 
         Plan plan = findPlanByIdOrThrow(id);
 
-        try {
-            planRepository.delete(plan);
-            planRepository.flush();
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Não é possível remover o plano pois existem registros de adesão vinculados a ele",
-                    ex
-            );
-        }
+        planRepository.delete(plan);
+        planRepository.flush();
     }
 
     private void ensureAuthenticated(UserPrincipal principal) {

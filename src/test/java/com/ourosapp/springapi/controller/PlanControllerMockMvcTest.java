@@ -432,7 +432,7 @@ class PlanControllerMockMvcTest {
     @Test
     @DisplayName("DELETE /plans/{id} - Deve retornar 409 Conflict quando houver vínculo relacional ativo")
     void testDeletePlanConflict() throws Exception {
-        doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Não é possível remover o plano"))
+        doThrow(new org.springframework.dao.DataIntegrityViolationException("Não é possível remover o plano"))
                 .when(planService).deletePlan(eq(1L), eq(adminPrincipal));
 
         mockMvc.perform(delete("/plans/1")

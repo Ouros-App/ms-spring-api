@@ -120,16 +120,16 @@ class PlanServiceTest {
     }
 
     @Test
-    @DisplayName("createPlan - Deve lançar CONFLICT 409 quando ocorrer DataIntegrityViolationException ao salvar")
+    @DisplayName("createPlan - Deve propagar DataIntegrityViolationException ao salvar")
     void deveLancarConflictQuandoDataIntegrityViolationAoCadastrar() {
         when(planRepository.existsByTitleIgnoreCase("Plano Safra Ouro")).thenReturn(false);
         when(planRepository.save(any(Plan.class))).thenThrow(new DataIntegrityViolationException("Erro de constraint"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        DataIntegrityViolationException ex = assertThrows(DataIntegrityViolationException.class,
                 () -> planService.createPlan(validRequest, adminPrincipal));
 
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("Conflito de integridade"));
+        assertNotNull(ex);
+        assertTrue(ex.getMessage().contains("Erro de constraint"));
     }
 
     @Test
@@ -311,18 +311,18 @@ class PlanServiceTest {
     }
 
     @Test
-    @DisplayName("updatePlan - Deve lançar CONFLICT 409 quando DataIntegrityViolationException ocorrer ao salvar")
+    @DisplayName("updatePlan - Deve propagar DataIntegrityViolationException quando ocorrer ao salvar")
     void deveLancarConflictQuandoDataIntegrityViolationAoAtualizar() {
         when(planRepository.findById(1L)).thenReturn(Optional.of(samplePlan));
         when(planRepository.save(any(Plan.class))).thenThrow(new DataIntegrityViolationException("Erro de integridade"));
 
         PlanUpdateDTO updateDTO = new PlanUpdateDTO(null, 180, null, null);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        DataIntegrityViolationException ex = assertThrows(DataIntegrityViolationException.class,
                 () -> planService.updatePlan(1L, updateDTO, adminPrincipal));
 
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("Conflito de integridade de dados"));
+        assertNotNull(ex);
+        assertTrue(ex.getMessage().contains("Erro de integridade"));
     }
 
     @Test
@@ -361,16 +361,16 @@ class PlanServiceTest {
     }
 
     @Test
-    @DisplayName("deletePlan - Deve lançar CONFLICT 409 quando houver restrição de integridade (vínculo com empresas)")
+    @DisplayName("deletePlan - Deve propagar DataIntegrityViolationException quando houver restrição de integridade")
     void deveLancarConflictAoExcluirPlanoComVinculoRelacional() {
         when(planRepository.findById(1L)).thenReturn(Optional.of(samplePlan));
         doThrow(new DataIntegrityViolationException("FK constraint violation")).when(planRepository).flush();
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        DataIntegrityViolationException ex = assertThrows(DataIntegrityViolationException.class,
                 () -> planService.deletePlan(1L, adminPrincipal));
 
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("Não é possível remover o plano pois existem registros"));
+        assertNotNull(ex);
+        assertTrue(ex.getMessage().contains("FK constraint violation"));
     }
 
     @Test
