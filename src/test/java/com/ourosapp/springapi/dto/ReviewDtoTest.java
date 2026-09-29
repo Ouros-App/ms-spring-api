@@ -180,21 +180,17 @@ class ReviewDtoTest {
         Tip tip = Tip.builder()
                 .id(1L)
                 .tip("Manter temperatura constante")
-                .idFarm(10L)
                 .build();
 
         assertEquals(1L, tip.getId());
         assertEquals("Manter temperatura constante", tip.getTip());
-        assertEquals(10L, tip.getIdFarm());
         assertNotNull(tip.toString());
 
         Tip tipNoArgs = new Tip();
         tipNoArgs.setId(2L);
         tipNoArgs.setTip("Dica 2");
-        tipNoArgs.setIdFarm(20L);
         assertEquals(2L, tipNoArgs.getId());
         assertEquals("Dica 2", tipNoArgs.getTip());
-        assertEquals(20L, tipNoArgs.getIdFarm());
 
         Review review = Review.builder()
                 .id(100L)

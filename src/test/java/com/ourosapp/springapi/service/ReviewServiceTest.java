@@ -6,14 +6,15 @@ import com.ourosapp.springapi.dto.review.ReviewUpdateDTO;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Farm;
 import com.ourosapp.springapi.entity.FarmOwner;
+import com.ourosapp.springapi.entity.FarmTip;
 import com.ourosapp.springapi.entity.Review;
 import com.ourosapp.springapi.entity.Tip;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.FarmOwnerRepository;
 import com.ourosapp.springapi.repository.FarmRepository;
+import com.ourosapp.springapi.repository.FarmTipRepository;
 import com.ourosapp.springapi.repository.ReviewRepository;
 import com.ourosapp.springapi.repository.TipRepository;
-import com.ourosapp.springapi.repository.FarmTipRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -86,7 +87,6 @@ class ReviewServiceTest {
         sampleTip = Tip.builder()
                 .id(100L)
                 .tip("Manter os bicos dos bebedouros alinhados à altura do dorso das aves.")
-                .idFarm(1L)
                 .build();
 
         sampleReview = Review.builder()
@@ -142,6 +142,7 @@ class ReviewServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(10L).idEnterprise(10L).build();
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(employee));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of(FarmTip.builder().id(1L).idFarm(1L).idTip(100L).build()));
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
         when(reviewRepository.save(any(Review.class))).thenReturn(sampleReview);
 
@@ -158,6 +159,7 @@ class ReviewServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(10L).idEnterprise(999L).build();
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(employee));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of(FarmTip.builder().id(1L).idFarm(1L).idTip(100L).build()));
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
@@ -174,6 +176,7 @@ class ReviewServiceTest {
         FarmOwner owner = FarmOwner.builder().id(20L).idFarm(1L).build();
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(owner));
+        when(farmTipRepository.existsByIdFarmAndIdTip(1L, 100L)).thenReturn(true);
         when(reviewRepository.save(any(Review.class))).thenReturn(sampleReview);
 
         ReviewResponseDTO response = reviewService.createReview(100L, sampleRequest, farmOwnerPrincipal);
@@ -189,6 +192,7 @@ class ReviewServiceTest {
         FarmOwner owner = FarmOwner.builder().id(20L).idFarm(999L).build();
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(owner));
+        when(farmTipRepository.existsByIdFarmAndIdTip(999L, 100L)).thenReturn(false);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 reviewService.createReview(100L, sampleRequest, farmOwnerPrincipal)
@@ -285,6 +289,7 @@ class ReviewServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(10L).idEnterprise(10L).build();
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(employee));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of(FarmTip.builder().id(1L).idFarm(1L).idTip(100L).build()));
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
         when(reviewRepository.findByIdTip(100L)).thenReturn(List.of(sampleReview));
 
@@ -300,6 +305,7 @@ class ReviewServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(10L).idEnterprise(999L).build();
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(employee));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of(FarmTip.builder().id(1L).idFarm(1L).idTip(100L).build()));
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
@@ -315,6 +321,7 @@ class ReviewServiceTest {
         FarmOwner owner = FarmOwner.builder().id(20L).idFarm(1L).build();
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(owner));
+        when(farmTipRepository.existsByIdFarmAndIdTip(1L, 100L)).thenReturn(true);
         when(reviewRepository.findByIdTip(100L)).thenReturn(List.of(sampleReview));
 
         List<ReviewResponseDTO> result = reviewService.getReviewsByTipId(100L, farmOwnerPrincipal);
@@ -329,6 +336,7 @@ class ReviewServiceTest {
         FarmOwner owner = FarmOwner.builder().id(20L).idFarm(999L).build();
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(owner));
+        when(farmTipRepository.existsByIdFarmAndIdTip(999L, 100L)).thenReturn(false);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 reviewService.getReviewsByTipId(100L, farmOwnerPrincipal)
@@ -372,6 +380,7 @@ class ReviewServiceTest {
         when(reviewRepository.findById(50L)).thenReturn(Optional.of(sampleReview));
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(owner));
+        when(farmTipRepository.existsByIdFarmAndIdTip(1L, 100L)).thenReturn(true);
 
         ReviewResponseDTO response = reviewService.getReviewById(50L, farmOwnerPrincipal);
 
@@ -460,6 +469,7 @@ class ReviewServiceTest {
         when(reviewRepository.findById(50L)).thenReturn(Optional.of(sampleReview));
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(employee));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of(FarmTip.builder().id(1L).idFarm(1L).idTip(100L).build()));
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
 
         ReviewUpdateDTO updateDTO = new ReviewUpdateDTO("Novo", 4);
@@ -511,6 +521,7 @@ class ReviewServiceTest {
         when(reviewRepository.findById(50L)).thenReturn(Optional.of(sampleReview));
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(owner));
+        when(farmTipRepository.existsByIdFarmAndIdTip(1L, 100L)).thenReturn(true);
         doNothing().when(reviewRepository).delete(sampleReview);
 
         assertDoesNotThrow(() -> reviewService.deleteReview(50L, farmOwnerPrincipal));
@@ -525,6 +536,7 @@ class ReviewServiceTest {
         when(reviewRepository.findById(50L)).thenReturn(Optional.of(sampleReview));
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(owner));
+        when(farmTipRepository.existsByIdFarmAndIdTip(999L, 100L)).thenReturn(false);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 reviewService.deleteReview(50L, farmOwnerPrincipal)

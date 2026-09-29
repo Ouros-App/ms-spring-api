@@ -22,10 +22,9 @@ public record CategoryRequestDTO(
         @Size(max = 50, message = "O nome da categoria deve ter no máximo 50 caracteres")
         String category,
 
-        @Schema(description = "Identificador da dica técnica associada à categoria", example = "1")
+        @Schema(description = "Identificador opcional da dica técnica associada à categoria", example = "1")
         @JsonProperty("id_tip")
         @JsonAlias("idTip")
-        @NotNull(message = "O ID da dica associada é obrigatório")
         @Positive(message = "O ID da dica deve ser maior que zero")
         Long idTip
 ) {

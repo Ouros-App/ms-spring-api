@@ -41,6 +41,9 @@ class CategoryServiceTest {
     private TipCategoryRepository tipCategoryRepository;
 
     @Mock
+    private FarmTipRepository farmTipRepository;
+
+    @Mock
     private FarmRepository farmRepository;
 
     @Mock
@@ -96,7 +99,6 @@ class CategoryServiceTest {
         sampleTip = Tip.builder()
                 .id(100L)
                 .tip("Controlar temperatura do aviário")
-                .idFarm(10L)
                 .build();
 
         sampleEmployee = CompanyEmployee.builder()
@@ -117,7 +119,6 @@ class CategoryServiceTest {
         Category savedCategory = Category.builder()
                 .id(1L)
                 .category("Ambiência")
-                .idTip(100L)
                 .build();
 
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
@@ -134,17 +135,37 @@ class CategoryServiceTest {
     }
 
     @Test
+    @DisplayName("createCategory - Deve cadastrar categoria avulsa com sucesso quando solicitado por ADM sem idTip")
+    void deveCadastrarCategoriaAvulsaComSucessoComoAdm() {
+        CategoryRequestDTO request = new CategoryRequestDTO("Biosseguridade", null);
+        Category savedCategory = Category.builder()
+                .id(3L)
+                .category("Biosseguridade")
+                .build();
+
+        when(categoryRepository.save(any(Category.class))).thenReturn(savedCategory);
+
+        CategoryResponseDTO response = categoryService.createCategory(request, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(3L, response.id());
+        assertEquals("Biosseguridade", response.category());
+        assertNull(response.idTip());
+        verify(tipCategoryRepository, never()).save(any(TipCategory.class));
+    }
+
+    @Test
     @DisplayName("createCategory - Deve cadastrar categoria com sucesso quando solicitado por COMPANY_EMPLOYEE da mesma empresa")
     void deveCadastrarCategoriaComSucessoComoCompanyEmployee() {
         CategoryRequestDTO request = new CategoryRequestDTO("Nutrição", 100L);
         Category savedCategory = Category.builder()
                 .id(2L)
                 .category("Nutrição")
-                .idTip(100L)
                 .build();
 
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(sampleEmployee));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of(FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.save(any(Category.class))).thenReturn(savedCategory);
         when(tipCategoryRepository.existsByIdTipAndIdCategory(100L, 2L)).thenReturn(true);
@@ -202,6 +223,7 @@ class CategoryServiceTest {
 
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(otherEmployee));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of(FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
@@ -229,8 +251,8 @@ class CategoryServiceTest {
     @DisplayName("getCategories - Deve retornar lista de categorias para ADM, COMPANY_EMPLOYEE e FARM_OWNER")
     void deveListarCategoriasParaTodosPerfisAutorizados() {
         List<Category> categories = List.of(
-                Category.builder().id(1L).category("Ambiência").idTip(100L).build(),
-                Category.builder().id(2L).category("Sanitização").idTip(100L).build()
+                Category.builder().id(1L).category("Ambiência").build(),
+                Category.builder().id(2L).category("Sanitização").build()
         );
         when(categoryRepository.findAll()).thenReturn(categories);
 

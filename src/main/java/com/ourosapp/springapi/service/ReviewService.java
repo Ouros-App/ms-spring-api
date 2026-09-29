@@ -199,18 +199,13 @@ public class ReviewService {
                             HttpStatus.NOT_FOUND,
                             "Funcionário logado não encontrado para o ID: " + principal.getId()
                     ));
-            Farm primaryFarm = farmRepository.findById(tip.getIdFarm())
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Fazenda não encontrada para o ID: " + tip.getIdFarm()
-                    ));
 
-            boolean belongsToEnterprise = Objects.equals(primaryFarm.getIdEnterprise(), employee.getIdEnterprise())
-                    || farmTipRepository.findByIdTip(tip.getId()).stream()
-                            .map(FarmTip::getIdFarm)
-                            .map(farmRepository::findById)
-                            .flatMap(Optional::stream)
-                            .anyMatch(f -> Objects.equals(f.getIdEnterprise(), employee.getIdEnterprise()));
+            List<FarmTip> farmTips = farmTipRepository.findByIdTip(tip.getId());
+            boolean belongsToEnterprise = farmTips.isEmpty() || farmTips.stream()
+                    .map(FarmTip::getIdFarm)
+                    .map(farmRepository::findById)
+                    .flatMap(Optional::stream)
+                    .anyMatch(f -> Objects.equals(f.getIdEnterprise(), employee.getIdEnterprise()));
 
             if (!belongsToEnterprise) {
                 throw new ResponseStatusException(
@@ -228,8 +223,7 @@ public class ReviewService {
                             "Produtor rural logado não encontrado para o ID: " + principal.getId()
                     ));
 
-            boolean belongsToFarm = Objects.equals(tip.getIdFarm(), owner.getIdFarm())
-                    || (owner.getIdFarm() != null && farmTipRepository.existsByIdFarmAndIdTip(owner.getIdFarm(), tip.getId()));
+            boolean belongsToFarm = owner.getIdFarm() != null && farmTipRepository.existsByIdFarmAndIdTip(owner.getIdFarm(), tip.getId());
 
             if (!belongsToFarm) {
                 throw new ResponseStatusException(

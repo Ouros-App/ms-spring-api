@@ -30,7 +30,7 @@ public class FarmOwner {
     @Column(name = "email", length = 50, nullable = false, unique = true)
     private String email;
 
-    @Column(name = "document_number", unique = true)
+    @Column(name = "document_number", length = 11, unique = true)
     private String documentNumber;
 
     @Column(name = "telephone", length = 13)

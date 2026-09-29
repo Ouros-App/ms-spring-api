@@ -129,13 +129,11 @@ class TipServiceTest {
         sampleTip = Tip.builder()
                 .id(100L)
                 .tip("Manter os bicos dos nebulizadores limpos")
-                .idFarm(10L)
                 .build();
 
         sampleCategory = Category.builder()
                 .id(5L)
                 .category("Ambiência")
-                .idTip(100L)
                 .build();
     }
 
@@ -155,6 +153,7 @@ class TipServiceTest {
         assertNotNull(response);
         assertEquals(100L, response.id());
         assertEquals("Manter os bicos dos nebulizadores limpos", response.tip());
+        assertEquals(10L, response.idFarm());
         assertEquals(List.of("Ambiência"), response.categories());
         verify(farmTipRepository).save(any(FarmTip.class));
         verify(tipCategoryRepository).save(any(TipCategory.class));
@@ -174,6 +173,7 @@ class TipServiceTest {
 
         assertNotNull(response);
         assertEquals(100L, response.id());
+        assertEquals(10L, response.idFarm());
         verify(farmTipRepository, never()).save(any(FarmTip.class));
     }
 
@@ -259,6 +259,9 @@ class TipServiceTest {
     @DisplayName("getTipsForUser - Deve retornar dicas com métricas e categorias para ADM")
     void deveRetornarDicasParaAdm() {
         when(tipRepository.findAll()).thenReturn(List.of(sampleTip));
+        when(farmTipRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
+                FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()
+        ));
         when(tipCategoryRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
                 TipCategory.builder().id(1L).idTip(100L).idCategory(5L).build()
         ));
@@ -273,6 +276,7 @@ class TipServiceTest {
         assertEquals(1, tips.size());
         TipResponseDTO tip = tips.get(0);
         assertEquals(100L, tip.id());
+        assertEquals(10L, tip.idFarm());
         assertEquals(List.of("Ambiência"), tip.categories());
         assertEquals(2, tip.totalReviews());
         assertEquals(4.5, tip.averageRating());
@@ -283,8 +287,13 @@ class TipServiceTest {
     void deveRetornarDicasParaCompanyEmployee() {
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(sampleEmployee));
         when(farmRepository.findAllByIdEnterprise(50L)).thenReturn(List.of(sampleFarm));
-        when(tipRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of(sampleTip));
-        when(farmTipRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of());
+        when(farmTipRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of(
+                FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()
+        ));
+        when(tipRepository.findAllById(List.of(100L))).thenReturn(List.of(sampleTip));
+        when(farmTipRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
+                FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()
+        ));
         when(tipCategoryRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of());
         when(reviewRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of());
 
@@ -292,6 +301,7 @@ class TipServiceTest {
 
         assertEquals(1, tips.size());
         assertEquals(100L, tips.get(0).id());
+        assertEquals(10L, tips.get(0).idFarm());
     }
 
     @Test
@@ -299,8 +309,13 @@ class TipServiceTest {
     void deveRetornarDicasParaFarmOwner() {
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(sampleFarmOwner));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
-        when(tipRepository.findByIdFarm(10L)).thenReturn(List.of(sampleTip));
-        when(farmTipRepository.findByIdFarm(10L)).thenReturn(List.of());
+        when(farmTipRepository.findByIdFarm(10L)).thenReturn(List.of(
+                FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()
+        ));
+        when(tipRepository.findAllById(List.of(100L))).thenReturn(List.of(sampleTip));
+        when(farmTipRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
+                FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()
+        ));
         when(tipCategoryRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of());
         when(reviewRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of());
 
@@ -308,6 +323,7 @@ class TipServiceTest {
 
         assertEquals(1, tips.size());
         assertEquals(100L, tips.get(0).id());
+        assertEquals(10L, tips.get(0).idFarm());
     }
 
     @Test
@@ -315,8 +331,13 @@ class TipServiceTest {
     void deveFiltrarPorFazendaComValidacao() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(sampleEmployee));
-        when(tipRepository.findByIdFarm(10L)).thenReturn(List.of(sampleTip));
-        when(farmTipRepository.findByIdFarm(10L)).thenReturn(List.of());
+        when(farmTipRepository.findByIdFarm(10L)).thenReturn(List.of(
+                FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()
+        ));
+        when(tipRepository.findAllById(List.of(100L))).thenReturn(List.of(sampleTip));
+        when(farmTipRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
+                FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()
+        ));
         when(tipCategoryRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of());
         when(reviewRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of());
 
@@ -324,13 +345,19 @@ class TipServiceTest {
 
         assertEquals(1, tips.size());
         assertEquals(100L, tips.get(0).id());
+        assertEquals(10L, tips.get(0).idFarm());
     }
 
     @Test
     @DisplayName("getTipById - Deve buscar dica com sucesso")
     void deveBuscarDicaPorIdComSucesso() {
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of(
+                FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()
+        ));
+        when(farmTipRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
+                FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()
+        ));
         when(tipCategoryRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of());
         when(reviewRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of());
 
@@ -338,6 +365,7 @@ class TipServiceTest {
 
         assertNotNull(tip);
         assertEquals(100L, tip.id());
+        assertEquals(10L, tip.idFarm());
     }
 
     @Test
@@ -357,12 +385,15 @@ class TipServiceTest {
         TipUpdateDTO request = new TipUpdateDTO("Novo texto da dica", List.of(5L));
 
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
         when(tipRepository.save(any(Tip.class))).thenReturn(sampleTip);
+        when(farmTipRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
+                FarmTip.builder().id(1L).idFarm(10L).idTip(100L).build()
+        ));
         when(tipCategoryRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of(
                 TipCategory.builder().id(1L).idTip(100L).idCategory(5L).build()
         ));
+        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
         when(reviewRepository.findByIdTipIn(List.of(100L))).thenReturn(List.of());
 
         TipResponseDTO updated = tipService.updateTip(100L, request, adminPrincipal);
@@ -377,7 +408,6 @@ class TipServiceTest {
     @DisplayName("deleteTip - Deve remover associações e dica com sucesso")
     void deveRemoverDicaComSucesso() {
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
 
         tipService.deleteTip(100L, adminPrincipal);
 
