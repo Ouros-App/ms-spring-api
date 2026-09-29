@@ -51,6 +51,16 @@ class TipDtoTest {
     }
 
     @Test
+    @DisplayName("TipResponseDTO - Deve lidar com lista de categorias nula no fromEntity")
+    void deveLidarComCategoriasNulasEmTipResponseDTO() {
+        Tip tip = Tip.builder().id(1L).tip("Dica").build();
+        TipResponseDTO response = TipResponseDTO.fromEntity(tip, 5L, null, 0, 0.0);
+        assertNotNull(response);
+        assertNotNull(response.categories());
+        assertTrue(response.categories().isEmpty());
+    }
+
+    @Test
     @DisplayName("TipUpdateDTO - Deve detectar se há atualizações")
     void deveDetectarPresencaDeAtualizacoesEmTipUpdateDTO() {
         TipUpdateDTO emptyUpdate = new TipUpdateDTO(null, null);

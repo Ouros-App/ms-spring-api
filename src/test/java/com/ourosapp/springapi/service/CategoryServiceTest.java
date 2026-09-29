@@ -201,6 +201,18 @@ class CategoryServiceTest {
     }
 
     @Test
+    @DisplayName("createCategory - Deve lançar 401 Unauthorized quando principal.getId() for nulo")
+    void deveLancarUnauthorizedQuandoPrincipalIdNulo() {
+        UserPrincipal principalWithoutId = new UserPrincipal(null, "email@test.com", "pass", "ADM", List.of());
+        CategoryRequestDTO request = new CategoryRequestDTO("Nutrição", null);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                categoryService.createCategory(request, principalWithoutId)
+        );
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+    }
+
+    @Test
     @DisplayName("createCategory - Deve lançar 404 Not Found quando dica não existir")
     void deveLancarNotFoundQuandoDicaNaoExistir() {
         CategoryRequestDTO request = new CategoryRequestDTO("Nutrição", 999L);
@@ -263,6 +275,96 @@ class CategoryServiceTest {
         assertEquals(2, resAdm.size());
         assertEquals(2, resEmp.size());
         assertEquals(2, resOwner.size());
+    }
+
+    @Test
+    @DisplayName("createCategory - Deve lançar 409 Conflict quando categoria já existir com o mesmo nome")
+    void deveLancarConflictQuandoNomeCategoriaJaExistir() {
+        CategoryRequestDTO request = new CategoryRequestDTO("Ambiência", null);
+        when(categoryRepository.existsByCategoryIgnoreCase("Ambiência")).thenReturn(true);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                categoryService.createCategory(request, adminPrincipal)
+        );
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Já existe uma categoria cadastrada"));
+    }
+
+    @Test
+    @DisplayName("createCategory - Deve cadastrar categoria com sucesso para COMPANY_EMPLOYEE quando farmTips estiver vazia")
+    void deveCadastrarCategoriaComSucessoParaCompanyEmployeeQuandoFarmTipsVazia() {
+        CategoryRequestDTO request = new CategoryRequestDTO("Manejo", 100L);
+        Category savedCategory = Category.builder().id(4L).category("Manejo").build();
+
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(sampleEmployee));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of());
+        when(categoryRepository.save(any(Category.class))).thenReturn(savedCategory);
+        when(tipCategoryRepository.existsByIdTipAndIdCategory(100L, 4L)).thenReturn(false);
+
+        CategoryResponseDTO response = categoryService.createCategory(request, employeePrincipal);
+
+        assertNotNull(response);
+        assertEquals(4L, response.id());
+        assertEquals("Manejo", response.category());
+        verify(tipCategoryRepository).save(any(TipCategory.class));
+    }
+
+    @Test
+    @DisplayName("createCategory - Deve lançar 404 Not Found quando funcionário não for encontrado")
+    void deveLancarNotFoundQuandoFuncionarioNaoEncontrado() {
+        CategoryRequestDTO request = new CategoryRequestDTO("Manejo", 100L);
+
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                categoryService.createCategory(request, employeePrincipal)
+        );
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Funcionário logado não encontrado"));
+    }
+
+    @Test
+    @DisplayName("createCategory - Deve lançar 404 Not Found quando fazenda da dica não for encontrada")
+    void deveLancarNotFoundQuandoFazendaNaoEncontrada() {
+        CategoryRequestDTO request = new CategoryRequestDTO("Manejo", 100L);
+
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(sampleEmployee));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of(FarmTip.builder().id(1L).idFarm(999L).idTip(100L).build()));
+        when(farmRepository.findById(999L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                categoryService.createCategory(request, employeePrincipal)
+        );
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Fazenda não encontrada"));
+    }
+
+    @Test
+    @DisplayName("createCategory - Deve lançar 404 Not Found quando idFarm for nulo no farmTip")
+    void deveLancarNotFoundQuandoIdFarmNuloNoFarmTip() {
+        CategoryRequestDTO request = new CategoryRequestDTO("Manejo", 100L);
+
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(sampleEmployee));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of(FarmTip.builder().id(1L).idFarm(null).idTip(100L).build()));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                categoryService.createCategory(request, employeePrincipal)
+        );
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Fazenda não encontrada"));
+    }
+
+    @Test
+    @DisplayName("getCategories - Deve lançar 401 Unauthorized quando principal for nulo")
+    void deveLancarUnauthorizedAoListarCategoriasComPrincipalNulo() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                categoryService.getCategories(null)
+        );
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
     }
 
     @Test

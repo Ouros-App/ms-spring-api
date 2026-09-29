@@ -220,14 +220,33 @@ class ReviewServiceTest {
     void testCreateReviewInvalidRatingBadRequest() {
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
 
-        ReviewRequestDTO invalidRequest = new ReviewRequestDTO("Comentário", 10);
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                reviewService.createReview(100L, invalidRequest, adminPrincipal)
+        ReviewRequestDTO invalidRequestHigh = new ReviewRequestDTO("Comentário", 10);
+        ResponseStatusException exHigh = assertThrows(ResponseStatusException.class, () ->
+                reviewService.createReview(100L, invalidRequestHigh, adminPrincipal)
         );
+        assertEquals(HttpStatus.BAD_REQUEST, exHigh.getStatusCode());
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        ReviewRequestDTO invalidRequestNegative = new ReviewRequestDTO("Comentário", -1);
+        ResponseStatusException exNegative = assertThrows(ResponseStatusException.class, () ->
+                reviewService.createReview(100L, invalidRequestNegative, adminPrincipal)
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, exNegative.getStatusCode());
         verify(reviewRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve cadastrar avaliação com sucesso quando rating for nulo")
+    void testCreateReviewNullRatingSuccess() {
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
+        Review reviewWithoutRating = Review.builder().id(51L).comment("Apenas comentário").rating(null).idTip(100L).build();
+        when(reviewRepository.save(any(Review.class))).thenReturn(reviewWithoutRating);
+
+        ReviewRequestDTO request = new ReviewRequestDTO("Apenas comentário", null);
+        ReviewResponseDTO response = reviewService.createReview(100L, request, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(51L, response.id());
+        assertNull(response.rating());
     }
 
     @Test
@@ -235,6 +254,17 @@ class ReviewServiceTest {
     void testCreateReviewUnauthorizedNullPrincipal() {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 reviewService.createReview(100L, sampleRequest, null)
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 401 quando principal.getId() for nulo ao criar avaliação")
+    void testCreateReviewUnauthorizedNullPrincipalId() {
+        UserPrincipal principalWithoutId = new UserPrincipal(null, "email@test.com", "pass", "ADM", List.of());
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                reviewService.createReview(100L, sampleRequest, principalWithoutId)
         );
 
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
@@ -447,19 +477,38 @@ class ReviewServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 400 ao atualizar avaliação com nota inválida (> 5)")
+    @DisplayName("Deve lançar 400 ao atualizar avaliação com nota inválida (> 5 ou < 0)")
     void testUpdateReviewInvalidRating() {
         when(reviewRepository.findById(50L)).thenReturn(Optional.of(sampleReview));
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
 
-        ReviewUpdateDTO invalidUpdate = new ReviewUpdateDTO(null, 10);
-
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                reviewService.updateReview(50L, invalidUpdate, adminPrincipal)
+        ReviewUpdateDTO invalidUpdateHigh = new ReviewUpdateDTO(null, 10);
+        ResponseStatusException exHigh = assertThrows(ResponseStatusException.class, () ->
+                reviewService.updateReview(50L, invalidUpdateHigh, adminPrincipal)
         );
+        assertEquals(HttpStatus.BAD_REQUEST, exHigh.getStatusCode());
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        ReviewUpdateDTO invalidUpdateNegative = new ReviewUpdateDTO(null, -1);
+        ResponseStatusException exNegative = assertThrows(ResponseStatusException.class, () ->
+                reviewService.updateReview(50L, invalidUpdateNegative, adminPrincipal)
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, exNegative.getStatusCode());
         verify(reviewRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve ignorar comentário em branco e atualizar apenas o rating")
+    void testUpdateReviewBlankComment() {
+        when(reviewRepository.findById(50L)).thenReturn(Optional.of(sampleReview));
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
+        when(reviewRepository.save(any(Review.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ReviewUpdateDTO updateDTO = new ReviewUpdateDTO("   ", 3);
+        ReviewResponseDTO response = reviewService.updateReview(50L, updateDTO, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals("Excelente recomendação, evitou desperdício de água.", response.comment());
+        assertEquals(3, response.rating());
     }
 
     @Test
@@ -570,5 +619,69 @@ class ReviewServiceTest {
         assertThrows(DataIntegrityViolationException.class, () ->
                 reviewService.deleteReview(50L, adminPrincipal)
         );
+    }
+
+    @Test
+    @DisplayName("Deve permitir acesso de COMPANY_EMPLOYEE quando dica não tiver farmTips vinculadas")
+    void testValidateTipAccessCompanyEmployeeEmptyFarmTips() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(10L).idEnterprise(10L).build();
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
+        when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(employee));
+        when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of());
+        when(reviewRepository.save(any(Review.class))).thenReturn(sampleReview);
+
+        ReviewResponseDTO response = reviewService.createReview(100L, sampleRequest, employeePrincipal);
+
+        assertNotNull(response);
+        verify(reviewRepository).save(any(Review.class));
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando COMPANY_EMPLOYEE não for encontrado no banco")
+    void testValidateTipAccessCompanyEmployeeNotFound() {
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
+        when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                reviewService.createReview(100L, sampleRequest, employeePrincipal)
+        );
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Funcionário logado não encontrado"));
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando FARM_OWNER não for encontrado no banco")
+    void testValidateTipAccessFarmOwnerNotFound() {
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
+        when(farmOwnerRepository.findById(20L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                reviewService.createReview(100L, sampleRequest, farmOwnerPrincipal)
+        );
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Produtor rural logado não encontrado"));
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando FARM_OWNER tiver idFarm nulo")
+    void testValidateTipAccessFarmOwnerNullFarmId() {
+        FarmOwner ownerWithoutFarm = FarmOwner.builder().id(20L).idFarm(null).build();
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
+        when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(ownerWithoutFarm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                reviewService.createReview(100L, sampleRequest, farmOwnerPrincipal)
+        );
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando ID da dica técnica for nulo")
+    void testFindTipByIdOrThrowNullId() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                reviewService.createReview(null, sampleRequest, adminPrincipal)
+        );
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Dica técnica não encontrada para o ID: null"));
     }
 }
