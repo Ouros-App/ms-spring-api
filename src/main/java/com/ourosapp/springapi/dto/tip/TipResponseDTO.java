@@ -45,22 +45,23 @@ public record TipResponseDTO(
         double averageRating
 ) {
     /**
-     * Constrói um {@link TipResponseDTO} a partir da entidade {@link Tip} e dados agregados.
+     * Constrói um {@link TipResponseDTO} a partir da entidade {@link Tip}, fazenda vinculada e dados agregados.
      *
      * @param entity        entidade JPA da dica
+     * @param idFarm        identificador da fazenda vinculada
      * @param categories    lista de nomes das categorias
      * @param totalReviews  total de avaliações
      * @param averageRating média de avaliação
      * @return DTO de resposta preenchido
      */
-    public static TipResponseDTO fromEntity(Tip entity, List<String> categories, long totalReviews, double averageRating) {
+    public static TipResponseDTO fromEntity(Tip entity, Long idFarm, List<String> categories, long totalReviews, double averageRating) {
         if (entity == null) {
             return null;
         }
         return new TipResponseDTO(
                 entity.getId(),
                 entity.getTip(),
-                entity.getIdFarm(),
+                idFarm,
                 categories != null ? categories : List.of(),
                 totalReviews,
                 averageRating

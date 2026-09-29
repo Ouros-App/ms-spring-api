@@ -11,8 +11,4 @@ import java.util.List;
  */
 @Repository
 public interface TipRepository extends JpaRepository<Tip, Long> {
-
-    List<Tip> findByIdFarm(Long idFarm);
-
-    List<Tip> findByIdFarmIn(List<Long> farmIds);
 }

@@ -10,11 +10,13 @@ import com.ourosapp.springapi.dto.category.CategoryResponseDTO;
 import com.ourosapp.springapi.entity.Category;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Farm;
+import com.ourosapp.springapi.entity.FarmTip;
 import com.ourosapp.springapi.entity.Tip;
 import com.ourosapp.springapi.entity.TipCategory;
 import com.ourosapp.springapi.repository.CategoryRepository;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.FarmRepository;
+import com.ourosapp.springapi.repository.FarmTipRepository;
 import com.ourosapp.springapi.repository.TipCategoryRepository;
 import com.ourosapp.springapi.repository.TipRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
@@ -38,6 +40,7 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final TipRepository tipRepository;
     private final TipCategoryRepository tipCategoryRepository;
+    private final FarmTipRepository farmTipRepository;
     private final FarmRepository farmRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
 
@@ -61,20 +64,26 @@ public class CategoryService {
             );
         }
 
-        Tip tip = tipRepository.findById(request.idTip())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Dica técnica não encontrada para o ID: " + request.idTip()
-                ));
+        Tip tip = null;
+        if (request.idTip() != null) {
+            tip = tipRepository.findById(request.idTip())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Dica técnica não encontrada para o ID: " + request.idTip()
+                    ));
 
-        if (COMPANY_EMPLOYEE.equals(role)) {
-            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
-            Farm farm = findFarmByIdOrThrow(tip.getIdFarm());
-            if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Funcionário não tem permissão para vincular categoria a uma dica de outra empresa"
-                );
+            if (COMPANY_EMPLOYEE.equals(role)) {
+                CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
+                List<FarmTip> farmTips = farmTipRepository.findByIdTip(tip.getId());
+                boolean hasAccess = farmTips.stream()
+                        .map(ft -> findFarmByIdOrThrow(ft.getIdFarm()))
+                        .anyMatch(f -> Objects.equals(f.getIdEnterprise(), employee.getIdEnterprise()));
+                if (!hasAccess && !farmTips.isEmpty()) {
+                    throw new ResponseStatusException(
+                            HttpStatus.FORBIDDEN,
+                            "Funcionário não tem permissão para vincular categoria a uma dica de outra empresa"
+                    );
+                }
             }
         }
 
@@ -87,20 +96,19 @@ public class CategoryService {
 
         Category category = Category.builder()
                 .category(request.category())
-                .idTip(tip.getId())
                 .build();
 
         try {
             Category saved = categoryRepository.save(category);
 
-            if (!tipCategoryRepository.existsByIdTipAndIdCategory(tip.getId(), saved.getId())) {
+            if (tip != null && !tipCategoryRepository.existsByIdTipAndIdCategory(tip.getId(), saved.getId())) {
                 tipCategoryRepository.save(TipCategory.builder()
                         .idTip(tip.getId())
                         .idCategory(saved.getId())
                         .build());
             }
 
-            return CategoryResponseDTO.fromEntity(saved);
+            return CategoryResponseDTO.fromEntity(saved, request.idTip());
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,

@@ -39,7 +39,25 @@ public record CategoryResponseDTO(
         return new CategoryResponseDTO(
                 entity.getId(),
                 entity.getCategory(),
-                entity.getIdTip()
+                null
+        );
+    }
+
+    /**
+     * Constrói um {@link CategoryResponseDTO} a partir de uma entidade {@link Category} e ID da dica.
+     *
+     * @param entity entidade JPA da categoria
+     * @param idTip  identificador da dica vinculada
+     * @return DTO de resposta preenchido
+     */
+    public static CategoryResponseDTO fromEntity(Category entity, Long idTip) {
+        if (entity == null) {
+            return null;
+        }
+        return new CategoryResponseDTO(
+                entity.getId(),
+                entity.getCategory(),
+                idTip
         );
     }
 }

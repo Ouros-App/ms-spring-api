@@ -18,6 +18,8 @@ public interface FarmTipRepository extends JpaRepository<FarmTip, Long> {
 
     List<FarmTip> findByIdTip(Long idTip);
 
+    List<FarmTip> findByIdTipIn(List<Long> tipIds);
+
     boolean existsByIdFarmAndIdTip(Long idFarm, Long idTip);
 
     void deleteByIdTip(Long idTip);

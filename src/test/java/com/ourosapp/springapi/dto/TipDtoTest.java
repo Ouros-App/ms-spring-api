@@ -31,10 +31,9 @@ class TipDtoTest {
         Tip tip = Tip.builder()
                 .id(1L)
                 .tip("Manter temperatura ideal")
-                .idFarm(5L)
                 .build();
 
-        TipResponseDTO response = TipResponseDTO.fromEntity(tip, List.of("Ambiência"), 3, 4.5);
+        TipResponseDTO response = TipResponseDTO.fromEntity(tip, 5L, List.of("Ambiência"), 3, 4.5);
 
         assertNotNull(response);
         assertEquals(1L, response.id());
@@ -48,7 +47,17 @@ class TipDtoTest {
     @Test
     @DisplayName("TipResponseDTO - Deve retornar null se a entidade for nula")
     void deveRetornarNullQuandoEntidadeNula() {
-        assertNull(TipResponseDTO.fromEntity(null, List.of(), 0, 0.0));
+        assertNull(TipResponseDTO.fromEntity(null, 5L, List.of(), 0, 0.0));
+    }
+
+    @Test
+    @DisplayName("TipResponseDTO - Deve lidar com lista de categorias nula no fromEntity")
+    void deveLidarComCategoriasNulasEmTipResponseDTO() {
+        Tip tip = Tip.builder().id(1L).tip("Dica").build();
+        TipResponseDTO response = TipResponseDTO.fromEntity(tip, 5L, null, 0, 0.0);
+        assertNotNull(response);
+        assertNotNull(response.categories());
+        assertTrue(response.categories().isEmpty());
     }
 
     @Test

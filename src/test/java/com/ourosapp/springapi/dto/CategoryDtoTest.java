@@ -22,25 +22,39 @@ class CategoryDtoTest {
     }
 
     @Test
+    @DisplayName("CategoryRequestDTO - Deve lidar com valor nulo no compact constructor")
+    void deveLidarComValorNuloEmCategoryRequestDTO() {
+        CategoryRequestDTO request = new CategoryRequestDTO(null, null);
+        assertNull(request.category());
+        assertNull(request.idTip());
+    }
+
+    @Test
     @DisplayName("CategoryResponseDTO - Deve instanciar corretamente a partir da entidade Category")
     void deveInstanciarCategoryResponseDTOFromEntity() {
         Category category = Category.builder()
                 .id(10L)
                 .category("Biosseguridade")
-                .idTip(20L)
                 .build();
 
-        CategoryResponseDTO response = CategoryResponseDTO.fromEntity(category);
+        CategoryResponseDTO response = CategoryResponseDTO.fromEntity(category, 20L);
 
         assertNotNull(response);
         assertEquals(10L, response.id());
         assertEquals("Biosseguridade", response.category());
         assertEquals(20L, response.idTip());
+
+        CategoryResponseDTO responseWithoutTip = CategoryResponseDTO.fromEntity(category);
+        assertNotNull(responseWithoutTip);
+        assertEquals(10L, responseWithoutTip.id());
+        assertEquals("Biosseguridade", responseWithoutTip.category());
+        assertNull(responseWithoutTip.idTip());
     }
 
     @Test
     @DisplayName("CategoryResponseDTO - Deve retornar null se a entidade for nula")
     void deveRetornarNullQuandoEntidadeNula() {
         assertNull(CategoryResponseDTO.fromEntity(null));
+        assertNull(CategoryResponseDTO.fromEntity(null, 1L));
     }
 }

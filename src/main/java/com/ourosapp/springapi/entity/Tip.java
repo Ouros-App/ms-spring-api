@@ -33,7 +33,4 @@ public class Tip {
 
     @Column(name = "tip", columnDefinition = "TEXT", nullable = false)
     private String tip;
-
-    @Column(name = "id_farm", nullable = false)
-    private Long idFarm;
 }

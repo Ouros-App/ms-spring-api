@@ -67,7 +67,6 @@ public class TipService {
 
         Tip tip = Tip.builder()
                 .tip(request.tip())
-                .idFarm(farm.getId())
                 .build();
 
         try {
@@ -96,7 +95,7 @@ public class TipService {
                     .distinct()
                     .toList();
 
-            return TipResponseDTO.fromEntity(saved, categoryNames, 0, 0.0);
+            return TipResponseDTO.fromEntity(saved, farm.getId(), categoryNames, 0, 0.0);
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
@@ -135,16 +134,11 @@ public class TipService {
             }
 
             List<Long> farmIds = farms.stream().map(Farm::getId).toList();
-            List<Tip> directTips = tipRepository.findByIdFarmIn(farmIds);
             List<FarmTip> linkedFarmTips = farmTipRepository.findByIdFarmIn(farmIds);
-            List<Long> linkedTipIds = linkedFarmTips.stream().map(FarmTip::getIdTip).toList();
+            List<Long> linkedTipIds = linkedFarmTips.stream().map(FarmTip::getIdTip).distinct().toList();
             List<Tip> junctionTips = linkedTipIds.isEmpty() ? List.of() : tipRepository.findAllById(linkedTipIds);
 
-            Map<Long, Tip> combinedTips = new LinkedHashMap<>();
-            directTips.forEach(t -> combinedTips.put(t.getId(), t));
-            junctionTips.forEach(t -> combinedTips.putIfAbsent(t.getId(), t));
-
-            return enrichTips(new ArrayList<>(combinedTips.values()));
+            return enrichTips(junctionTips);
         } else if (FARM_OWNER.equals(role)) {
             FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
             if (owner.getIdFarm() == null) {
@@ -172,8 +166,8 @@ public class TipService {
         ensureAuthenticated(principal);
 
         Tip tip = findTipByIdOrThrow(id);
-        Farm farm = findFarmByIdOrThrow(tip.getIdFarm());
-        validateTipReadPermission(tip, farm, principal, "visualizar esta dica técnica");
+        List<FarmTip> farmTips = farmTipRepository.findByIdTip(tip.getId());
+        validateTipReadPermission(farmTips, principal, "visualizar esta dica técnica");
 
         List<TipResponseDTO> enriched = enrichTips(List.of(tip));
         return enriched.get(0);
@@ -201,8 +195,8 @@ public class TipService {
         }
 
         Tip tip = findTipByIdOrThrow(id);
-        Farm farm = findFarmByIdOrThrow(tip.getIdFarm());
-        validateFarmAccessPermission(farm, principal, "alterar dicas técnicas desta fazenda");
+        List<FarmTip> farmTips = farmTipRepository.findByIdTip(tip.getId());
+        validateTipWritePermission(farmTips, principal, "alterar dicas técnicas desta fazenda");
 
         if (!request.hasUpdates()) {
             return enrichTips(List.of(tip)).get(0);
@@ -255,8 +249,8 @@ public class TipService {
         }
 
         Tip tip = findTipByIdOrThrow(id);
-        Farm farm = findFarmByIdOrThrow(tip.getIdFarm());
-        validateFarmAccessPermission(farm, principal, "remover dica técnica desta fazenda");
+        List<FarmTip> farmTips = farmTipRepository.findByIdTip(tip.getId());
+        validateTipWritePermission(farmTips, principal, "remover dica técnica desta fazenda");
 
         try {
             tipCategoryRepository.deleteByIdTip(tip.getId());
@@ -273,16 +267,11 @@ public class TipService {
     }
 
     private List<TipResponseDTO> getTipsForSingleFarm(Farm farm) {
-        List<Tip> directTips = tipRepository.findByIdFarm(farm.getId());
         List<FarmTip> linkedFarmTips = farmTipRepository.findByIdFarm(farm.getId());
-        List<Long> linkedTipIds = linkedFarmTips.stream().map(FarmTip::getIdTip).toList();
+        List<Long> linkedTipIds = linkedFarmTips.stream().map(FarmTip::getIdTip).distinct().toList();
         List<Tip> junctionTips = linkedTipIds.isEmpty() ? List.of() : tipRepository.findAllById(linkedTipIds);
 
-        Map<Long, Tip> combinedTips = new LinkedHashMap<>();
-        directTips.forEach(t -> combinedTips.put(t.getId(), t));
-        junctionTips.forEach(t -> combinedTips.putIfAbsent(t.getId(), t));
-
-        return enrichTips(new ArrayList<>(combinedTips.values()));
+        return enrichTips(junctionTips);
     }
 
     private List<TipResponseDTO> enrichTips(List<Tip> tips) {
@@ -291,6 +280,10 @@ public class TipService {
         }
 
         List<Long> tipIds = tips.stream().map(Tip::getId).toList();
+
+        List<FarmTip> farmTips = farmTipRepository.findByIdTipIn(tipIds);
+        Map<Long, Long> farmIdByTipId = farmTips.stream()
+                .collect(Collectors.toMap(FarmTip::getIdTip, FarmTip::getIdFarm, (f1, f2) -> f1));
 
         List<TipCategory> tipCategories = tipCategoryRepository.findByIdTipIn(tipIds);
         List<Long> categoryIds = tipCategories.stream().map(TipCategory::getIdCategory).distinct().toList();
@@ -311,6 +304,7 @@ public class TipService {
                 .collect(Collectors.groupingBy(Review::getIdTip));
 
         return tips.stream().map(tip -> {
+            Long farmId = farmIdByTipId.get(tip.getId());
             List<String> tipCatNames = categoriesByTipId.getOrDefault(tip.getId(), List.of())
                     .stream().distinct().toList();
             List<Review> tipReviews = reviewsByTipId.getOrDefault(tip.getId(), List.of());
@@ -320,7 +314,7 @@ public class TipService {
                             .setScale(1, RoundingMode.HALF_UP)
                             .doubleValue();
 
-            return TipResponseDTO.fromEntity(tip, tipCatNames, totalReviews, avgRating);
+            return TipResponseDTO.fromEntity(tip, farmId, tipCatNames, totalReviews, avgRating);
         }).toList();
     }
 
@@ -341,27 +335,47 @@ public class TipService {
         return categories;
     }
 
-    private void validateTipReadPermission(Tip tip, Farm primaryFarm, UserPrincipal principal, String action) {
+    private void validateTipReadPermission(List<FarmTip> farmTips, UserPrincipal principal, String action) {
         ensureAuthenticated(principal);
 
         boolean isAuthorized = switch (principal.getRole()) {
             case ADM -> true;
             case COMPANY_EMPLOYEE -> {
                 Long idEnterprise = getCompanyEmployeeOrThrow(principal.getId()).getIdEnterprise();
-                boolean isPrimaryFarmOfEnterprise = Objects.equals(primaryFarm.getIdEnterprise(), idEnterprise);
-                boolean isSharedWithEnterprise = farmTipRepository.findByIdTip(tip.getId()).stream()
+                yield farmTips.isEmpty() || farmTips.stream()
                         .map(ft -> findFarmByIdOrThrow(ft.getIdFarm()))
                         .anyMatch(f -> Objects.equals(f.getIdEnterprise(), idEnterprise));
-                yield isPrimaryFarmOfEnterprise || isSharedWithEnterprise;
             }
             case FARM_OWNER -> {
                 FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-                yield Objects.equals(primaryFarm.getId(), owner.getIdFarm())
-                        || (owner.getIdFarm() != null && farmTipRepository.existsByIdFarmAndIdTip(owner.getIdFarm(), tip.getId()));
+                yield owner.getIdFarm() != null && farmTips.stream()
+                        .anyMatch(ft -> Objects.equals(ft.getIdFarm(), owner.getIdFarm()));
             }
             default -> throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Perfil de usuário sem permissão para acessar esta dica técnica"
+            );
+        };
+
+        if (!isAuthorized) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para " + action);
+        }
+    }
+
+    private void validateTipWritePermission(List<FarmTip> farmTips, UserPrincipal principal, String action) {
+        ensureAuthenticated(principal);
+
+        boolean isAuthorized = switch (principal.getRole()) {
+            case ADM -> true;
+            case COMPANY_EMPLOYEE -> {
+                Long idEnterprise = getCompanyEmployeeOrThrow(principal.getId()).getIdEnterprise();
+                yield farmTips.isEmpty() || farmTips.stream()
+                        .map(ft -> findFarmByIdOrThrow(ft.getIdFarm()))
+                        .anyMatch(f -> Objects.equals(f.getIdEnterprise(), idEnterprise));
+            }
+            default -> throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Perfil de usuário sem permissão para alterar esta dica técnica"
             );
         };
 
