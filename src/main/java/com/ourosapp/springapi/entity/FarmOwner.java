@@ -33,7 +33,7 @@ public class FarmOwner {
     @Column(name = "document_number", unique = true)
     private String documentNumber;
 
-    @Column(name = "telephone", length = 20)
+    @Column(name = "telephone", length = 13)
     private String telephone;
 
     @Builder.Default

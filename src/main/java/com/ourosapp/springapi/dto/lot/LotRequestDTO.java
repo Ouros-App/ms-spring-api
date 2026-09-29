@@ -9,7 +9,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -17,9 +16,7 @@ import java.time.LocalDate;
  *
  * @param receivedChickens  Quantidade de aves recebidas/alojadas
  * @param deliveredChickens Quantidade de aves entregues (opcional na inicialização)
- * @param dateBirth         Data de nascimento ou início do alojamento
- * @param deliveryDate      Data prevista ou efetiva de entrega (opcional na inicialização)
- * @param gain              Ganho de peso acumulado ou financeiro (opcional, padrão 0.0)
+ * @param deliveryDate      Data de entrega para abate ou finalização do ciclo
  * @param losts             Total de perdas / mortalidade (opcional, padrão 0)
  * @param cost              Custo operacional total (opcional, padrão 0.0)
  * @param idEnterprise      Identificador da empresa integradora vinculada
@@ -41,21 +38,11 @@ public record LotRequestDTO(
         @Min(value = 0, message = "A quantidade de aves entregues não pode ser negativa")
         Integer deliveredChickens,
 
-        @Schema(description = "Data de nascimento ou alojamento das aves", example = "2026-09-01")
-        @JsonProperty("date_birth")
-        @JsonAlias("dateBirth")
-        @NotNull(message = "A data de nascimento/alojamento é obrigatória")
-        LocalDate dateBirth,
-
-        @Schema(description = "Data de entrega para abate ou finalização do ciclo (opcional no início; quando omitida, é inicializada com o mesmo valor de date_birth)", example = "2026-10-15")
+        @Schema(description = "Data de entrega para abate ou finalização do ciclo", example = "2026-10-15")
         @JsonProperty("delivery_date")
         @JsonAlias("deliveryDate")
+        @NotNull(message = "A data de entrega é obrigatória")
         LocalDate deliveryDate,
-
-        @Schema(description = "Ganho de peso acumulado ou financeiro", example = "2.8500")
-        @JsonProperty("gain")
-        @DecimalMin(value = "0.0", message = "O ganho não pode ser negativo")
-        BigDecimal gain,
 
         @Schema(description = "Total de perdas ou mortalidade acumulada", example = "1500")
         @JsonProperty("losts")
@@ -93,19 +80,5 @@ public record LotRequestDTO(
             return true;
         }
         return deliveredChickens <= receivedChickens;
-    }
-
-    /**
-     * Validação cruzada para garantir que a data de entrega não seja anterior à data de nascimento/alojamento.
-     *
-     * @return {@code true} se deliveryDate for nula ou posterior/igual a dateBirth
-     */
-    @Schema(hidden = true)
-    @AssertTrue(message = "A data de entrega deve ser posterior ou igual à data de nascimento/alojamento")
-    public boolean isDeliveryDateValid() {
-        if (deliveryDate == null || dateBirth == null) {
-            return true;
-        }
-        return !deliveryDate.isBefore(dateBirth);
     }
 }

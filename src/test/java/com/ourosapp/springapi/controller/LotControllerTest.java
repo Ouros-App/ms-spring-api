@@ -18,7 +18,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -55,12 +54,12 @@ class LotControllerTest {
 
         try {
             LotRequestDTO request = new LotRequestDTO(
-                    50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                    new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+                    50000, 48500, LocalDate.of(2026, 10, 15),
+                    1500, 12500.50, 1L, 2L
             );
             LotResponseDTO expectedResponse = new LotResponseDTO(
-                    10L, 50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                    new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+                    10L, 50000, 48500, LocalDate.of(2026, 10, 15),
+                    1500, 12500.50, 1L, 2L
             );
 
             when(lotService.createLot(request, principal)).thenReturn(expectedResponse);
@@ -82,8 +81,8 @@ class LotControllerTest {
     @DisplayName("Deve listar lotes para o usuário com status 200 OK")
     void testGetLotsForUser() {
         LotResponseDTO lot1 = new LotResponseDTO(
-                1L, 50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+                1L, 50000, 48500, LocalDate.of(2026, 10, 15),
+                1500, 12500.50, 1L, 2L
         );
         when(lotService.getLotsForUser(2L, 1L, principal)).thenReturn(List.of(lot1));
 
@@ -100,8 +99,8 @@ class LotControllerTest {
     @DisplayName("Deve buscar lote por ID com status 200 OK")
     void testGetLotById() {
         LotResponseDTO expectedResponse = new LotResponseDTO(
-                1L, 50000, 48500, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.8500"), 1500, 12500.50, 1L, 2L
+                1L, 50000, 48500, LocalDate.of(2026, 10, 15),
+                1500, 12500.50, 1L, 2L
         );
         when(lotService.getLotById(1L, principal)).thenReturn(expectedResponse);
 
@@ -117,12 +116,12 @@ class LotControllerTest {
     @DisplayName("Deve atualizar lote parcialmente e retornar status 200 OK")
     void testUpdateLot() {
         LotUpdateDTO request = new LotUpdateDTO(
-                null, 49000, null, LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.9500"), 1000, 13000.0
+                null, 49000, LocalDate.of(2026, 10, 15),
+                1000, 13000.0
         );
         LotResponseDTO expectedResponse = new LotResponseDTO(
-                1L, 50000, 49000, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 10, 15),
-                new BigDecimal("2.9500"), 1000, 13000.0, 1L, 2L
+                1L, 50000, 49000, LocalDate.of(2026, 10, 15),
+                1000, 13000.0, 1L, 2L
         );
         when(lotService.updateLot(1L, request, principal)).thenReturn(expectedResponse);
 

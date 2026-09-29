@@ -182,6 +182,31 @@ class KeycloakJwtAuthenticationConverterTest {
     }
 
     @Test
+    @DisplayName("Deve rejeitar a service account do Prometheus nas rotas de negócio")
+    void testRejectPrometheusServiceAccount() {
+        Jwt jwt = new Jwt(
+                "prometheus-token",
+                Instant.now(),
+                Instant.now().plusSeconds(3600),
+                Map.of("alg", "RS256"),
+                Map.of(
+                        "sub", "service-account-ouros-prometheus",
+                        "azp", "ouros-prometheus",
+                        "aud", List.of("ms-spring-api"),
+                        "realm_access", Map.of("roles", List.of("admin"))
+                )
+        );
+
+        OAuth2AuthenticationException exception = assertThrows(
+                OAuth2AuthenticationException.class,
+                () -> converter.convert(jwt)
+        );
+
+        assertEquals("invalid_token", exception.getError().getErrorCode());
+        verifyNoInteractions(userDetailsService);
+    }
+
+    @Test
     @DisplayName("Deve extrair roles a partir de resource_access para o client configurado")
     void testExtractAuthoritiesFromResourceAccess() {
         Jwt jwt = new Jwt(

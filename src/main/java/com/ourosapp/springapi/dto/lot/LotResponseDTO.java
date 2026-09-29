@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ourosapp.springapi.entity.Lot;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
 
@@ -14,9 +13,7 @@ import java.util.Objects;
  * @param id                Identificador único do lote
  * @param receivedChickens  Quantidade de aves recebidas/alojadas
  * @param deliveredChickens Quantidade de aves entregues ao término do ciclo
- * @param dateBirth         Data de nascimento ou início do alojamento
  * @param deliveryDate      Data de entrega/abate
- * @param gain              Ganho de peso acumulado ou financeiro
  * @param losts             Total de perdas / mortalidade
  * @param cost              Custo operacional total acumulado
  * @param idEnterprise      Identificador da empresa integradora vinculada
@@ -36,16 +33,9 @@ public record LotResponseDTO(
         @JsonProperty("delivered_chickens")
         Integer deliveredChickens,
 
-        @Schema(description = "Data de nascimento ou alojamento das aves", example = "2026-09-01")
-        @JsonProperty("date_birth")
-        LocalDate dateBirth,
-
         @Schema(description = "Data de entrega para abate", example = "2026-10-15")
         @JsonProperty("delivery_date")
         LocalDate deliveryDate,
-
-        @Schema(description = "Ganho de peso acumulado ou financeiro", example = "2.8500")
-        BigDecimal gain,
 
         @Schema(description = "Total de perdas ou mortalidade", example = "1500")
         Integer losts,
@@ -75,9 +65,7 @@ public record LotResponseDTO(
                 lot.getId(),
                 lot.getReceivedChickens(),
                 lot.getDeliveredChickens(),
-                lot.getDateBirth(),
                 lot.getDeliveryDate(),
-                lot.getGain(),
                 lot.getLosts(),
                 lot.getCost(),
                 lot.getIdEnterprise(),

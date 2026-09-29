@@ -23,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -164,17 +163,13 @@ public class LotService {
 
     private Lot buildLotFromRequest(LotRequestDTO request, Long resolvedEnterpriseId) {
         Integer deliveredChickens = request.deliveredChickens() != null ? request.deliveredChickens() : 0;
-        LocalDate deliveryDate = request.deliveryDate() != null ? request.deliveryDate() : request.dateBirth();
-        BigDecimal gain = request.gain() != null ? request.gain() : BigDecimal.ZERO;
         Integer losts = request.losts() != null ? request.losts() : 0;
         Double cost = request.cost() != null ? request.cost() : 0.0;
 
         return Lot.builder()
                 .receivedChickens(request.receivedChickens())
                 .deliveredChickens(deliveredChickens)
-                .dateBirth(request.dateBirth())
-                .deliveryDate(deliveryDate)
-                .gain(gain)
+                .deliveryDate(request.deliveryDate())
                 .losts(losts)
                 .cost(cost)
                 .idEnterprise(resolvedEnterpriseId)
@@ -311,22 +306,11 @@ public class LotService {
             );
         }
 
-        LocalDate newBirth = request.dateBirth() != null ? request.dateBirth() : lot.getDateBirth();
-        LocalDate newDelivery = request.deliveryDate() != null ? request.deliveryDate() : lot.getDeliveryDate();
-        if (newDelivery.isBefore(newBirth)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "A data de entrega deve ser posterior ou igual à data de nascimento/alojamento"
-            );
-        }
-
         lot.setReceivedChickens(newReceived);
         lot.setDeliveredChickens(newDelivered);
-        lot.setDateBirth(newBirth);
-        lot.setDeliveryDate(newDelivery);
 
-        if (request.gain() != null) {
-            lot.setGain(request.gain());
+        if (request.deliveryDate() != null) {
+            lot.setDeliveryDate(request.deliveryDate());
         }
         if (request.losts() != null) {
             lot.setLosts(request.losts());

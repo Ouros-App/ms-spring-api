@@ -114,14 +114,14 @@ public class LotController {
     }
 
     /**
-     * Endpoint para atualizar parcialmente um lote (ex.: fechamento do ciclo, aves entregues, ganho de peso, custo).
+     * Endpoint para atualizar parcialmente um lote (ex.: fechamento do ciclo, aves entregues, perdas, custo).
      *
      * @param id        identificador único do lote a ser atualizado
      * @param request   corpo da requisição com os campos parciais
      * @param principal dados do usuário autenticado via token JWT
      * @return resposta HTTP 200 (OK) com o lote atualizado
      */
-    @Operation(summary = "Atualizar lote parcialmente", description = "Atualiza o lote no fechamento do ciclo produtivo (aves entregues, data de entrega, ganho, perdas, custos).")
+    @Operation(summary = "Atualizar lote parcialmente", description = "Atualiza o lote no fechamento do ciclo produtivo (aves entregues, data de entrega, perdas, custos).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lote atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos ou regras de negócio violadas"),
