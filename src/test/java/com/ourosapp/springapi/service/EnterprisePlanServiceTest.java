@@ -181,7 +181,7 @@ class EnterprisePlanServiceTest {
     }
 
     @Test
-    @DisplayName("createEnterprisePlan - Deve lançar 409 quando repositório disparar DataIntegrityViolationException")
+    @DisplayName("createEnterprisePlan - Deve lançar exceção original de banco (DataIntegrityViolationException)")
     void deveLancarExcecaoQuandoErroIntegridadeNoSave() {
         EnterprisePlanRequestDTO request = new EnterprisePlanRequestDTO(10L, 20L);
         when(enterpriseRepository.existsById(10L)).thenReturn(true);
@@ -190,9 +190,8 @@ class EnterprisePlanServiceTest {
         when(enterprisePlanRepository.save(any(EnterprisePlan.class)))
                 .thenThrow(new DataIntegrityViolationException("Erro de constraint"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        assertThrows(DataIntegrityViolationException.class,
                 () -> enterprisePlanService.createEnterprisePlan(request, adminPrincipal));
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test
@@ -343,14 +342,13 @@ class EnterprisePlanServiceTest {
     }
 
     @Test
-    @DisplayName("deleteEnterprisePlan - Deve lançar 409 quando houver violação de integridade (pagamentos vinculados)")
+    @DisplayName("deleteEnterprisePlan - Deve lançar exceção original de banco quando houver violação de integridade (pagamentos vinculados)")
     void deveLancarExcecaoQuandoExcluirPlanoComPagamentosVinculados() {
         EnterprisePlan ep = EnterprisePlan.builder().id(1L).idEnterprise(10L).idPlan(20L).build();
         when(enterprisePlanRepository.findById(1L)).thenReturn(Optional.of(ep));
         doThrow(new DataIntegrityViolationException("FK constraint")).when(enterprisePlanRepository).flush();
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        assertThrows(DataIntegrityViolationException.class,
                 () -> enterprisePlanService.deleteEnterprisePlan(1L, adminPrincipal));
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 }

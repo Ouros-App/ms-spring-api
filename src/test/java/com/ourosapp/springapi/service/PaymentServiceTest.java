@@ -201,7 +201,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    @DisplayName("createPayment - Deve lançar 409 quando ocorrer erro de integridade ao salvar")
+    @DisplayName("createPayment - Deve lançar exceção original de banco (DataIntegrityViolationException)")
     void deveLancarExcecaoQuandoErroIntegridadeNoSave() {
         PaymentRequestDTO request = new PaymentRequestDTO("PIX", new BigDecimal("100.00"), 10L, 5L);
         EnterprisePlan enterprisePlan = EnterprisePlan.builder().id(5L).idEnterprise(10L).idPlan(1L).build();
@@ -211,9 +211,8 @@ class PaymentServiceTest {
         when(paymentRepository.save(any(Payment.class)))
                 .thenThrow(new DataIntegrityViolationException("Erro de constraint"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        assertThrows(DataIntegrityViolationException.class,
                 () -> paymentService.createPayment(request, adminPrincipal));
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test

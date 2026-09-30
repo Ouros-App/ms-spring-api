@@ -14,7 +14,6 @@ import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.repository.PaymentRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,12 +70,8 @@ public class PaymentService {
                 .idEnterprisePlan(enterprisePlan.getId())
                 .build();
 
-        try {
-            Payment saved = paymentRepository.save(payment);
-            return PaymentResponseDTO.fromEntity(saved);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Conflito de integridade ao registrar pagamento", ex);
-        }
+        Payment saved = paymentRepository.save(payment);
+        return PaymentResponseDTO.fromEntity(saved);
     }
 
     @Transactional(readOnly = true)

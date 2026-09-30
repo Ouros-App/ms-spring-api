@@ -13,7 +13,6 @@ import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.repository.PlanRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,12 +57,8 @@ public class EnterprisePlanService {
                 .idPlan(request.idPlan())
                 .build();
 
-        try {
-            EnterprisePlan saved = enterprisePlanRepository.save(enterprisePlan);
-            return EnterprisePlanResponseDTO.fromEntity(saved);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Conflito de integridade ao contratar plano para a empresa", ex);
-        }
+        EnterprisePlan saved = enterprisePlanRepository.save(enterprisePlan);
+        return EnterprisePlanResponseDTO.fromEntity(saved);
     }
 
     @Transactional(readOnly = true)
@@ -127,12 +122,8 @@ public class EnterprisePlanService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para este perfil de usuário");
         }
 
-        try {
-            enterprisePlanRepository.delete(ep);
-            enterprisePlanRepository.flush();
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Não é possível cancelar o plano pois existem pagamentos vinculados a ele", ex);
-        }
+        enterprisePlanRepository.delete(ep);
+        enterprisePlanRepository.flush();
     }
 
     private EnterprisePlan findEnterprisePlanByIdOrThrow(Long id) {
