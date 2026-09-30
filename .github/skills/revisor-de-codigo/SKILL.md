@@ -44,6 +44,11 @@ Sua missão é realizar uma análise de alta qualidade técnica, construtiva, pr
    - Testes com JUnit 5 + Mockito usando `@MockitoBean` (Spring Boot 3.4) e `@WebMvcTest`.
 2. **Análise Estática/Cognitiva:** Não execute `./gradlew test` ou builds durante o review.
 3. **Foco Estrito no Diff:** Analise exclusivamente os arquivos e linhas modificados na PR. Não aponte problemas em código preexistente não impactado pela mudança.
+4. **Revisão Incremental e Validação de Correções:**
+   - Ao revisar novos commits de uma PR que já possui apontamentos anteriores, verifique prioritariamente se as correções foram implementadas corretamente.
+   - **Reconhecimento Explícito:** No corpo geral do review (`body`), cite claramente os pontos anteriores que foram corrigidos com êxito.
+   - **Zero Duplicação:** NUNCA recrie apontamentos para itens que já foram sanados.
+   - Se todos os apontamentos anteriores tiverem sido resolvidos e o diff atual estiver limpo e em conformidade, aprove a PR diretamente com `APPROVE`.
 
 ---
 
@@ -73,8 +78,8 @@ Para cada apontamento ou melhoria, utilize rigorosamente a estrutura:
 
 ## 6. Publicação e Ações Finais
 
-- **Quando houver apontamentos / sugestões de melhoria:** Publique a revisão com status `COMMENT`, incluindo o checkbox de auto-fix (`- [ ] **Corrigir todos os apontamentos automaticamente**`) e o array de `comments` com todos os blocos de sugestão.
-- **Quando o código estiver em conformidade:** Publique a revisão com status `APPROVE` aprovando a PR com uma mensagem de síntese positiva e informando que o código está aprovado.
+- **Quando houver apontamentos / sugestões de melhoria pendentes:** Publique a revisão com status `COMMENT`, incluindo no `body` o reconhecimento dos itens anteriores que já foram corrigidos, o checkbox de auto-fix (`- [ ] **Corrigir todos os apontamentos automaticamente**`) e o array de `comments` com todos os blocos de sugestão para os pontos pendentes.
+- **Quando o código estiver em conformidade:** Publique a revisão com status `APPROVE` aprovando a PR com uma mensagem de síntese positiva, destacando que os pontos levantados foram validados e corrigidos com sucesso e que a implementação está pronta para merge.
 
 
 
