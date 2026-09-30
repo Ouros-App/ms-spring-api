@@ -2,8 +2,11 @@ package com.ourosapp.springapi.repository;
 
 import com.ourosapp.springapi.entity.WaterRegistry;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -35,4 +38,13 @@ public interface WaterRegistryRepository extends JpaRepository<WaterRegistry, Lo
      * @return {@code true} se existir registro, {@code false} caso contrário
      */
     boolean existsByIdFarm(Long idFarm);
+
+    /**
+     * Calcula o consumo mais recente de água da fazenda utilizando a função analítica PostgreSQL 'calculate_water_consumption'.
+     *
+     * @param farmId identificador único da fazenda
+     * @return consumo recente calculado baseado na variação do hidrômetro
+     */
+    @Query(value = "SELECT calculate_water_consumption(:farmId)", nativeQuery = true)
+    BigDecimal getLatestWaterConsumption(@Param("farmId") Long farmId);
 }
