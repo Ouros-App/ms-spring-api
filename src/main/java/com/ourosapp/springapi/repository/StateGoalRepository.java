@@ -42,4 +42,38 @@ public interface StateGoalRepository extends JpaRepository<StateGoal, Long> {
      */
     @Query(value = "SELECT calculate_goals_progress(:farmId)", nativeQuery = true)
     BigDecimal getGoalsProgress(@Param("farmId") Long farmId);
+
+    /**
+     * Executa a stored procedure PostgreSQL 'create_state_goal' para inserção da meta estadual
+     * e amarração atômica com a fazenda (farm_goals) e região (state_goal_regions).
+     *
+     * @param title        título da meta estadual
+     * @param description  descrição detalhada da meta
+     * @param type         tipo da meta
+     * @param status       status da meta
+     * @param targetValue  valor alvo quantitativo
+     * @param dateCreation data de início / criação da meta
+     * @param dateEnd      data de término prevista
+     * @param idFarm       identificador da fazenda vinculada
+     * @param idRegion     identificador da região vinculada
+     */
+    @Modifying
+    @Transactional
+    @Query(value = """
+        CALL create_state_goal(
+            :title, :description, :type, :status, :targetValue,
+            :dateCreation, :dateEnd, :idFarm, :idRegion
+        )
+    """, nativeQuery = true)
+    void callCreateStateGoal(
+            @Param("title") String title,
+            @Param("description") String description,
+            @Param("type") String type,
+            @Param("status") String status,
+            @Param("targetValue") BigDecimal targetValue,
+            @Param("dateCreation") LocalDate dateCreation,
+            @Param("dateEnd") LocalDate dateEnd,
+            @Param("idFarm") Long idFarm,
+            @Param("idRegion") Long idRegion
+    );
 }

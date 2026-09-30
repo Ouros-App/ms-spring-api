@@ -108,6 +108,51 @@ public class StateGoalService {
     }
 
     /**
+     * Cadastra uma nova meta estadual utilizando a stored procedure PostgreSQL 'create_state_goal'.
+     * Substitui a persistência encadeada de 4 entidades por uma execução transacional atômica no banco de dados.
+     *
+     * @param request   dados da meta estadual
+     * @param idRegion  identificador numérico da região esperado pela procedure
+     * @param principal dados do usuário autenticado no JWT
+     */
+    @Transactional
+    public void createStateGoalViaProcedure(StateGoalRequestDTO request, Long idRegion, UserPrincipal principal) {
+        Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
+        ensureAuthenticated(principal);
+
+        Long farmId = resolveFarmIdForCreation(request.idFarm(), principal);
+        Farm farm = findFarmByIdOrThrow(farmId);
+        validateFarmAccessPermission(farm, principal, "cadastrar metas estaduais nesta fazenda");
+
+        if (request.dateEnd().isBefore(request.dateCreation())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "A data de término não pode ser anterior à data de criação"
+            );
+        }
+
+        try {
+            stateGoalRepository.callCreateStateGoal(
+                    request.title(),
+                    request.description(),
+                    request.type(),
+                    request.status(),
+                    request.targetValue(),
+                    request.dateCreation(),
+                    request.dateEnd(),
+                    farm.getId(),
+                    idRegion
+            );
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Conflito de integridade de dados ao cadastrar meta estadual via procedure",
+                    ex
+            );
+        }
+    }
+
+    /**
      * Lista todas as metas estaduais acessíveis ao usuário autenticado, com filtros opcionais por fazenda e região.
      */
     @Transactional(readOnly = true)
