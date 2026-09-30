@@ -106,6 +106,43 @@ public class TipService {
     }
 
     /**
+     * Cadastra uma nova dica técnica utilizando a stored procedure PostgreSQL 'create_tip'.
+     * Substitui múltiplos inserts e sincronizações manuais pela chamada atômica da procedure.
+     *
+     * @param request   dados da dica técnica a ser cadastrada
+     * @param principal dados do usuário logado
+     */
+    @Transactional
+    public void createTipViaProcedure(TipRequestDTO request, UserPrincipal principal) {
+        Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
+        ensureAuthenticated(principal);
+
+        String role = principal.getRole();
+        if (!ADM.equals(role) && !COMPANY_EMPLOYEE.equals(role)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Perfil de usuário sem permissão para cadastrar dicas técnicas"
+            );
+        }
+
+        Farm farm = findFarmByIdOrThrow(request.idFarm());
+        validateFarmAccessPermission(farm, principal, "cadastrar dicas técnicas nesta fazenda");
+
+        List<Category> categories = validateAndFetchCategories(request.categoryIds());
+        Long primaryCategoryId = (categories != null && !categories.isEmpty()) ? categories.get(0).getId() : null;
+
+        try {
+            tipRepository.callCreateTip(request.tip(), farm.getId(), primaryCategoryId);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Conflito de integridade de dados ao cadastrar dica técnica",
+                    ex
+            );
+        }
+    }
+
+    /**
      * Retorna a lista de dicas técnicas acessíveis ao usuário autenticado, com filtro opcional por fazenda.
      *
      * @param farmIdFilter identificador opcional da fazenda
