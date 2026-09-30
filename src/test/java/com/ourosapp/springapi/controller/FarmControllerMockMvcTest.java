@@ -3,9 +3,11 @@ package com.ourosapp.springapi.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.address.*;
+import com.ourosapp.springapi.dto.farm.FarmGoalsProgressResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRequestDTO;
 import com.ourosapp.springapi.dto.farm.FarmResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmUpdateDTO;
+import com.ourosapp.springapi.dto.farm.FarmWaterConsumptionResponseDTO;
 import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.FarmService;
@@ -492,5 +494,31 @@ class FarmControllerMockMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /farms/{id}/metrics/water-consumption - Deve retornar 200 OK com métrica de consumo de água")
+    void testGetFarmWaterConsumptionSuccess() throws Exception {
+        FarmWaterConsumptionResponseDTO response = new FarmWaterConsumptionResponseDTO(1L, new BigDecimal("150.50"));
+        when(farmService.getFarmWaterConsumption(eq(1L), eq(mockPrincipal))).thenReturn(response);
+
+        mockMvc.perform(get("/farms/1/metrics/water-consumption")
+                        .with(user(mockPrincipal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id_farm").value(1L))
+                .andExpect(jsonPath("$.water_consumption").value(150.50));
+    }
+
+    @Test
+    @DisplayName("GET /farms/{id}/goals-progress - Deve retornar 200 OK com percentual de progresso de metas")
+    void testGetFarmGoalsProgressSuccess() throws Exception {
+        FarmGoalsProgressResponseDTO response = new FarmGoalsProgressResponseDTO(1L, new BigDecimal("75.00"));
+        when(farmService.getFarmGoalsProgress(eq(1L), eq(mockPrincipal))).thenReturn(response);
+
+        mockMvc.perform(get("/farms/1/goals-progress")
+                        .with(user(mockPrincipal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id_farm").value(1L))
+                .andExpect(jsonPath("$.goals_progress_percentage").value(75.00));
     }
 }

@@ -831,4 +831,62 @@ class TipServiceTest {
         );
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
     }
+
+    // ==========================================
+    // STORED PROCEDURE TESTS (create_tip)
+    // ==========================================
+
+    @Test
+    @DisplayName("createTipViaProcedure - Deve cadastrar dica técnica com sucesso por ADM")
+    void deveCadastrarDicaViaProcedureComSucessoPorAdm() {
+        TipRequestDTO request = new TipRequestDTO("Manter ventilação mínima", 10L, List.of(5L));
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
+
+        assertDoesNotThrow(() -> tipService.createTipViaProcedure(request, adminPrincipal));
+
+        verify(tipRepository).callCreateTip("Manter ventilação mínima", 10L, 5L);
+    }
+
+    @Test
+    @DisplayName("createTipViaProcedure - Deve cadastrar dica técnica com categoria nula com sucesso")
+    void deveCadastrarDicaViaProcedureSemCategoria() {
+        TipRequestDTO request = new TipRequestDTO("Manter ventilação mínima", 10L, null);
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+
+        assertDoesNotThrow(() -> tipService.createTipViaProcedure(request, adminPrincipal));
+
+        verify(tipRepository).callCreateTip("Manter ventilação mínima", 10L, null);
+    }
+
+    @Test
+    @DisplayName("createTipViaProcedure - Deve lançar 403 quando perfil for FARM_OWNER")
+    void deveLancar403AoCadastrarDicaViaProcedureParaFarmOwner() {
+        TipRequestDTO request = new TipRequestDTO("Manter ventilação mínima", 10L, List.of(5L));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                tipService.createTipViaProcedure(request, farmOwnerPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(tipRepository, never()).callCreateTip(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("createTipViaProcedure - Deve lançar 409 quando procedure lançar DataIntegrityViolationException")
+    void deveLancar409QuandoProcedureTipLancarDataIntegrityViolation() {
+        TipRequestDTO request = new TipRequestDTO("Manter ventilação mínima", 10L, null);
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        doThrow(new DataIntegrityViolationException("FK error"))
+                .when(tipRepository).callCreateTip(any(), any(), any());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                tipService.createTipViaProcedure(request, adminPrincipal)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+    }
 }

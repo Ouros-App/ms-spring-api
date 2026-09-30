@@ -993,4 +993,94 @@ class StateGoalServiceTest {
         assertEquals(1, result.size());
         assertEquals("Nordeste", result.get(0).region());
     }
+
+    // ==========================================
+    // ANALYTICAL METRICS TESTS (calculate_goals_progress)
+    // ==========================================
+
+    @Test
+    @DisplayName("Deve obter progresso consolidado de metas para ADM com sucesso")
+    void deveObterProgressoMetasParaAdmComSucesso() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(stateGoalRepository.getGoalsProgress(10L)).thenReturn(new BigDecimal("85.50"));
+
+        BigDecimal progress = stateGoalService.getFarmGoalsProgress(10L, admPrincipal);
+
+        assertEquals(new BigDecimal("85.50"), progress);
+        verify(stateGoalRepository).getGoalsProgress(10L);
+    }
+
+    @Test
+    @DisplayName("Deve retornar zero quando progresso retornado do banco for nulo")
+    void deveRetornarZeroQuandoProgressoForNulo() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(stateGoalRepository.getGoalsProgress(10L)).thenReturn(null);
+
+        BigDecimal progress = stateGoalService.getFarmGoalsProgress(10L, admPrincipal);
+
+        assertEquals(BigDecimal.ZERO, progress);
+    }
+
+    // ==========================================
+    // STORED PROCEDURE TESTS (create_state_goal)
+    // ==========================================
+
+    @Test
+    @DisplayName("Deve cadastrar meta estadual via procedure com sucesso por ADM")
+    void deveCadastrarMetaEstadualViaProcedureComSucessoPorAdm() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+
+        assertDoesNotThrow(() -> stateGoalService.createStateGoalViaProcedure(requestDTO, 5L, admPrincipal));
+
+        verify(stateGoalRepository).callCreateStateGoal(
+                eq(requestDTO.title()),
+                eq(requestDTO.description()),
+                eq(requestDTO.type()),
+                eq(requestDTO.status()),
+                eq(requestDTO.targetValue()),
+                eq(requestDTO.dateCreation()),
+                eq(requestDTO.dateEnd()),
+                eq(10L),
+                eq(5L)
+        );
+    }
+
+    @Test
+    @DisplayName("Deve lançar 400 ao cadastrar meta via procedure quando data final for anterior à data de criação")
+    void deveLancar400AoCadastrarMetaViaProcedureComDataInvalida() {
+        StateGoalRequestDTO invalidDateRequest = new StateGoalRequestDTO(
+                "Título",
+                "Descrição",
+                "TYPE",
+                "PENDING",
+                new BigDecimal("10.0"),
+                LocalDate.of(2026, 12, 31),
+                LocalDate.of(2026, 1, 1),
+                10L,
+                "Sudeste"
+        );
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.createStateGoalViaProcedure(invalidDateRequest, 5L, admPrincipal)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(stateGoalRepository, never()).callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 409 quando procedure lançar DataIntegrityViolationException")
+    void deveLancar409QuandoProcedureLancarDataIntegrityViolation() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        doThrow(new DataIntegrityViolationException("Erro de FK"))
+                .when(stateGoalRepository).callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.createStateGoalViaProcedure(requestDTO, 5L, admPrincipal)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+    }
 }

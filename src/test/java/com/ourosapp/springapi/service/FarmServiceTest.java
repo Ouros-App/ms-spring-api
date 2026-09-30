@@ -12,6 +12,8 @@ import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.repository.FarmOwnerRepository;
 import com.ourosapp.springapi.repository.FarmRepository;
+import com.ourosapp.springapi.repository.StateGoalRepository;
+import com.ourosapp.springapi.repository.WaterRegistryRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -57,6 +59,12 @@ class FarmServiceTest {
 
     @Mock
     private FarmOwnerRepository farmOwnerRepository;
+
+    @Mock
+    private WaterRegistryRepository waterRegistryRepository;
+
+    @Mock
+    private StateGoalRepository stateGoalRepository;
 
     @InjectMocks
     private FarmService farmService;
@@ -1066,5 +1074,59 @@ class FarmServiceTest {
         assertEquals("Fazenda não encontrada para o ID: null", ex.getReason());
         verify(farmRepository, never()).findById(any());
         verify(farmRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("Deve obter consumo recente de água da fazenda com sucesso")
+    void deveObterConsumoRecenteDeAguaComSucesso() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(waterRegistryRepository.getLatestWaterConsumption(1L)).thenReturn(new BigDecimal("150.50"));
+
+        var response = farmService.getFarmWaterConsumption(1L, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.idFarm());
+        assertEquals(new BigDecimal("150.50"), response.waterConsumption());
+        verify(waterRegistryRepository).getLatestWaterConsumption(1L);
+    }
+
+    @Test
+    @DisplayName("Deve retornar zero quando consumo recente de água for nulo")
+    void deveRetornarZeroQuandoConsumoDeAguaForNulo() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(waterRegistryRepository.getLatestWaterConsumption(1L)).thenReturn(null);
+
+        var response = farmService.getFarmWaterConsumption(1L, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.idFarm());
+        assertEquals(BigDecimal.ZERO, response.waterConsumption());
+    }
+
+    @Test
+    @DisplayName("Deve obter progresso consolidado de metas com sucesso")
+    void deveObterProgressoMetasComSucesso() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(stateGoalRepository.getGoalsProgress(1L)).thenReturn(new BigDecimal("75.00"));
+
+        var response = farmService.getFarmGoalsProgress(1L, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.idFarm());
+        assertEquals(new BigDecimal("75.00"), response.goalsProgressPercentage());
+        verify(stateGoalRepository).getGoalsProgress(1L);
+    }
+
+    @Test
+    @DisplayName("Deve retornar zero quando progresso de metas for nulo")
+    void deveRetornarZeroQuandoProgressoMetasForNulo() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(stateGoalRepository.getGoalsProgress(1L)).thenReturn(null);
+
+        var response = farmService.getFarmGoalsProgress(1L, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.idFarm());
+        assertEquals(BigDecimal.ZERO, response.goalsProgressPercentage());
     }
 }
