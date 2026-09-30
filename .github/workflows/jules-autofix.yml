@@ -19,6 +19,10 @@ permissions:
   pull-requests: write
   issues: write
 
+concurrency:
+  group: jules-autofix-${{ github.event.issue.number || github.event.pull_request.number || github.inputs.pr_number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   autofix:
     name: jules-autofix
@@ -43,7 +47,11 @@ jobs:
       - name: Trigger Jules Auto-Fix Session
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN_EDIT: ${{ secrets.GITHUB_TOKEN_EDIT || secrets.GITHUB_TOKEN }}
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || github.event.inputs.pr_number }}
           COMMENT_BODY: ${{ github.event.comment.body || github.event.review.body || '@jules fix all' }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          REVIEW_ID: ${{ github.event.review.id }}
         run: node .github/scripts/jules-autofix.js
