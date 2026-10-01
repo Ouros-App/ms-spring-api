@@ -144,19 +144,16 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.save(any(Tip.class))).thenReturn(sampleTip);
-        when(farmTipRepository.existsByIdFarmAndIdTip(10L, 100L)).thenReturn(false);
-        when(tipCategoryRepository.existsByIdTipAndIdCategory(100L, 5L)).thenReturn(false);
+        when(tipRepository.callCreateTip("Manter ventilação mínima", 10L, 5L)).thenReturn(100L);
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
 
         assertNotNull(response);
         assertEquals(100L, response.id());
-        assertEquals("Manter os bicos dos nebulizadores limpos", response.tip());
+        assertEquals("Manter ventilação mínima", response.tip());
         assertEquals(10L, response.idFarm());
         assertEquals(List.of("Ambiência"), response.categories());
-        verify(farmTipRepository).save(any(FarmTip.class));
-        verify(tipCategoryRepository).save(any(TipCategory.class));
+        verify(tipRepository).callCreateTip("Manter ventilação mínima", 10L, 5L);
     }
 
     @Test
@@ -166,15 +163,14 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(sampleEmployee));
-        when(tipRepository.save(any(Tip.class))).thenReturn(sampleTip);
-        when(farmTipRepository.existsByIdFarmAndIdTip(10L, 100L)).thenReturn(true);
+        when(tipRepository.callCreateTip("Manter ventilação mínima", 10L, null)).thenReturn(100L);
 
         TipResponseDTO response = tipService.createTip(request, employeePrincipal);
 
         assertNotNull(response);
         assertEquals(100L, response.id());
         assertEquals(10L, response.idFarm());
-        verify(farmTipRepository, never()).save(any(FarmTip.class));
+        verify(tipRepository).callCreateTip("Manter ventilação mínima", 10L, null);
     }
 
     @Test
@@ -246,7 +242,7 @@ class TipServiceTest {
         TipRequestDTO request = new TipRequestDTO("Dica", 10L, null);
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
-        when(tipRepository.save(any(Tip.class)))
+        when(tipRepository.callCreateTip(any(), any(), any()))
                 .thenThrow(new DataIntegrityViolationException("duplicate"));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
@@ -767,18 +763,17 @@ class TipServiceTest {
     @Test
     @DisplayName("createTip - Não deve duplicar TipCategory se a associação já existir")
     void deveNaoDuplicarTipCategorySeJaExistir() {
-        TipRequestDTO request = new TipRequestDTO("Dica existente", 10L, List.of(5L));
+        Category secondCategory = Category.builder().id(6L).category("Manejo").build();
+        TipRequestDTO request = new TipRequestDTO("Dica existente", 10L, List.of(5L, 6L));
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
-        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.save(any(Tip.class))).thenReturn(sampleTip);
-        when(farmTipRepository.existsByIdFarmAndIdTip(10L, 100L)).thenReturn(true);
-        when(tipCategoryRepository.existsByIdTipAndIdCategory(100L, 5L)).thenReturn(true);
+        when(categoryRepository.findByIdIn(List.of(5L, 6L))).thenReturn(List.of(sampleCategory, secondCategory));
+        when(tipRepository.callCreateTip("Dica existente", 10L, 5L)).thenReturn(100L);
+        when(tipCategoryRepository.existsByIdTipAndIdCategory(100L, 6L)).thenReturn(true);
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
 
         assertNotNull(response);
-        verify(farmTipRepository, never()).save(any());
         verify(tipCategoryRepository, never()).save(any());
     }
 
@@ -843,9 +838,12 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
+        when(tipRepository.callCreateTip("Manter ventilação mínima", 10L, 5L)).thenReturn(100L);
 
-        assertDoesNotThrow(() -> tipService.createTipViaProcedure(request, adminPrincipal));
+        TipResponseDTO response = assertDoesNotThrow(() -> tipService.createTipViaProcedure(request, adminPrincipal));
 
+        assertNotNull(response);
+        assertEquals(100L, response.id());
         verify(tipRepository).callCreateTip("Manter ventilação mínima", 10L, 5L);
     }
 
@@ -855,9 +853,12 @@ class TipServiceTest {
         TipRequestDTO request = new TipRequestDTO("Manter ventilação mínima", 10L, null);
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(tipRepository.callCreateTip("Manter ventilação mínima", 10L, null)).thenReturn(100L);
 
-        assertDoesNotThrow(() -> tipService.createTipViaProcedure(request, adminPrincipal));
+        TipResponseDTO response = assertDoesNotThrow(() -> tipService.createTipViaProcedure(request, adminPrincipal));
 
+        assertNotNull(response);
+        assertEquals(100L, response.id());
         verify(tipRepository).callCreateTip("Manter ventilação mínima", 10L, null);
     }
 

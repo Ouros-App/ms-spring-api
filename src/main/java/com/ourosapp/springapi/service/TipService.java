@@ -64,38 +64,35 @@ public class TipService {
         validateFarmAccessPermission(farm, principal, "cadastrar dicas técnicas nesta fazenda");
 
         List<Category> categories = validateAndFetchCategories(request.categoryIds());
-
-        Tip tip = Tip.builder()
-                .tip(request.tip())
-                .build();
+        Long primaryCategoryId = (categories != null && !categories.isEmpty()) ? categories.get(0).getId() : null;
 
         try {
-            Tip saved = tipRepository.save(tip);
+            Long generatedTipId = tipRepository.callCreateTip(request.tip(), farm.getId(), primaryCategoryId);
 
-            if (!farmTipRepository.existsByIdFarmAndIdTip(farm.getId(), saved.getId())) {
-                farmTipRepository.save(FarmTip.builder()
-                        .idFarm(farm.getId())
-                        .idTip(saved.getId())
-                        .build());
-            }
-
-            if (!categories.isEmpty()) {
-                for (Category cat : categories) {
-                    if (!tipCategoryRepository.existsByIdTipAndIdCategory(saved.getId(), cat.getId())) {
+            // Se o payload informar múltiplas categorias, vincula as demais na tabela associativa
+            if (categories != null && categories.size() > 1) {
+                for (int i = 1; i < categories.size(); i++) {
+                    Category cat = categories.get(i);
+                    if (!tipCategoryRepository.existsByIdTipAndIdCategory(generatedTipId, cat.getId())) {
                         tipCategoryRepository.save(TipCategory.builder()
-                                .idTip(saved.getId())
+                                .idTip(generatedTipId)
                                 .idCategory(cat.getId())
                                 .build());
                     }
                 }
             }
 
-            List<String> categoryNames = categories.stream()
+            List<String> categoryNames = categories != null ? categories.stream()
                     .map(Category::getCategory)
                     .distinct()
-                    .toList();
+                    .toList() : List.of();
 
-            return TipResponseDTO.fromEntity(saved, farm.getId(), categoryNames, 0, 0.0);
+            Tip savedTip = Tip.builder()
+                    .id(generatedTipId)
+                    .tip(request.tip())
+                    .build();
+
+            return TipResponseDTO.fromEntity(savedTip, farm.getId(), categoryNames, 0, 0.0);
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
@@ -107,39 +104,15 @@ public class TipService {
 
     /**
      * Cadastra uma nova dica técnica utilizando a stored procedure PostgreSQL 'create_tip'.
-     * Substitui múltiplos inserts e sincronizações manuais pela chamada atômica da procedure.
+     * Substitui múltiplos inserts manuais pela chamada atômica da procedure com retorno de ID.
      *
      * @param request   dados da dica técnica a ser cadastrada
      * @param principal dados do usuário logado
+     * @return DTO com os dados da dica técnica criada e ID gerado
      */
     @Transactional
-    public void createTipViaProcedure(TipRequestDTO request, UserPrincipal principal) {
-        Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
-        ensureAuthenticated(principal);
-
-        String role = principal.getRole();
-        if (!ADM.equals(role) && !COMPANY_EMPLOYEE.equals(role)) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Perfil de usuário sem permissão para cadastrar dicas técnicas"
-            );
-        }
-
-        Farm farm = findFarmByIdOrThrow(request.idFarm());
-        validateFarmAccessPermission(farm, principal, "cadastrar dicas técnicas nesta fazenda");
-
-        List<Category> categories = validateAndFetchCategories(request.categoryIds());
-        Long primaryCategoryId = (categories != null && !categories.isEmpty()) ? categories.get(0).getId() : null;
-
-        try {
-            tipRepository.callCreateTip(request.tip(), farm.getId(), primaryCategoryId);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar dica técnica",
-                    ex
-            );
-        }
+    public TipResponseDTO createTipViaProcedure(TipRequestDTO request, UserPrincipal principal) {
+        return createTip(request, principal);
     }
 
     /**

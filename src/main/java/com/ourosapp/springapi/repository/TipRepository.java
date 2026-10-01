@@ -2,11 +2,9 @@ package com.ourosapp.springapi.repository;
 
 import com.ourosapp.springapi.entity.Tip;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.query.Procedure;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Repositório Spring Data JPA para a entidade {@link Tip}.
@@ -16,18 +14,18 @@ public interface TipRepository extends JpaRepository<Tip, Long> {
 
     /**
      * Executa a stored procedure PostgreSQL 'create_tip' para inserção da dica técnica
-     * e amarração atômica com a fazenda (farms_tips) e categoria (tip_categories).
+     * e amarração atômica com a fazenda (farms_tips) e categoria (tip_categories),
+     * retornando o ID numérico gerado da dica técnica.
      *
      * @param tip        texto descritivo da dica
      * @param idFarm     identificador da fazenda vinculada
      * @param idCategory identificador da categoria vinculada (pode ser nulo)
+     * @return identificador único gerado da dica técnica criada
      */
-    @Modifying
-    @Transactional
-    @Query(value = "CALL create_tip(:tip, :idFarm, :idCategory)", nativeQuery = true)
-    void callCreateTip(
-            @Param("tip") String tip,
-            @Param("idFarm") Long idFarm,
-            @Param("idCategory") Long idCategory
+    @Procedure(procedureName = "create_tip", outputParameterName = "p_tip_id")
+    Long callCreateTip(
+            @Param("p_tip") String tip,
+            @Param("p_id_farm") Long idFarm,
+            @Param("p_id_category") Long idCategory
     );
 }

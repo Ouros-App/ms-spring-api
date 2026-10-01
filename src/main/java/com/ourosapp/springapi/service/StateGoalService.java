@@ -64,38 +64,30 @@ public class StateGoalService {
 
         String region = request.region() != null && !request.region().isBlank() ? request.region() : farm.getRegion();
 
-        StateGoal goal = StateGoal.builder()
-                .title(request.title())
-                .description(request.description())
-                .type(request.type())
-                .status(request.status())
-                .targetValue(request.targetValue())
-                .dateCreation(request.dateCreation())
-                .dateEnd(request.dateEnd())
-                .idFarm(farm.getId())
-                .build();
-
         try {
-            StateGoal saved = stateGoalRepository.save(goal);
+            Long generatedGoalId = stateGoalRepository.callCreateStateGoal(
+                    request.title(),
+                    request.description(),
+                    request.type(),
+                    request.status(),
+                    request.targetValue(),
+                    request.dateCreation(),
+                    request.dateEnd(),
+                    farm.getId(),
+                    region
+            );
 
-            // Sincroniza tabela de junção farm_goals
-            if (!farmGoalRepository.existsByIdFarmAndIdGoal(farm.getId(), saved.getId())) {
-                farmGoalRepository.save(FarmGoal.builder()
-                        .idFarm(farm.getId())
-                        .idGoal(saved.getId())
-                        .build());
-            }
-
-            // Sincroniza tabelas regions_goals e state_goal_regions
-            RegionGoal regionGoal = regionGoalRepository.save(RegionGoal.builder()
-                    .region(region)
-                    .idGoal(saved.getId())
-                    .build());
-
-            stateGoalRegionRepository.save(StateGoalRegion.builder()
-                    .idGoal(saved.getId())
-                    .idRegion(regionGoal.getId())
-                    .build());
+            StateGoal saved = StateGoal.builder()
+                    .id(generatedGoalId)
+                    .title(request.title())
+                    .description(request.description())
+                    .type(request.type())
+                    .status(request.status())
+                    .targetValue(request.targetValue())
+                    .dateCreation(request.dateCreation())
+                    .dateEnd(request.dateEnd())
+                    .idFarm(farm.getId())
+                    .build();
 
             return StateGoalResponseDTO.fromEntity(saved, region);
         } catch (DataIntegrityViolationException ex) {
@@ -112,44 +104,25 @@ public class StateGoalService {
      * Substitui a persistência encadeada de 4 entidades por uma execução transacional atômica no banco de dados.
      *
      * @param request   dados da meta estadual
-     * @param idRegion  identificador numérico da região esperado pela procedure
      * @param principal dados do usuário autenticado no JWT
+     * @return DTO com os dados da meta estadual criada e ID gerado
      */
     @Transactional
-    public void createStateGoalViaProcedure(StateGoalRequestDTO request, Long idRegion, UserPrincipal principal) {
-        Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
-        ensureAuthenticated(principal);
+    public StateGoalResponseDTO createStateGoalViaProcedure(StateGoalRequestDTO request, UserPrincipal principal) {
+        return createStateGoal(request, principal);
+    }
 
-        Long farmId = resolveFarmIdForCreation(request.idFarm(), principal);
-        Farm farm = findFarmByIdOrThrow(farmId);
-        validateFarmAccessPermission(farm, principal, "cadastrar metas estaduais nesta fazenda");
-
-        if (request.dateEnd().isBefore(request.dateCreation())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "A data de término não pode ser anterior à data de criação"
-            );
-        }
-
-        try {
-            stateGoalRepository.callCreateStateGoal(
-                    request.title(),
-                    request.description(),
-                    request.type(),
-                    request.status(),
-                    request.targetValue(),
-                    request.dateCreation(),
-                    request.dateEnd(),
-                    farm.getId(),
-                    idRegion
-            );
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar meta estadual via procedure",
-                    ex
-            );
-        }
+    /**
+     * Sobrecarga de compatibilidade para chamada com idRegion numérico legado.
+     *
+     * @param request   dados da meta estadual
+     * @param idRegion  identificador numérico da região (ignorado em favor da região textual)
+     * @param principal dados do usuário autenticado no JWT
+     * @return DTO com os dados da meta estadual criada e ID gerado
+     */
+    @Transactional
+    public StateGoalResponseDTO createStateGoalViaProcedure(StateGoalRequestDTO request, Long idRegion, UserPrincipal principal) {
+        return createStateGoal(request, principal);
     }
 
     /**
