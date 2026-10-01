@@ -279,16 +279,14 @@ class StateGoalServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 409 Conflict quando ocorrer DataIntegrityViolationException no cadastro")
-    void deveLancar409QuandoDataIntegrityViolationNoCadastro() {
+    @DisplayName("Deve lançar DataIntegrityViolationException quando ocorrer erro de integridade no cadastro")
+    void deveLancarDataIntegrityViolationNoCadastro() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new DataIntegrityViolationException("Erro de FK"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        assertThrows(DataIntegrityViolationException.class,
                 () -> stateGoalService.createStateGoal(requestDTO, admPrincipal));
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     // ==========================================
@@ -1060,16 +1058,14 @@ class StateGoalServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 409 quando procedure lançar DataIntegrityViolationException")
-    void deveLancar409QuandoProcedureLancarDataIntegrityViolation() {
+    @DisplayName("Deve lançar DataIntegrityViolationException quando procedure falhar por integridade")
+    void deveLancarDataIntegrityViolationExceptionQuandoProcedureFalhar() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         doThrow(new DataIntegrityViolationException("Erro de FK"))
                 .when(stateGoalRepository).callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any());
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 stateGoalService.createStateGoalViaProcedure(requestDTO, admPrincipal)
         );
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 }

@@ -237,18 +237,17 @@ class TipServiceTest {
     }
 
     @Test
-    @DisplayName("createTip - Deve lançar 409 Conflict em caso de DataIntegrityViolationException")
-    void deveLancarConflictEmCasoDeViolacaoDeIntegridade() {
+    @DisplayName("createTip - Deve lançar DataIntegrityViolationException em caso de violação de integridade")
+    void deveLancarDataIntegrityViolationEmCasoDeViolacaoDeIntegridade() {
         TipRequestDTO request = new TipRequestDTO("Dica", 10L, null);
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(tipRepository.callCreateTip(any(), any(), any()))
                 .thenThrow(new DataIntegrityViolationException("duplicate"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 tipService.createTip(request, adminPrincipal)
         );
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test
@@ -860,18 +859,16 @@ class TipServiceTest {
     }
 
     @Test
-    @DisplayName("createTipViaProcedure - Deve lançar 409 quando procedure lançar DataIntegrityViolationException")
-    void deveLancar409QuandoProcedureTipLancarDataIntegrityViolation() {
+    @DisplayName("createTipViaProcedure - Deve lançar DataIntegrityViolationException quando procedure falhar por integridade")
+    void deveLancarDataIntegrityViolationQuandoProcedureTipFalhar() {
         TipRequestDTO request = new TipRequestDTO("Manter ventilação mínima", 10L, null);
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         doThrow(new DataIntegrityViolationException("FK error"))
                 .when(tipRepository).callCreateTip(any(), any(), any());
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 tipService.createTipViaProcedure(request, adminPrincipal)
         );
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 }

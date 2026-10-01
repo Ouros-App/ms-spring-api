@@ -66,40 +66,32 @@ public class TipService {
         List<Category> categories = validateAndFetchCategories(request.categoryIds());
         Long primaryCategoryId = (categories != null && !categories.isEmpty()) ? categories.get(0).getId() : null;
 
-        try {
-            Long generatedTipId = tipRepository.callCreateTip(request.tip(), farm.getId(), primaryCategoryId);
+        Long generatedTipId = tipRepository.callCreateTip(request.tip(), farm.getId(), primaryCategoryId);
 
-            // Se o payload informar múltiplas categorias, vincula as demais na tabela associativa
-            if (categories != null && categories.size() > 1) {
-                for (int i = 1; i < categories.size(); i++) {
-                    Category cat = categories.get(i);
-                    if (!tipCategoryRepository.existsByIdTipAndIdCategory(generatedTipId, cat.getId())) {
-                        tipCategoryRepository.save(TipCategory.builder()
-                                .idTip(generatedTipId)
-                                .idCategory(cat.getId())
-                                .build());
-                    }
+        // Se o payload informar múltiplas categorias, vincula as demais na tabela associativa
+        if (categories != null && categories.size() > 1) {
+            for (int i = 1; i < categories.size(); i++) {
+                Category cat = categories.get(i);
+                if (!tipCategoryRepository.existsByIdTipAndIdCategory(generatedTipId, cat.getId())) {
+                    tipCategoryRepository.save(TipCategory.builder()
+                            .idTip(generatedTipId)
+                            .idCategory(cat.getId())
+                            .build());
                 }
             }
-
-            List<String> categoryNames = categories != null ? categories.stream()
-                    .map(Category::getCategory)
-                    .distinct()
-                    .toList() : List.of();
-
-            Tip savedTip = Tip.builder()
-                    .id(generatedTipId)
-                    .tip(request.tip())
-                    .build();
-
-            return TipResponseDTO.fromEntity(savedTip, farm.getId(), categoryNames, 0, 0.0);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar dica técnica",
-                    ex
-            );
         }
+
+        List<String> categoryNames = categories != null ? categories.stream()
+                .map(Category::getCategory)
+                .distinct()
+                .toList() : List.of();
+
+        Tip savedTip = Tip.builder()
+                .id(generatedTipId)
+                .tip(request.tip())
+                .build();
+
+        return TipResponseDTO.fromEntity(savedTip, farm.getId(), categoryNames, 0, 0.0);
     }
 
     /**

@@ -64,39 +64,31 @@ public class StateGoalService {
 
         String region = request.region() != null && !request.region().isBlank() ? request.region() : farm.getRegion();
 
-        try {
-            Long generatedGoalId = stateGoalRepository.callCreateStateGoal(
-                    request.title(),
-                    request.description(),
-                    request.type(),
-                    request.status(),
-                    request.targetValue(),
-                    request.dateCreation(),
-                    request.dateEnd(),
-                    farm.getId(),
-                    region
-            );
+        Long generatedGoalId = stateGoalRepository.callCreateStateGoal(
+                request.title(),
+                request.description(),
+                request.type(),
+                request.status(),
+                request.targetValue(),
+                request.dateCreation(),
+                request.dateEnd(),
+                farm.getId(),
+                region
+        );
 
-            StateGoal saved = StateGoal.builder()
-                    .id(generatedGoalId)
-                    .title(request.title())
-                    .description(request.description())
-                    .type(request.type())
-                    .status(request.status())
-                    .targetValue(request.targetValue())
-                    .dateCreation(request.dateCreation())
-                    .dateEnd(request.dateEnd())
-                    .idFarm(farm.getId())
-                    .build();
+        StateGoal saved = StateGoal.builder()
+                .id(generatedGoalId)
+                .title(request.title())
+                .description(request.description())
+                .type(request.type())
+                .status(request.status())
+                .targetValue(request.targetValue())
+                .dateCreation(request.dateCreation())
+                .dateEnd(request.dateEnd())
+                .idFarm(farm.getId())
+                .build();
 
-            return StateGoalResponseDTO.fromEntity(saved, region);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar meta estadual",
-                    ex
-            );
-        }
+        return StateGoalResponseDTO.fromEntity(saved, region);
     }
 
     /**
