@@ -175,22 +175,6 @@ public class WaterRegistryService {
     }
 
     /**
-     * Obtém o consumo mais recente de água de uma fazenda via função analítica do banco de dados.
-     * Valida as permissões de acesso do usuário autenticado sobre a fazenda.
-     *
-     * @param farmId    identificador único da fazenda
-     * @param principal dados do usuário autenticado no JWT
-     * @return consumo recente de água calculado pelo hidrômetro
-     */
-    @Transactional(readOnly = true)
-    public BigDecimal getFarmWaterConsumption(Long farmId, UserPrincipal principal) {
-        Farm farm = findFarmByIdOrThrow(farmId);
-        validateFarmAccess(farm, principal, "visualizar métricas de consumo de água desta fazenda");
-        BigDecimal consumption = waterRegistryRepository.getLatestWaterConsumption(farm.getId());
-        return consumption != null ? consumption : BigDecimal.ZERO;
-    }
-
-    /**
      * Busca os detalhes de um registro de medição de água específico pelo seu ID.
      * Valida se o usuário autenticado possui permissão de leitura na fazenda vinculada.
      *
@@ -400,37 +384,6 @@ public class WaterRegistryService {
                 HttpStatus.FORBIDDEN,
                 "Perfil de usuário sem permissão para " + action + " este registro de água"
         );
-    }
-
-    /**
-     * Valida se o usuário autenticado possui permissão de acesso à fazenda informada.
-     *
-     * @param farm      fazenda a ser acessada
-     * @param principal dados do usuário logado
-     * @param action    descrição textual da ação
-     */
-    private void validateFarmAccess(Farm farm, UserPrincipal principal, String action) {
-        ensureAuthenticated(principal);
-
-        boolean isAuthorized = switch (principal.getRole()) {
-            case ADM -> true;
-            case COMPANY_EMPLOYEE -> Objects.equals(
-                    farm.getIdEnterprise(),
-                    getCompanyEmployeeOrThrow(principal.getId()).getIdEnterprise()
-            );
-            case FARM_OWNER -> Objects.equals(
-                    farm.getId(),
-                    getFarmOwnerOrThrow(principal.getId()).getIdFarm()
-            );
-            default -> throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Perfil de usuário sem permissão para acessar esta fazenda"
-            );
-        };
-
-        if (!isAuthorized) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para " + action);
-        }
     }
 
     /**

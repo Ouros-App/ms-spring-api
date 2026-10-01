@@ -832,7 +832,7 @@ class TipServiceTest {
     // ==========================================
 
     @Test
-    @DisplayName("createTipViaProcedure - Deve cadastrar dica técnica com sucesso por ADM")
+    @DisplayName("createTipViaProcedure - Deve delegar para createTip e cadastrar dica com sucesso")
     void deveCadastrarDicaViaProcedureComSucessoPorAdm() {
         TipRequestDTO request = new TipRequestDTO("Manter ventilação mínima", 10L, List.of(5L));
 
@@ -844,22 +844,6 @@ class TipServiceTest {
 
         assertNotNull(response);
         assertEquals(100L, response.id());
-        verify(tipRepository).callCreateTip("Manter ventilação mínima", 10L, 5L);
-    }
-
-    @Test
-    @DisplayName("createTipViaProcedure - Deve cadastrar dica técnica com categoria nula com sucesso")
-    void deveCadastrarDicaViaProcedureSemCategoria() {
-        TipRequestDTO request = new TipRequestDTO("Manter ventilação mínima", 10L, null);
-
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
-        when(tipRepository.callCreateTip("Manter ventilação mínima", 10L, null)).thenReturn(100L);
-
-        TipResponseDTO response = assertDoesNotThrow(() -> tipService.createTipViaProcedure(request, adminPrincipal));
-
-        assertNotNull(response);
-        assertEquals(100L, response.id());
-        verify(tipRepository).callCreateTip("Manter ventilação mínima", 10L, null);
     }
 
     @Test

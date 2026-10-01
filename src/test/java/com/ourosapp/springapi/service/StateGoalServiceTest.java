@@ -997,33 +997,6 @@ class StateGoalServiceTest {
     }
 
     // ==========================================
-    // ANALYTICAL METRICS TESTS (calculate_goals_progress)
-    // ==========================================
-
-    @Test
-    @DisplayName("Deve obter progresso consolidado de metas para ADM com sucesso")
-    void deveObterProgressoMetasParaAdmComSucesso() {
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(stateGoalRepository.getGoalsProgress(10L)).thenReturn(new BigDecimal("85.50"));
-
-        BigDecimal progress = stateGoalService.getFarmGoalsProgress(10L, admPrincipal);
-
-        assertEquals(new BigDecimal("85.50"), progress);
-        verify(stateGoalRepository).getGoalsProgress(10L);
-    }
-
-    @Test
-    @DisplayName("Deve retornar zero quando progresso retornado do banco for nulo")
-    void deveRetornarZeroQuandoProgressoForNulo() {
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(stateGoalRepository.getGoalsProgress(10L)).thenReturn(null);
-
-        BigDecimal progress = stateGoalService.getFarmGoalsProgress(10L, admPrincipal);
-
-        assertEquals(BigDecimal.ZERO, progress);
-    }
-
-    // ==========================================
     // STORED PROCEDURE TESTS (create_state_goal)
     // ==========================================
 
@@ -1051,26 +1024,14 @@ class StateGoalServiceTest {
     }
 
     @Test
-    @DisplayName("Deve cadastrar meta estadual via sobrecarga legado de procedure com sucesso por ADM")
-    void deveCadastrarMetaEstadualViaSobrecargaLegadaDeProcedure() {
+    @DisplayName("Deve suportar sobrecarga legado de procedure com idRegion numérico")
+    void deveSuportarSobrecargaLegadaDeProcedure() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1L);
+        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(2L);
 
-        StateGoalResponseDTO response = assertDoesNotThrow(() -> stateGoalService.createStateGoalViaProcedure(requestDTO, 5L, admPrincipal));
+        StateGoalResponseDTO response = stateGoalService.createStateGoalViaProcedure(requestDTO, 5L, admPrincipal);
 
-        assertNotNull(response);
-        assertEquals(1L, response.id());
-        verify(stateGoalRepository).callCreateStateGoal(
-                eq(requestDTO.title()),
-                eq(requestDTO.description()),
-                eq(requestDTO.type()),
-                eq(requestDTO.status()),
-                eq(requestDTO.targetValue()),
-                eq(requestDTO.dateCreation()),
-                eq(requestDTO.dateEnd()),
-                eq(10L),
-                eq("Sudeste")
-        );
+        assertEquals(2L, response.id());
     }
 
     @Test

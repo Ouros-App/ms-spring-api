@@ -250,22 +250,6 @@ public class StateGoalService {
     }
 
     /**
-     * Retorna o progresso percentual ponderado de metas de uma fazenda calculado via função analítica PostgreSQL.
-     * Valida as permissões de acesso do usuário autenticado sobre a fazenda.
-     *
-     * @param farmId    identificador único da fazenda
-     * @param principal dados do usuário logado
-     * @return percentual ponderado de progresso de metas
-     */
-    @Transactional(readOnly = true)
-    public java.math.BigDecimal getFarmGoalsProgress(Long farmId, UserPrincipal principal) {
-        Farm farm = findFarmByIdOrThrow(farmId);
-        validateFarmAccessPermission(farm, principal, "visualizar progresso de metas desta fazenda");
-        java.math.BigDecimal progress = stateGoalRepository.getGoalsProgress(farm.getId());
-        return progress != null ? progress : java.math.BigDecimal.ZERO;
-    }
-
-    /**
      * Busca os detalhes de uma meta estadual pelo seu ID.
      */
     @Transactional(readOnly = true)

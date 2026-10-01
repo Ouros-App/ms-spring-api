@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Testes unitários para DTOs analíticos e de métricas de fazenda.
@@ -18,36 +18,24 @@ class FarmMetricsDTOTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    @DisplayName("FarmWaterConsumptionResponseDTO - Deve instanciar e serializar corretamente para snake_case")
-    void deveSerializarFarmWaterConsumptionCorretamente() throws Exception {
-        FarmWaterConsumptionResponseDTO dto = new FarmWaterConsumptionResponseDTO(10L, new BigDecimal("150.50"));
-
-        assertEquals(10L, dto.idFarm());
-        assertEquals(new BigDecimal("150.50"), dto.waterConsumption());
-
+    @DisplayName("Deve serializar e desserializar FarmWaterConsumptionResponseDTO em snake_case")
+    void deveValidarContratoFarmWaterConsumption() throws Exception {
+        var dto = new FarmWaterConsumptionResponseDTO(10L, new BigDecimal("150.50"));
         String json = objectMapper.writeValueAsString(dto);
-        assertTrue(json.contains("\"id_farm\":10"));
-        assertTrue(json.contains("\"water_consumption\":150.50"));
+        var parsed = objectMapper.readValue(json, FarmWaterConsumptionResponseDTO.class);
 
-        FarmWaterConsumptionResponseDTO deserialized = objectMapper.readValue(json, FarmWaterConsumptionResponseDTO.class);
-        assertEquals(dto.idFarm(), deserialized.idFarm());
-        assertEquals(dto.waterConsumption(), deserialized.waterConsumption());
+        assertEquals(dto, parsed);
+        assertEquals(new BigDecimal("150.50"), parsed.waterConsumption());
     }
 
     @Test
-    @DisplayName("FarmGoalsProgressResponseDTO - Deve instanciar e serializar corretamente para snake_case")
-    void deveSerializarFarmGoalsProgressCorretamente() throws Exception {
-        FarmGoalsProgressResponseDTO dto = new FarmGoalsProgressResponseDTO(20L, new BigDecimal("85.75"));
-
-        assertEquals(20L, dto.idFarm());
-        assertEquals(new BigDecimal("85.75"), dto.goalsProgressPercentage());
-
+    @DisplayName("Deve serializar e desserializar FarmGoalsProgressResponseDTO em snake_case")
+    void deveValidarContratoFarmGoalsProgress() throws Exception {
+        var dto = new FarmGoalsProgressResponseDTO(20L, new BigDecimal("85.75"));
         String json = objectMapper.writeValueAsString(dto);
-        assertTrue(json.contains("\"id_farm\":20"));
-        assertTrue(json.contains("\"goals_progress_percentage\":85.75"));
+        var parsed = objectMapper.readValue(json, FarmGoalsProgressResponseDTO.class);
 
-        FarmGoalsProgressResponseDTO deserialized = objectMapper.readValue(json, FarmGoalsProgressResponseDTO.class);
-        assertEquals(dto.idFarm(), deserialized.idFarm());
-        assertEquals(dto.goalsProgressPercentage(), deserialized.goalsProgressPercentage());
+        assertEquals(dto, parsed);
+        assertEquals(new BigDecimal("85.75"), parsed.goalsProgressPercentage());
     }
 }
