@@ -144,19 +144,16 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.save(any(Tip.class))).thenReturn(sampleTip);
-        when(farmTipRepository.existsByIdFarmAndIdTip(10L, 100L)).thenReturn(false);
-        when(tipCategoryRepository.existsByIdTipAndIdCategory(100L, 5L)).thenReturn(false);
+        when(tipRepository.callCreateTip("Manter ventilação mínima", 10L, 5L)).thenReturn(100L);
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
 
         assertNotNull(response);
         assertEquals(100L, response.id());
-        assertEquals("Manter os bicos dos nebulizadores limpos", response.tip());
+        assertEquals("Manter ventilação mínima", response.tip());
         assertEquals(10L, response.idFarm());
         assertEquals(List.of("Ambiência"), response.categories());
-        verify(farmTipRepository).save(any(FarmTip.class));
-        verify(tipCategoryRepository).save(any(TipCategory.class));
+        verify(tipRepository).callCreateTip("Manter ventilação mínima", 10L, 5L);
     }
 
     @Test
@@ -166,15 +163,14 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(sampleEmployee));
-        when(tipRepository.save(any(Tip.class))).thenReturn(sampleTip);
-        when(farmTipRepository.existsByIdFarmAndIdTip(10L, 100L)).thenReturn(true);
+        when(tipRepository.callCreateTip("Manter ventilação mínima", 10L, null)).thenReturn(100L);
 
         TipResponseDTO response = tipService.createTip(request, employeePrincipal);
 
         assertNotNull(response);
         assertEquals(100L, response.id());
         assertEquals(10L, response.idFarm());
-        verify(farmTipRepository, never()).save(any(FarmTip.class));
+        verify(tipRepository).callCreateTip("Manter ventilação mínima", 10L, null);
     }
 
     @Test
@@ -241,18 +237,17 @@ class TipServiceTest {
     }
 
     @Test
-    @DisplayName("createTip - Deve lançar 409 Conflict em caso de DataIntegrityViolationException")
+    @DisplayName("createTip - Deve propagar DataIntegrityViolationException em caso de violação de integridade")
     void deveLancarConflictEmCasoDeViolacaoDeIntegridade() {
         TipRequestDTO request = new TipRequestDTO("Dica", 10L, null);
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
-        when(tipRepository.save(any(Tip.class)))
+        when(tipRepository.callCreateTip(any(), any(), any()))
                 .thenThrow(new DataIntegrityViolationException("duplicate"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 tipService.createTip(request, adminPrincipal)
         );
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test
@@ -677,7 +672,7 @@ class TipServiceTest {
     }
 
     @Test
-    @DisplayName("updateTip - Deve lançar 409 Conflict quando ocorrer DataIntegrityViolationException")
+    @DisplayName("updateTip - Deve propagar DataIntegrityViolationException quando ocorrer erro de integridade")
     void deveLancarConflictAoOcorrerViolacaoDeIntegridadeEmUpdateTip() {
         TipUpdateDTO request = new TipUpdateDTO("Novo texto", null);
 
@@ -685,10 +680,9 @@ class TipServiceTest {
         when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of());
         when(tipRepository.save(any(Tip.class))).thenThrow(new DataIntegrityViolationException("Erro"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 tipService.updateTip(100L, request, adminPrincipal)
         );
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test
@@ -717,15 +711,14 @@ class TipServiceTest {
     }
 
     @Test
-    @DisplayName("deleteTip - Deve lançar 409 Conflict quando ocorrer DataIntegrityViolationException ao remover")
+    @DisplayName("deleteTip - Deve propagar DataIntegrityViolationException quando ocorrer erro de integridade ao remover")
     void deveLancarConflictQuandoOcorrerViolacaoDeIntegridadeAoRemoverDica() {
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         doThrow(new DataIntegrityViolationException("FK")).when(tipCategoryRepository).deleteByIdTip(100L);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 tipService.deleteTip(100L, adminPrincipal)
         );
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test
@@ -767,18 +760,17 @@ class TipServiceTest {
     @Test
     @DisplayName("createTip - Não deve duplicar TipCategory se a associação já existir")
     void deveNaoDuplicarTipCategorySeJaExistir() {
-        TipRequestDTO request = new TipRequestDTO("Dica existente", 10L, List.of(5L));
+        Category secondCategory = Category.builder().id(6L).category("Manejo").build();
+        TipRequestDTO request = new TipRequestDTO("Dica existente", 10L, List.of(5L, 6L));
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
-        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.save(any(Tip.class))).thenReturn(sampleTip);
-        when(farmTipRepository.existsByIdFarmAndIdTip(10L, 100L)).thenReturn(true);
-        when(tipCategoryRepository.existsByIdTipAndIdCategory(100L, 5L)).thenReturn(true);
+        when(categoryRepository.findByIdIn(List.of(5L, 6L))).thenReturn(List.of(sampleCategory, secondCategory));
+        when(tipRepository.callCreateTip("Dica existente", 10L, 5L)).thenReturn(100L);
+        when(tipCategoryRepository.existsByIdTipAndIdCategory(100L, 6L)).thenReturn(true);
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
 
         assertNotNull(response);
-        verify(farmTipRepository, never()).save(any());
         verify(tipCategoryRepository, never()).save(any());
     }
 
@@ -831,4 +823,5 @@ class TipServiceTest {
         );
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
     }
+
 }

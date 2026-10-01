@@ -3,9 +3,11 @@ package com.ourosapp.springapi.service;
 import static com.ourosapp.springapi.constants.ErrorMessages.USER_NOT_AUTHENTICATED;
 
 import com.ourosapp.springapi.dto.address.AddressResponseDTO;
+import com.ourosapp.springapi.dto.farm.FarmGoalsProgressResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRequestDTO;
 import com.ourosapp.springapi.dto.farm.FarmResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmUpdateDTO;
+import com.ourosapp.springapi.dto.farm.FarmWaterConsumptionResponseDTO;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Farm;
 import com.ourosapp.springapi.entity.FarmOwner;
@@ -14,6 +16,8 @@ import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.repository.FarmOwnerRepository;
 import com.ourosapp.springapi.repository.FarmRepository;
+import com.ourosapp.springapi.repository.StateGoalRepository;
+import com.ourosapp.springapi.repository.WaterRegistryRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -38,6 +42,8 @@ public class FarmService {
     private final AddressService addressService;
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final FarmOwnerRepository farmOwnerRepository;
+    private final WaterRegistryRepository waterRegistryRepository;
+    private final StateGoalRepository stateGoalRepository;
 
     /**
      * Cadastra uma nova Fazenda vinculada à Empresa Integradora e ao Endereço.
@@ -269,6 +275,36 @@ public class FarmService {
                     ex
             );
         }
+    }
+
+    /**
+     * Retorna o consumo recente de água de uma fazenda calculado via função analítica PostgreSQL.
+     *
+     * @param farmId    identificador único da fazenda
+     * @param principal dados do usuário logado extraídos do token JWT
+     * @return DTO com o consumo recente de água da fazenda
+     */
+    @Transactional(readOnly = true)
+    public FarmWaterConsumptionResponseDTO getFarmWaterConsumption(Long farmId, UserPrincipal principal) {
+        Farm farm = findFarmByIdOrThrow(farmId);
+        validateFarmAccessPermission(farm, principal);
+        java.math.BigDecimal consumption = waterRegistryRepository.getLatestWaterConsumption(farm.getId());
+        return new FarmWaterConsumptionResponseDTO(farm.getId(), consumption != null ? consumption : java.math.BigDecimal.ZERO);
+    }
+
+    /**
+     * Retorna o progresso consolidado de metas de uma fazenda calculado via função analítica PostgreSQL.
+     *
+     * @param farmId    identificador único da fazenda
+     * @param principal dados do usuário logado extraídos do token JWT
+     * @return DTO com o percentual ponderado de progresso de metas
+     */
+    @Transactional(readOnly = true)
+    public FarmGoalsProgressResponseDTO getFarmGoalsProgress(Long farmId, UserPrincipal principal) {
+        Farm farm = findFarmByIdOrThrow(farmId);
+        validateFarmAccessPermission(farm, principal);
+        java.math.BigDecimal progress = stateGoalRepository.getGoalsProgress(farm.getId());
+        return new FarmGoalsProgressResponseDTO(farm.getId(), progress != null ? progress : java.math.BigDecimal.ZERO);
     }
 
     /**
