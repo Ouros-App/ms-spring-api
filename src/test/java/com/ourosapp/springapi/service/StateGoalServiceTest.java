@@ -684,17 +684,15 @@ class StateGoalServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 409 Conflict quando ocorrer DataIntegrityViolationException no update")
-    void deveLancar409QuandoDataIntegrityViolationNoUpdate() {
+    @DisplayName("Deve propagar DataIntegrityViolationException quando ocorrer erro de integridade no update")
+    void devePropagarDataIntegrityViolationNoUpdate() {
         StateGoalUpdateDTO updateDTO = new StateGoalUpdateDTO("ACHIEVED", null, null);
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(stateGoalRepository.save(any(StateGoal.class))).thenThrow(new DataIntegrityViolationException("Erro"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        assertThrows(DataIntegrityViolationException.class,
                 () -> stateGoalService.updateStateGoal(1L, updateDTO, admPrincipal));
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     // ==========================================

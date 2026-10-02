@@ -12,7 +12,6 @@ import com.ourosapp.springapi.entity.*;
 import com.ourosapp.springapi.repository.*;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -220,16 +219,8 @@ public class TipService {
             }
         }
 
-        try {
-            Tip updated = tipRepository.save(tip);
-            return enrichTips(List.of(updated)).get(0);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao atualizar dica técnica",
-                    ex
-            );
-        }
+        Tip updated = tipRepository.save(tip);
+        return enrichTips(List.of(updated)).get(0);
     }
 
     /**
@@ -254,18 +245,10 @@ public class TipService {
         List<FarmTip> farmTips = farmTipRepository.findByIdTip(tip.getId());
         validateTipWritePermission(farmTips, principal, "remover dica técnica desta fazenda");
 
-        try {
-            tipCategoryRepository.deleteByIdTip(tip.getId());
-            farmTipRepository.deleteByIdTip(tip.getId());
-            reviewRepository.deleteByIdTip(tip.getId());
-            tipRepository.delete(tip);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Não é possível remover a dica técnica pois existem dados vinculados a ela",
-                    ex
-            );
-        }
+        tipCategoryRepository.deleteByIdTip(tip.getId());
+        farmTipRepository.deleteByIdTip(tip.getId());
+        reviewRepository.deleteByIdTip(tip.getId());
+        tipRepository.delete(tip);
     }
 
     private List<TipResponseDTO> getTipsForSingleFarm(Farm farm) {

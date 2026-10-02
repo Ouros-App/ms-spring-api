@@ -14,7 +14,6 @@ import com.ourosapp.springapi.entity.*;
 import com.ourosapp.springapi.repository.*;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -299,16 +298,8 @@ public class StateGoalService {
             goal.setTargetValue(request.targetValue());
         }
 
-        try {
-            StateGoal updated = stateGoalRepository.save(goal);
-            return StateGoalResponseDTO.fromEntity(updated, region);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao atualizar meta estadual",
-                    ex
-            );
-        }
+        StateGoal updated = stateGoalRepository.save(goal);
+        return StateGoalResponseDTO.fromEntity(updated, region);
     }
 
     /**

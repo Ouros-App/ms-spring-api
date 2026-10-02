@@ -672,18 +672,17 @@ class TipServiceTest {
     }
 
     @Test
-    @DisplayName("updateTip - Deve lançar 409 Conflict quando ocorrer DataIntegrityViolationException")
-    void deveLancarConflictAoOcorrerViolacaoDeIntegridadeEmUpdateTip() {
+    @DisplayName("updateTip - Deve propagar DataIntegrityViolationException quando ocorrer no update")
+    void devePropagarDataIntegrityViolationAoOcorrerEmUpdateTip() {
         TipUpdateDTO request = new TipUpdateDTO("Novo texto", null);
 
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         when(farmTipRepository.findByIdTip(100L)).thenReturn(List.of());
         when(tipRepository.save(any(Tip.class))).thenThrow(new DataIntegrityViolationException("Erro"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 tipService.updateTip(100L, request, adminPrincipal)
         );
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test
@@ -712,15 +711,14 @@ class TipServiceTest {
     }
 
     @Test
-    @DisplayName("deleteTip - Deve lançar 409 Conflict quando ocorrer DataIntegrityViolationException ao remover")
-    void deveLancarConflictQuandoOcorrerViolacaoDeIntegridadeAoRemoverDica() {
+    @DisplayName("deleteTip - Deve propagar DataIntegrityViolationException quando ocorrer ao remover")
+    void devePropagarDataIntegrityViolationAoRemoverDica() {
         when(tipRepository.findById(100L)).thenReturn(Optional.of(sampleTip));
         doThrow(new DataIntegrityViolationException("FK")).when(tipCategoryRepository).deleteByIdTip(100L);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+        assertThrows(DataIntegrityViolationException.class, () ->
                 tipService.deleteTip(100L, adminPrincipal)
         );
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     @Test
