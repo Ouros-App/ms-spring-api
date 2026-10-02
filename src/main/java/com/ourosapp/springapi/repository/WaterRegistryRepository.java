@@ -45,6 +45,6 @@ public interface WaterRegistryRepository extends JpaRepository<WaterRegistry, Lo
      * @param farmId identificador único da fazenda
      * @return consumo recente calculado baseado na variação do hidrômetro
      */
-    @Query(value = "SELECT calculate_water_consumption(:farmId)", nativeQuery = true)
+    @Query(value = "SELECT calculate_water_consumption(CAST(:farmId AS INTEGER))", nativeQuery = true)
     BigDecimal getLatestWaterConsumption(@Param("farmId") Long farmId);
 }

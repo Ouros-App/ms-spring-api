@@ -39,7 +39,7 @@ public interface StateGoalRepository extends JpaRepository<StateGoal, Long> {
      * @param farmId identificador único da fazenda
      * @return percentual ponderado de progresso de metas (0 a 100%)
      */
-    @Query(value = "SELECT calculate_goals_progress(:farmId)", nativeQuery = true)
+    @Query(value = "SELECT calculate_goals_progress(CAST(:farmId AS INTEGER))", nativeQuery = true)
     BigDecimal getGoalsProgress(@Param("farmId") Long farmId);
 
     /**
