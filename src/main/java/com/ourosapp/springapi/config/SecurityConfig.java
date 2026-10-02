@@ -1,6 +1,7 @@
 package com.ourosapp.springapi.config;
 
 import com.ourosapp.springapi.security.AudienceValidator;
+import com.ourosapp.springapi.security.InternalAuthFilter;
 import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
 import com.ourosapp.springapi.security.RegistrationRateLimitFilter;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,6 +28,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -98,6 +100,26 @@ public class SecurityConfig {
     }
 
     /**
+     * Cadeia de segurança para chamadas internas Machine-to-Machine (/internal/v1/**).
+     * Autentica requisições utilizando cabeçalho X-Internal-Service-Key sem exigir token Keycloak.
+     */
+    @Bean
+    @Order(2)
+    public SecurityFilterChain internalSecurityFilterChain(
+            HttpSecurity http,
+            InternalAuthFilter internalAuthFilter
+    ) throws Exception {
+        return http
+                .securityMatcher("/internal/v1/**")
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .addFilterBefore(internalAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .build();
+    }
+
+    /**
      * Configura a cadeia de filtros de segurança HTTP.
      *
      * @param http o objeto HttpSecurity
@@ -105,7 +127,7 @@ public class SecurityConfig {
      * @throws Exception se ocorrer erro de configuração
      */
     @Bean
-    @Order(2)
+    @Order(3)
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             RegistrationRateLimitFilter registrationRateLimitFilter
