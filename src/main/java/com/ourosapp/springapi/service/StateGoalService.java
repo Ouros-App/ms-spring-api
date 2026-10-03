@@ -14,12 +14,12 @@ import com.ourosapp.springapi.entity.*;
 import com.ourosapp.springapi.repository.*;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -63,8 +63,25 @@ public class StateGoalService {
         }
 
         String region = request.region() != null && !request.region().isBlank() ? request.region() : farm.getRegion();
+        Integer farmIdInt = farm.getId() != null ? farm.getId().intValue() : null;
+        LocalDateTime dateCreation = request.dateCreation() != null ? request.dateCreation().atStartOfDay() : null;
+        LocalDateTime dateEnd = request.dateEnd() != null ? request.dateEnd().atStartOfDay() : null;
 
-        StateGoal goal = StateGoal.builder()
+        Integer generatedGoalIdInt = stateGoalRepository.callCreateStateGoal(
+                request.title(),
+                request.description(),
+                request.type(),
+                request.status(),
+                request.targetValue(),
+                dateCreation,
+                dateEnd,
+                farmIdInt,
+                region
+        );
+        Long generatedGoalId = generatedGoalIdInt != null ? generatedGoalIdInt.longValue() : null;
+
+        StateGoal saved = StateGoal.builder()
+                .id(generatedGoalId)
                 .title(request.title())
                 .description(request.description())
                 .type(request.type())
@@ -75,36 +92,33 @@ public class StateGoalService {
                 .idFarm(farm.getId())
                 .build();
 
-        try {
-            StateGoal saved = stateGoalRepository.save(goal);
+        return StateGoalResponseDTO.fromEntity(saved, region);
+    }
 
-            // Sincroniza tabela de junção farm_goals
-            if (!farmGoalRepository.existsByIdFarmAndIdGoal(farm.getId(), saved.getId())) {
-                farmGoalRepository.save(FarmGoal.builder()
-                        .idFarm(farm.getId())
-                        .idGoal(saved.getId())
-                        .build());
-            }
+    /**
+     * Cadastra uma nova meta estadual utilizando a stored procedure PostgreSQL 'create_state_goal'.
+     * Substitui a persistência encadeada de 4 entidades por uma execução transacional atômica no banco de dados.
+     *
+     * @param request   dados da meta estadual
+     * @param principal dados do usuário autenticado no JWT
+     * @return DTO com os dados da meta estadual criada e ID gerado
+     */
+    @Transactional
+    public StateGoalResponseDTO createStateGoalViaProcedure(StateGoalRequestDTO request, UserPrincipal principal) {
+        return createStateGoal(request, principal);
+    }
 
-            // Sincroniza tabelas regions_goals e state_goal_regions
-            RegionGoal regionGoal = regionGoalRepository.save(RegionGoal.builder()
-                    .region(region)
-                    .idGoal(saved.getId())
-                    .build());
-
-            stateGoalRegionRepository.save(StateGoalRegion.builder()
-                    .idGoal(saved.getId())
-                    .idRegion(regionGoal.getId())
-                    .build());
-
-            return StateGoalResponseDTO.fromEntity(saved, region);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar meta estadual",
-                    ex
-            );
-        }
+    /**
+     * Sobrecarga de compatibilidade para chamada com idRegion numérico legado.
+     *
+     * @param request   dados da meta estadual
+     * @param idRegion  identificador numérico da região (ignorado em favor da região textual)
+     * @param principal dados do usuário autenticado no JWT
+     * @return DTO com os dados da meta estadual criada e ID gerado
+     */
+    @Transactional
+    public StateGoalResponseDTO createStateGoalViaProcedure(StateGoalRequestDTO request, Long idRegion, UserPrincipal principal) {
+        return createStateGoal(request, principal);
     }
 
     /**
@@ -289,16 +303,8 @@ public class StateGoalService {
             goal.setTargetValue(request.targetValue());
         }
 
-        try {
-            StateGoal updated = stateGoalRepository.save(goal);
-            return StateGoalResponseDTO.fromEntity(updated, region);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao atualizar meta estadual",
-                    ex
-            );
-        }
+        StateGoal updated = stateGoalRepository.save(goal);
+        return StateGoalResponseDTO.fromEntity(updated, region);
     }
 
     /**

@@ -144,9 +144,17 @@ class StateGoalServiceTest {
     @DisplayName("Deve criar meta estadual com sucesso para ADM")
     void deveCriarMetaEstadualComSucessoParaAdm() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(stateGoalRepository.save(any(StateGoal.class))).thenReturn(goal);
-        when(regionGoalRepository.save(any(RegionGoal.class)))
-                .thenReturn(RegionGoal.builder().id(100L).region("Sudeste").idGoal(1L).build());
+        when(stateGoalRepository.callCreateStateGoal(
+                eq(requestDTO.title()),
+                eq(requestDTO.description()),
+                eq(requestDTO.type()),
+                eq(requestDTO.status()),
+                eq(requestDTO.targetValue()),
+                eq(requestDTO.dateCreation().atStartOfDay()),
+                eq(requestDTO.dateEnd().atStartOfDay()),
+                eq(10),
+                eq("Sudeste")
+        )).thenReturn(1);
 
         StateGoalResponseDTO response = stateGoalService.createStateGoal(requestDTO, admPrincipal);
 
@@ -154,10 +162,7 @@ class StateGoalServiceTest {
         assertEquals(1L, response.id());
         assertEquals("Meta Regional SP", response.title());
         assertEquals("Sudeste", response.region());
-        verify(stateGoalRepository, times(1)).save(any(StateGoal.class));
-        verify(farmGoalRepository, times(1)).save(any(FarmGoal.class));
-        verify(regionGoalRepository, times(1)).save(any(RegionGoal.class));
-        verify(stateGoalRegionRepository, times(1)).save(any(StateGoalRegion.class));
+        verify(stateGoalRepository, times(1)).callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -166,9 +171,7 @@ class StateGoalServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(stateGoalRepository.save(any(StateGoal.class))).thenReturn(goal);
-        when(regionGoalRepository.save(any(RegionGoal.class)))
-                .thenReturn(RegionGoal.builder().id(100L).region("Sudeste").idGoal(1L).build());
+        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
 
         StateGoalResponseDTO response = stateGoalService.createStateGoal(requestDTO, employeePrincipal);
 
@@ -187,9 +190,7 @@ class StateGoalServiceTest {
         FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(stateGoalRepository.save(any(StateGoal.class))).thenReturn(goal);
-        when(regionGoalRepository.save(any(RegionGoal.class)))
-                .thenReturn(RegionGoal.builder().id(100L).region("Sudeste").idGoal(1L).build());
+        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
 
         StateGoalResponseDTO response = stateGoalService.createStateGoal(dtoWithoutFarm, ownerPrincipal);
 
@@ -278,15 +279,14 @@ class StateGoalServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 409 Conflict quando ocorrer DataIntegrityViolationException no cadastro")
-    void deveLancar409QuandoDataIntegrityViolationNoCadastro() {
+    @DisplayName("Deve lançar DataIntegrityViolationException quando ocorrer erro de integridade no cadastro")
+    void deveLancarDataIntegrityViolationNoCadastro() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(stateGoalRepository.save(any(StateGoal.class))).thenThrow(new DataIntegrityViolationException("Erro de FK"));
+        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new DataIntegrityViolationException("Erro de FK"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        assertThrows(DataIntegrityViolationException.class,
                 () -> stateGoalService.createStateGoal(requestDTO, admPrincipal));
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     // ==========================================
@@ -684,17 +684,15 @@ class StateGoalServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 409 Conflict quando ocorrer DataIntegrityViolationException no update")
-    void deveLancar409QuandoDataIntegrityViolationNoUpdate() {
+    @DisplayName("Deve propagar DataIntegrityViolationException quando ocorrer erro de integridade no update")
+    void devePropagarDataIntegrityViolationNoUpdate() {
         StateGoalUpdateDTO updateDTO = new StateGoalUpdateDTO("ACHIEVED", null, null);
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(stateGoalRepository.save(any(StateGoal.class))).thenThrow(new DataIntegrityViolationException("Erro"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        assertThrows(DataIntegrityViolationException.class,
                 () -> stateGoalService.updateStateGoal(1L, updateDTO, admPrincipal));
-
-        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     // ==========================================
@@ -992,5 +990,80 @@ class StateGoalServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("Nordeste", result.get(0).region());
+    }
+
+    // ==========================================
+    // STORED PROCEDURE TESTS (create_state_goal)
+    // ==========================================
+
+    @Test
+    @DisplayName("Deve cadastrar meta estadual via procedure com sucesso por ADM")
+    void deveCadastrarMetaEstadualViaProcedureComSucessoPorAdm() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
+
+        StateGoalResponseDTO response = assertDoesNotThrow(() -> stateGoalService.createStateGoalViaProcedure(requestDTO, admPrincipal));
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        verify(stateGoalRepository).callCreateStateGoal(
+                eq(requestDTO.title()),
+                eq(requestDTO.description()),
+                eq(requestDTO.type()),
+                eq(requestDTO.status()),
+                eq(requestDTO.targetValue()),
+                eq(requestDTO.dateCreation().atStartOfDay()),
+                eq(requestDTO.dateEnd().atStartOfDay()),
+                eq(10),
+                eq("Sudeste")
+        );
+    }
+
+    @Test
+    @DisplayName("Deve suportar sobrecarga legado de procedure com idRegion numérico")
+    void deveSuportarSobrecargaLegadaDeProcedure() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(2);
+
+        StateGoalResponseDTO response = stateGoalService.createStateGoalViaProcedure(requestDTO, 5L, admPrincipal);
+
+        assertEquals(2L, response.id());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 400 ao cadastrar meta via procedure quando data final for anterior à data de criação")
+    void deveLancar400AoCadastrarMetaViaProcedureComDataInvalida() {
+        StateGoalRequestDTO invalidDateRequest = new StateGoalRequestDTO(
+                "Título",
+                "Descrição",
+                "TYPE",
+                "PENDING",
+                new BigDecimal("10.0"),
+                LocalDate.of(2026, 12, 31),
+                LocalDate.of(2026, 1, 1),
+                10L,
+                "Sudeste"
+        );
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.createStateGoalViaProcedure(invalidDateRequest, admPrincipal)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(stateGoalRepository, never()).callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar DataIntegrityViolationException quando procedure falhar por integridade")
+    void deveLancarDataIntegrityViolationExceptionQuandoProcedureFalhar() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        doThrow(new DataIntegrityViolationException("Erro de FK"))
+                .when(stateGoalRepository).callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any());
+
+        assertThrows(DataIntegrityViolationException.class, () ->
+                stateGoalService.createStateGoalViaProcedure(requestDTO, admPrincipal)
+        );
     }
 }
