@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -62,18 +63,22 @@ public class StateGoalService {
         }
 
         String region = request.region() != null && !request.region().isBlank() ? request.region() : farm.getRegion();
+        Integer farmIdInt = farm.getId() != null ? farm.getId().intValue() : null;
+        LocalDateTime dateCreation = request.dateCreation() != null ? request.dateCreation().atStartOfDay() : null;
+        LocalDateTime dateEnd = request.dateEnd() != null ? request.dateEnd().atStartOfDay() : null;
 
-        Long generatedGoalId = stateGoalRepository.callCreateStateGoal(
+        Integer generatedGoalIdInt = stateGoalRepository.callCreateStateGoal(
                 request.title(),
                 request.description(),
                 request.type(),
                 request.status(),
                 request.targetValue(),
-                request.dateCreation(),
-                request.dateEnd(),
-                farm.getId(),
+                dateCreation,
+                dateEnd,
+                farmIdInt,
                 region
         );
+        Long generatedGoalId = generatedGoalIdInt != null ? generatedGoalIdInt.longValue() : null;
 
         StateGoal saved = StateGoal.builder()
                 .id(generatedGoalId)

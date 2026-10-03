@@ -23,9 +23,9 @@ public interface TipRepository extends JpaRepository<Tip, Long> {
      * @return identificador único gerado da dica técnica criada
      */
     @Procedure(procedureName = "create_tip", outputParameterName = "p_tip_id")
-    Long callCreateTip(
+    Integer callCreateTip(
             @Param("p_tip") String tip,
-            @Param("p_id_farm") Long idFarm,
-            @Param("p_id_category") Long idCategory
+            @Param("p_id_farm") Integer idFarm,
+            @Param("p_id_category") Integer idCategory
     );
 }

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -52,22 +53,22 @@ public interface StateGoalRepository extends JpaRepository<StateGoal, Long> {
      * @param type         tipo da meta
      * @param status       status da meta
      * @param targetValue  valor alvo quantitativo
-     * @param dateCreation data de início / criação da meta
-     * @param dateEnd      data de término prevista
-     * @param idFarm       identificador da fazenda vinculada
+     * @param dateCreation data de início / criação da meta (TIMESTAMP)
+     * @param dateEnd      data de término prevista (TIMESTAMP)
+     * @param idFarm       identificador da fazenda vinculada (INTEGER)
      * @param region       nome da região vinculada
      * @return identificador único gerado da meta estadual criada
      */
     @Procedure(procedureName = "create_state_goal", outputParameterName = "p_goal_id")
-    Long callCreateStateGoal(
+    Integer callCreateStateGoal(
             @Param("p_title") String title,
             @Param("p_description") String description,
             @Param("p_type") String type,
             @Param("p_status") String status,
             @Param("p_target_value") BigDecimal targetValue,
-            @Param("p_date_creation") LocalDate dateCreation,
-            @Param("p_date_end") LocalDate dateEnd,
-            @Param("p_id_farm") Long idFarm,
+            @Param("p_date_creation") LocalDateTime dateCreation,
+            @Param("p_date_end") LocalDateTime dateEnd,
+            @Param("p_id_farm") Integer idFarm,
             @Param("p_region") String region
     );
 }

@@ -150,11 +150,11 @@ class StateGoalServiceTest {
                 eq(requestDTO.type()),
                 eq(requestDTO.status()),
                 eq(requestDTO.targetValue()),
-                eq(requestDTO.dateCreation()),
-                eq(requestDTO.dateEnd()),
-                eq(10L),
+                eq(requestDTO.dateCreation().atStartOfDay()),
+                eq(requestDTO.dateEnd().atStartOfDay()),
+                eq(10),
                 eq("Sudeste")
-        )).thenReturn(1L);
+        )).thenReturn(1);
 
         StateGoalResponseDTO response = stateGoalService.createStateGoal(requestDTO, admPrincipal);
 
@@ -171,7 +171,7 @@ class StateGoalServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1L);
+        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
 
         StateGoalResponseDTO response = stateGoalService.createStateGoal(requestDTO, employeePrincipal);
 
@@ -190,7 +190,7 @@ class StateGoalServiceTest {
         FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1L);
+        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
 
         StateGoalResponseDTO response = stateGoalService.createStateGoal(dtoWithoutFarm, ownerPrincipal);
 
@@ -1000,7 +1000,7 @@ class StateGoalServiceTest {
     @DisplayName("Deve cadastrar meta estadual via procedure com sucesso por ADM")
     void deveCadastrarMetaEstadualViaProcedureComSucessoPorAdm() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1L);
+        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
 
         StateGoalResponseDTO response = assertDoesNotThrow(() -> stateGoalService.createStateGoalViaProcedure(requestDTO, admPrincipal));
 
@@ -1012,9 +1012,9 @@ class StateGoalServiceTest {
                 eq(requestDTO.type()),
                 eq(requestDTO.status()),
                 eq(requestDTO.targetValue()),
-                eq(requestDTO.dateCreation()),
-                eq(requestDTO.dateEnd()),
-                eq(10L),
+                eq(requestDTO.dateCreation().atStartOfDay()),
+                eq(requestDTO.dateEnd().atStartOfDay()),
+                eq(10),
                 eq("Sudeste")
         );
     }
@@ -1023,7 +1023,7 @@ class StateGoalServiceTest {
     @DisplayName("Deve suportar sobrecarga legado de procedure com idRegion numérico")
     void deveSuportarSobrecargaLegadaDeProcedure() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(2L);
+        when(stateGoalRepository.callCreateStateGoal(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(2);
 
         StateGoalResponseDTO response = stateGoalService.createStateGoalViaProcedure(requestDTO, 5L, admPrincipal);
 

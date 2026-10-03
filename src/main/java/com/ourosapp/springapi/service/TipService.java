@@ -63,9 +63,13 @@ public class TipService {
         validateFarmAccessPermission(farm, principal, "cadastrar dicas técnicas nesta fazenda");
 
         List<Category> categories = validateAndFetchCategories(request.categoryIds());
-        Long primaryCategoryId = (categories != null && !categories.isEmpty()) ? categories.get(0).getId() : null;
+        Integer farmIdInt = farm.getId() != null ? farm.getId().intValue() : null;
+        Integer primaryCategoryId = (categories != null && !categories.isEmpty() && categories.get(0).getId() != null)
+                ? categories.get(0).getId().intValue()
+                : null;
 
-        Long generatedTipId = tipRepository.callCreateTip(request.tip(), farm.getId(), primaryCategoryId);
+        Integer generatedTipIdInt = tipRepository.callCreateTip(request.tip(), farmIdInt, primaryCategoryId);
+        Long generatedTipId = generatedTipIdInt != null ? generatedTipIdInt.longValue() : null;
 
         // Se o payload informar múltiplas categorias, vincula as demais na tabela associativa
         if (categories != null && categories.size() > 1) {
