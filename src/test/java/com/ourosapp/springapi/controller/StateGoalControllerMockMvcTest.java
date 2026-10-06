@@ -77,7 +77,7 @@ class StateGoalControllerMockMvcTest {
         StateGoalResponseDTO responseDTO = new StateGoalResponseDTO(
                 10L, "Meta Regional SP", "Meta estadual", "FEED_CONVERSION", "IN_PROGRESS",
                 new BigDecimal("1.6500"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
-                1L, "Sudeste"
+                "Sudeste"
         );
 
         when(stateGoalService.createStateGoal(any(StateGoalRequestDTO.class), any(UserPrincipal.class)))
@@ -99,7 +99,7 @@ class StateGoalControllerMockMvcTest {
         StateGoalResponseDTO responseDTO = new StateGoalResponseDTO(
                 10L, "Meta Regional SP", "Meta estadual", "FEED_CONVERSION", "IN_PROGRESS",
                 new BigDecimal("1.6500"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
-                1L, "Sudeste"
+                "Sudeste"
         );
 
         when(stateGoalService.getStateGoalsForUser(eq(1L), eq("Sudeste"), any(UserPrincipal.class)))
@@ -120,7 +120,7 @@ class StateGoalControllerMockMvcTest {
         StateGoalResponseDTO responseDTO = new StateGoalResponseDTO(
                 10L, "Meta Regional SP", "Meta estadual", "FEED_CONVERSION", "IN_PROGRESS",
                 new BigDecimal("1.6500"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
-                1L, "Sudeste"
+                "Sudeste"
         );
 
         when(stateGoalService.getStateGoalById(eq(10L), any(UserPrincipal.class)))
@@ -140,7 +140,7 @@ class StateGoalControllerMockMvcTest {
         StateGoalResponseDTO responseDTO = new StateGoalResponseDTO(
                 10L, "Meta Regional SP", "Meta estadual", "FEED_CONVERSION", "ACHIEVED",
                 new BigDecimal("1.5500"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 11, 30),
-                1L, "Sudeste"
+                "Sudeste"
         );
 
         when(stateGoalService.updateStateGoal(eq(10L), any(StateGoalUpdateDTO.class), any(UserPrincipal.class)))

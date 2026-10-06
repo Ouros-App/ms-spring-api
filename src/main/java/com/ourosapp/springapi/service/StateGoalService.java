@@ -95,7 +95,7 @@ public class StateGoalService {
                 .dateEnd(request.dateEnd())
                 .build();
 
-        return StateGoalResponseDTO.fromEntity(saved, farmId, region);
+        return StateGoalResponseDTO.fromEntity(saved, region);
     }
 
     /**
@@ -157,7 +157,7 @@ public class StateGoalService {
                         Long farmId = goalToFarmId.get(goal.getId());
                         Farm f = farmId != null ? farmMap.get(farmId) : null;
                         String defaultRegion = f != null ? f.getRegion() : null;
-                        return toResponseIfRegionMatches(goal, farmId, defaultRegion, regionFilter).stream();
+                        return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
                     })
                     .toList();
         } else if (COMPANY_EMPLOYEE.equals(role)) {
@@ -183,7 +183,7 @@ public class StateGoalService {
                         Long matchedFarmId = goalToFarmId.get(goal.getId());
                         Farm f = matchedFarmId != null ? farmMap.get(matchedFarmId) : null;
                         String defaultRegion = f != null ? f.getRegion() : null;
-                        return toResponseIfRegionMatches(goal, matchedFarmId, defaultRegion, regionFilter).stream();
+                        return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
                     })
                     .toList();
         } else if (FARM_OWNER.equals(role)) {
@@ -211,13 +211,12 @@ public class StateGoalService {
         List<StateGoal> goals = linkedGoalIds.isEmpty() ? List.of() : stateGoalRepository.findAllById(linkedGoalIds);
 
         return goals.stream()
-                .flatMap(goal -> toResponseIfRegionMatches(goal, farm.getId(), farm.getRegion(), regionFilter).stream())
+                .flatMap(goal -> toResponseIfRegionMatches(goal, farm.getRegion(), regionFilter).stream())
                 .toList();
     }
 
     private Optional<StateGoalResponseDTO> toResponseIfRegionMatches(
             StateGoal goal,
-            Long farmId,
             String defaultRegion,
             String regionFilter
     ) {
@@ -236,7 +235,7 @@ public class StateGoalService {
                 .map(RegionGoal::getRegion)
                 .findFirst()
                 .orElse(defaultRegion);
-        return Optional.of(StateGoalResponseDTO.fromEntity(goal, farmId, primaryRegion));
+        return Optional.of(StateGoalResponseDTO.fromEntity(goal, primaryRegion));
     }
 
     private boolean regionsMatch(String region, String regionFilter) {
@@ -260,8 +259,7 @@ public class StateGoalService {
                 .findFirst()
                 .orElse(primaryFarm != null ? primaryFarm.getRegion() : null);
 
-        Long farmId = primaryFarm != null ? primaryFarm.getId() : null;
-        return StateGoalResponseDTO.fromEntity(goal, farmId, region);
+        return StateGoalResponseDTO.fromEntity(goal, region);
     }
 
     /**
@@ -286,10 +284,8 @@ public class StateGoalService {
                 .findFirst()
                 .orElse(primaryFarm != null ? primaryFarm.getRegion() : null);
 
-        Long farmId = primaryFarm != null ? primaryFarm.getId() : null;
-
         if (!request.hasUpdates()) {
-            return StateGoalResponseDTO.fromEntity(goal, farmId, region);
+            return StateGoalResponseDTO.fromEntity(goal, region);
         }
 
         if (request.status() != null && !request.status().isBlank()) {
@@ -309,7 +305,7 @@ public class StateGoalService {
         }
 
         StateGoal updated = stateGoalRepository.save(goal);
-        return StateGoalResponseDTO.fromEntity(updated, farmId, region);
+        return StateGoalResponseDTO.fromEntity(updated, region);
     }
 
     /**

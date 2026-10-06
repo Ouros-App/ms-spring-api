@@ -284,7 +284,6 @@ class StateGoalServiceTest {
 
         assertNotNull(response);
         assertEquals(1L, response.id());
-        assertNull(response.idFarm());
         assertEquals("Sudeste", response.region());
     }
 
@@ -312,7 +311,6 @@ class StateGoalServiceTest {
 
         assertNotNull(response);
         assertEquals(1L, response.id());
-        assertNull(response.idFarm());
         assertEquals("Sudeste", response.region());
     }
 

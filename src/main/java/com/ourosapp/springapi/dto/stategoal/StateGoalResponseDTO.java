@@ -19,7 +19,6 @@ import java.util.Objects;
  * @param targetValue  Valor numérico alvo da meta
  * @param dateCreation Data de início da meta
  * @param dateEnd      Data de término da meta
- * @param idFarm       Identificador único da fazenda vinculada
  * @param region       Região de abrangência da meta
  */
 @Schema(description = "Resposta contendo os dados detalhados da meta estadual")
@@ -52,23 +51,18 @@ public record StateGoalResponseDTO(
         @JsonProperty("date_end")
         LocalDate dateEnd,
 
-        @Schema(description = "Identificador único da fazenda vinculada", example = "1")
-        @JsonProperty("id_farm")
-        Long idFarm,
-
         @Schema(description = "Região de abrangência da meta", example = "Sudeste")
         String region
 ) {
     /**
-     * Converte uma entidade {@link StateGoal}, o ID da fazenda e a região correspondente em {@link StateGoalResponseDTO}.
+     * Converte uma entidade {@link StateGoal} e a região correspondente em {@link StateGoalResponseDTO}.
      *
      * @param goal   entidade a ser convertida (não deve ser nula)
-     * @param idFarm identificador da fazenda vinculada (pode ser nulo)
-     * @param region região associada à fazenda da meta
+     * @param region região associada à meta
      * @return DTO correspondente
      * @throws NullPointerException se goal for nulo
      */
-    public static StateGoalResponseDTO fromEntity(StateGoal goal, Long idFarm, String region) {
+    public static StateGoalResponseDTO fromEntity(StateGoal goal, String region) {
         Objects.requireNonNull(goal, "StateGoal não pode ser nulo");
         return new StateGoalResponseDTO(
                 goal.getId(),
@@ -79,20 +73,8 @@ public record StateGoalResponseDTO(
                 goal.getTargetValue(),
                 goal.getDateCreation(),
                 goal.getDateEnd(),
-                idFarm,
                 region
         );
     }
-
-    /**
-     * Converte uma entidade {@link StateGoal} e a região correspondente em {@link StateGoalResponseDTO}.
-     *
-     * @param goal   entidade a ser convertida (não deve ser nula)
-     * @param region região associada à fazenda da meta
-     * @return DTO correspondente
-     * @throws NullPointerException se goal for nulo
-     */
-    public static StateGoalResponseDTO fromEntity(StateGoal goal, String region) {
-        return fromEntity(goal, null, region);
-    }
 }
+

@@ -1946,17 +1946,13 @@ class DTOAndEntityTest {
                 .dateEnd(LocalDate.of(2026, 12, 31))
                 .build();
 
-        StateGoalResponseDTO dtoWithFarm = StateGoalResponseDTO.fromEntity(goal, 10L, "Sudeste");
-        assertEquals(1L, dtoWithFarm.id());
-        assertEquals("Meta Estadual", dtoWithFarm.title());
-        assertEquals("Sudeste", dtoWithFarm.region());
-        assertEquals(new BigDecimal("1.6500"), dtoWithFarm.targetValue());
-        assertEquals(10L, dtoWithFarm.idFarm());
+        StateGoalResponseDTO dto = StateGoalResponseDTO.fromEntity(goal, "Sudeste");
+        assertEquals(1L, dto.id());
+        assertEquals("Meta Estadual", dto.title());
+        assertEquals("Sudeste", dto.region());
+        assertEquals(new BigDecimal("1.6500"), dto.targetValue());
 
-        StateGoalResponseDTO dtoWithoutFarm = StateGoalResponseDTO.fromEntity(goal, "Sudeste");
-        assertNull(dtoWithoutFarm.idFarm());
-
-        String json = objectMapper.writeValueAsString(dtoWithFarm);
+        String json = objectMapper.writeValueAsString(dto);
         assertTrue(json.contains("\"target_value\":1.6500"));
         assertTrue(json.contains("\"region\":\"Sudeste\""));
 
