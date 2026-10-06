@@ -775,6 +775,54 @@ class TipServiceTest {
     }
 
     @Test
+    @DisplayName("createTip - Deve salvar associacao em tipCategory quando associacao nao existir para multiplas categorias")
+    void deveSalvarTipCategoryQuandoNaoExistirParaMultiplasCategorias() {
+        Category secondCategory = Category.builder().id(6L).category("Manejo").build();
+        TipRequestDTO request = new TipRequestDTO("Nova dica multi", 10L, List.of(5L, 6L));
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(categoryRepository.findByIdIn(List.of(5L, 6L))).thenReturn(List.of(sampleCategory, secondCategory));
+        when(tipRepository.callCreateTip("Nova dica multi", 10, 5)).thenReturn(101);
+        when(tipCategoryRepository.existsByIdTipAndIdCategory(101L, 6L)).thenReturn(false);
+
+        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(101L, response.id());
+        verify(tipCategoryRepository).save(any(TipCategory.class));
+    }
+
+    @Test
+    @DisplayName("createTip - Deve criar dica com id nulo quando procedure retornar nulo")
+    void deveCriarDicaComIdNuloQuandoProcedureRetornarNulo() {
+        TipRequestDTO request = new TipRequestDTO("Dica sem id gerado", 10L, List.of());
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(tipRepository.callCreateTip("Dica sem id gerado", 10, null)).thenReturn(null);
+
+        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
+
+        assertNotNull(response);
+        assertNull(response.id());
+    }
+
+    @Test
+    @DisplayName("createTip - Deve lidar com primeira categoria com id nulo")
+    void deveLidarComPrimeiraCategoriaComIdNulo() {
+        Category categoryWithNullId = Category.builder().id(null).category("Sem ID").build();
+        TipRequestDTO request = new TipRequestDTO("Dica cat sem id", 10L, List.of(99L));
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(categoryRepository.findByIdIn(List.of(99L))).thenReturn(List.of(categoryWithNullId));
+        when(tipRepository.callCreateTip("Dica cat sem id", 10, null)).thenReturn(102);
+
+        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(102L, response.id());
+    }
+
+    @Test
     @DisplayName("updateTip - Deve ignorar texto em branco e atualizar apenas categorias")
     void deveIgnorarTextoEmBrancoAoAtualizarDica() {
         TipUpdateDTO request = new TipUpdateDTO("   ", List.of(5L));

@@ -1885,6 +1885,15 @@ class DTOAndEntityTest {
         assertFalse(validator.validate(invalidDateOrder).isEmpty());
 
         // DTO inválido com campos nulos e valores negativos
+        StateGoalRequestDTO allNulls = new StateGoalRequestDTO(
+                null, null, null, null, null, null, null, null, null
+        );
+        assertNull(allNulls.title());
+        assertNull(allNulls.description());
+        assertNull(allNulls.type());
+        assertNull(allNulls.status());
+        assertNull(allNulls.region());
+
         StateGoalRequestDTO invalid = new StateGoalRequestDTO(
                 "", null, "", "", new BigDecimal("-10.0000"), null, null, -1L, null
         );

@@ -51,7 +51,7 @@ public class StateGoalService {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         ensureAuthenticated(principal);
 
-        if (request.dateEnd().isBefore(request.dateCreation())) {
+        if (request.dateEnd() != null && request.dateCreation() != null && request.dateEnd().isBefore(request.dateCreation())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "A data de término não pode ser anterior à data de criação"

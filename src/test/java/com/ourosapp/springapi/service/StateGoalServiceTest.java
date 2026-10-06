@@ -1167,4 +1167,342 @@ class StateGoalServiceTest {
                 stateGoalService.createStateGoalViaProcedure(requestDTO, admPrincipal)
         );
     }
+
+    // ==========================================
+    // COBERTURA DE BRANCHES E PRIMARY FARM NULA
+    // ==========================================
+
+    @Test
+    @DisplayName("updateStateGoal - Deve atualizar com sucesso quando primaryFarm for nula e usuário for ADM")
+    void deveAtualizarMetaEstadualSemFazendaPrincipalQuandoAdm() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+        when(stateGoalRepository.save(any(StateGoal.class))).thenReturn(goal);
+
+        StateGoalResponseDTO res = stateGoalService.updateStateGoal(1L, new StateGoalUpdateDTO("DONE", null, null), admPrincipal);
+
+        assertNotNull(res);
+        assertEquals("DONE", goal.getStatus());
+    }
+
+    @Test
+    @DisplayName("updateStateGoal - Deve lançar 403 quando primaryFarm for nula e usuário não for ADM")
+    void deveLancar403AoAtualizarMetaEstadualSemFazendaPrincipalQuandoNaoAdm() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.updateStateGoal(1L, new StateGoalUpdateDTO("DONE", null, null), employeePrincipal)
+        );
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("deleteStateGoal - Deve remover com sucesso quando primaryFarm for nula e usuário for ADM")
+    void deveRemoverMetaEstadualSemFazendaPrincipalQuandoAdm() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        assertDoesNotThrow(() -> stateGoalService.deleteStateGoal(1L, admPrincipal));
+
+        verify(stateGoalRepository).delete(goal);
+    }
+
+    @Test
+    @DisplayName("deleteStateGoal - Deve lançar 403 quando primaryFarm for nula e usuário não for ADM")
+    void deveLancar403AoRemoverMetaEstadualSemFazendaPrincipalQuandoNaoAdm() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.deleteStateGoal(1L, employeePrincipal)
+        );
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(stateGoalRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("addFarmToStateGoal - Deve vincular fazenda com sucesso quando primaryFarm for nula e usuário for ADM")
+    void deveAdicionarFazendaAMetaEstadualSemFazendaPrincipalQuandoAdm() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(10L, 1L)).thenReturn(false);
+
+        assertDoesNotThrow(() -> stateGoalService.addFarmToStateGoal(1L, 10L, admPrincipal));
+
+        verify(farmGoalRepository).save(any(FarmGoal.class));
+    }
+
+    @Test
+    @DisplayName("addFarmToStateGoal - Deve lançar 403 quando primaryFarm for nula e usuário não for ADM")
+    void deveLancar403AoAdicionarFazendaAMetaSemFazendaPrincipalQuandoNaoAdm() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.addFarmToStateGoal(1L, 10L, employeePrincipal)
+        );
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("removeFarmFromStateGoal - Deve desvincular fazenda quando primaryFarm for nula e usuário for ADM")
+    void deveRemoverFazendaDeMetaEstadualSemFazendaPrincipalQuandoAdm() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+
+        assertDoesNotThrow(() -> stateGoalService.removeFarmFromStateGoal(1L, 10L, admPrincipal));
+
+        verify(farmGoalRepository).deleteByIdFarmAndIdGoal(10L, 1L);
+    }
+
+    @Test
+    @DisplayName("removeFarmFromStateGoal - Deve lançar 403 quando primaryFarm for nula e usuário não for ADM")
+    void deveLancar403AoRemoverFazendaDeMetaSemFazendaPrincipalQuandoNaoAdm() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.removeFarmFromStateGoal(1L, 10L, employeePrincipal)
+        );
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("getFarmsByStateGoalId - Deve retornar lista vazia quando farmIds for vazio e primaryFarm for nula")
+    void deveRetornarListaVaziaAoBuscarFazendasDeMetaSemVinculoEFazendaPrincipalNula() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        List<FarmResponseDTO> farms = stateGoalService.getFarmsByStateGoalId(1L, admPrincipal);
+
+        assertNotNull(farms);
+        assertTrue(farms.isEmpty());
+    }
+
+    @Test
+    @DisplayName("addRegionToStateGoal e removeRegion - Deve gerenciar região com sucesso quando primaryFarm for nula e usuário for ADM")
+    void deveAdicionarERemoverRegiaoSemFazendaPrincipalQuandoAdm() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+        when(regionGoalRepository.existsByRegionAndIdGoal("Norte", 1L)).thenReturn(false);
+        RegionGoal savedRg = RegionGoal.builder().id(50L).region("Norte").idGoal(1L).build();
+        when(regionGoalRepository.save(any(RegionGoal.class))).thenReturn(savedRg);
+
+        stateGoalService.addRegionToStateGoal(1L, new RegionGoalRequestDTO("Norte"), admPrincipal);
+        verify(stateGoalRegionRepository).save(any(StateGoalRegion.class));
+
+        when(regionGoalRepository.findByRegionAndIdGoal("Norte", 1L)).thenReturn(Optional.of(savedRg));
+        stateGoalService.removeRegionFromStateGoal(1L, "Norte", admPrincipal);
+        verify(stateGoalRegionRepository).deleteByIdGoalAndIdRegion(1L, 50L);
+        verify(regionGoalRepository).delete(savedRg);
+    }
+
+    @Test
+    @DisplayName("createStateGoal - Deve preencher região da fazenda quando a região do request for em branco")
+    void deveCriarMetaComRegiaoDaFazendaQuandoRegiaoDoRequestForVazia() {
+        StateGoalRequestDTO blankRegionRequest = new StateGoalRequestDTO(
+                "Título",
+                "Descrição",
+                "FEED_CONVERSION",
+                "IN_PROGRESS",
+                new BigDecimal("1.5000"),
+                LocalDate.of(2026, 1, 1),
+                LocalDate.of(2026, 12, 31),
+                10L,
+                "   "
+        );
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(stateGoalRepository.callCreateStateGoal(
+                any(), any(), any(), any(), any(), any(), any(), eq(10), eq("Sudeste")
+        )).thenReturn(99);
+
+        StateGoalResponseDTO res = stateGoalService.createStateGoal(blankRegionRequest, admPrincipal);
+
+        assertNotNull(res);
+        assertEquals(99L, res.id());
+    }
+
+    @Test
+    @DisplayName("createStateGoal - Deve suportar datas e idFarm nulos e retorno de procedure nulo")
+    void deveCriarMetaComIdNuloEDatasNulasQuandoNaoInformadas() {
+        StateGoalRequestDTO nullDatesRequest = new StateGoalRequestDTO(
+                "Título",
+                "Descrição",
+                "FEED_CONVERSION",
+                "IN_PROGRESS",
+                new BigDecimal("1.5000"),
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(stateGoalRepository.callCreateStateGoal(
+                any(), any(), any(), any(), any(), isNull(), isNull(), isNull(), isNull()
+        )).thenReturn(null);
+
+        StateGoalResponseDTO res = stateGoalService.createStateGoal(nullDatesRequest, admPrincipal);
+
+        assertNotNull(res);
+        assertNull(res.id());
+    }
+
+    @Test
+    @DisplayName("createStateGoal - Deve lançar 403 para usuário com perfil não autorizado ao tentar criar sem idFarm")
+    void deveLancar403AoCriarMetaComPerfilNaoPermitido() {
+        UserPrincipal guestPrincipal = new UserPrincipal(
+                99L, "guest@ouros.com", null, "GUEST", List.of(new SimpleGrantedAuthority("ROLE_GUEST"))
+        );
+        StateGoalRequestDTO requestWithoutFarm = new StateGoalRequestDTO(
+                "Título", "Descrição", "FEED_CONVERSION", "IN_PROGRESS", new BigDecimal("1.5"), null, null, null, "Sul"
+        );
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.createStateGoal(requestWithoutFarm, guestPrincipal)
+        );
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("getStateGoalsForUser - Deve listar metas para ADM mesmo quando meta não possuir fazenda vinculada")
+    void deveListarMetasParaAdmQuandoMetaNaoPossuiFazendaVinculada() {
+        when(stateGoalRepository.findAll()).thenReturn(List.of(goal));
+        when(farmGoalRepository.findAll()).thenReturn(List.of());
+        when(farmRepository.findAllById(any())).thenReturn(List.of());
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        List<StateGoalResponseDTO> res = stateGoalService.getStateGoalsForUser(null, null, admPrincipal);
+
+        assertNotNull(res);
+        assertEquals(1, res.size());
+    }
+
+    @Test
+    @DisplayName("getStateGoalsForUser - Deve retornar lista vazia para CompanyEmployee quando não houver metas vinculadas às fazendas")
+    void deveListarMetasParaCompanyEmployeeQuandoNaoHouverMetasVinculadas() {
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(
+                CompanyEmployee.builder().id(2L).idEnterprise(50L).build()
+        ));
+        when(farmRepository.findAllByIdEnterprise(50L)).thenReturn(List.of(farm));
+        when(farmGoalRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of());
+
+        List<StateGoalResponseDTO> res = stateGoalService.getStateGoalsForUser(null, null, employeePrincipal);
+
+        assertNotNull(res);
+        assertTrue(res.isEmpty());
+    }
+
+    @Test
+    @DisplayName("getStateGoalById - Deve permitir CompanyEmployee visualizar meta sem fazenda principal quando vinculada a fazenda da sua empresa")
+    void devePermitirCompanyEmployeeAcessarMetaSemFazendaPrincipalQuandoVinculadaAFazendaDaEmpresa() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        // primaryFarm é nula
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()
+        ));
+        when(farmRepository.findById(10L)).thenReturn(Optional.empty());
+
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(
+                CompanyEmployee.builder().id(2L).idEnterprise(50L).build()
+        ));
+        when(farmRepository.findAllById(List.of(10L))).thenReturn(List.of(farm));
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        StateGoalResponseDTO res = stateGoalService.getStateGoalById(1L, employeePrincipal);
+
+        assertNotNull(res);
+        assertEquals(1L, res.id());
+    }
+
+    @Test
+    @DisplayName("getStateGoalById - Deve lançar 403 para CompanyEmployee quando meta sem fazenda principal não tiver vínculo com sua empresa")
+    void deveLancar403ParaCompanyEmployeeAcessarMetaSemFazendaPrincipalQuandoNaoPertencerASuaEmpresa() {
+        Farm otherEnterpriseFarm = Farm.builder().id(20L).idEnterprise(999L).build();
+
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(20L).idGoal(1L).build()
+        ));
+        when(farmRepository.findById(20L)).thenReturn(Optional.empty());
+
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(
+                CompanyEmployee.builder().id(2L).idEnterprise(50L).build()
+        ));
+        when(farmRepository.findAllById(List.of(20L))).thenReturn(List.of(otherEnterpriseFarm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.getStateGoalById(1L, employeePrincipal)
+        );
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("getStateGoalById - Deve permitir FarmOwner visualizar meta sem fazenda principal se vinculada à sua fazenda")
+    void devePermitirFarmOwnerVisualizarMetaSemFazendaPrincipalQuandoVinculadaASuaFazenda() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of()); // primaryFarm = null
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(
+                FarmOwner.builder().id(3L).idFarm(10L).build()
+        ));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(10L, 1L)).thenReturn(true);
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        StateGoalResponseDTO res = stateGoalService.getStateGoalById(1L, ownerPrincipal);
+
+        assertNotNull(res);
+        assertEquals(1L, res.id());
+    }
+
+    @Test
+    @DisplayName("getStateGoalById - Deve lançar 403 para FarmOwner visualizar meta sem fazenda principal se não vinculada à sua fazenda")
+    void deveLancar403ParaFarmOwnerVisualizarMetaSemFazendaPrincipalQuandoNaoVinculadaASuaFazenda() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of()); // primaryFarm = null
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(
+                FarmOwner.builder().id(3L).idFarm(10L).build()
+        ));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(10L, 1L)).thenReturn(false);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.getStateGoalById(1L, ownerPrincipal)
+        );
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("validateStateGoalReadPermission - Deve lançar 403 para perfil desconhecido")
+    void deveLancar403QuandoUsuarioComRoleDesconhecidaTentarVisualizarMeta() {
+        UserPrincipal unknownPrincipal = new UserPrincipal(
+                99L, "unknown@ouros.com", null, "UNKNOWN_ROLE", List.of(new SimpleGrantedAuthority("ROLE_UNKNOWN"))
+        );
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.getStateGoalById(1L, unknownPrincipal)
+        );
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("getStateGoalsForUser - Deve filtrar por região e ignorar meta que não corresponde")
+    void deveFiltrarMetasPorRegiaoRetornandoVazioQuandoNaoCorresponder() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.findByIdFarm(10L)).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()
+        ));
+        when(stateGoalRepository.findAllById(List.of(1L))).thenReturn(List.of(goal));
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
+                RegionGoal.builder().id(1L).region("Sul").idGoal(1L).build()
+        ));
+
+        List<StateGoalResponseDTO> res = stateGoalService.getStateGoalsForUser(10L, "Nordeste", admPrincipal);
+
+        assertNotNull(res);
+        assertTrue(res.isEmpty());
+    }
 }

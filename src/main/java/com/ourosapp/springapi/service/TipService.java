@@ -64,7 +64,7 @@ public class TipService {
 
         List<Category> categories = validateAndFetchCategories(request.categoryIds());
         Integer farmIdInt = farm.getId() != null ? farm.getId().intValue() : null;
-        Integer primaryCategoryId = (categories != null && !categories.isEmpty() && categories.get(0).getId() != null)
+        Integer primaryCategoryId = (!categories.isEmpty() && categories.get(0).getId() != null)
                 ? categories.get(0).getId().intValue()
                 : null;
 
@@ -72,7 +72,7 @@ public class TipService {
         Long generatedTipId = generatedTipIdInt != null ? generatedTipIdInt.longValue() : null;
 
         // Se o payload informar múltiplas categorias, vincula as demais na tabela associativa
-        if (categories != null && categories.size() > 1) {
+        if (categories.size() > 1) {
             for (int i = 1; i < categories.size(); i++) {
                 Category cat = categories.get(i);
                 if (!tipCategoryRepository.existsByIdTipAndIdCategory(generatedTipId, cat.getId())) {
@@ -84,10 +84,10 @@ public class TipService {
             }
         }
 
-        List<String> categoryNames = categories != null ? categories.stream()
+        List<String> categoryNames = categories.stream()
                 .map(Category::getCategory)
                 .distinct()
-                .toList() : List.of();
+                .toList();
 
         Tip savedTip = Tip.builder()
                 .id(generatedTipId)
