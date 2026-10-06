@@ -19,20 +19,22 @@ import java.util.List;
 public interface StateGoalRepository extends JpaRepository<StateGoal, Long> {
 
     /**
-     * Busca todas as metas estaduais vinculadas a uma fazenda específica.
+     * Busca todas as metas estaduais vinculadas a uma fazenda específica através da tabela associativa.
      *
      * @param idFarm ID da fazenda
      * @return Lista de metas estaduais encontradas
      */
-    List<StateGoal> findByIdFarm(Long idFarm);
+    @Query("SELECT g FROM StateGoal g WHERE g.id IN (SELECT fg.idGoal FROM FarmGoal fg WHERE fg.idFarm = :idFarm)")
+    List<StateGoal> findByIdFarm(@Param("idFarm") Long idFarm);
 
     /**
-     * Busca todas as metas estaduais vinculadas a uma lista de IDs de fazendas.
+     * Busca todas as metas estaduais vinculadas a uma lista de IDs de fazendas através da tabela associativa.
      *
      * @param idFarms Lista de IDs de fazendas
      * @return Lista de metas estaduais encontradas
      */
-    List<StateGoal> findByIdFarmIn(List<Long> idFarms);
+    @Query("SELECT g FROM StateGoal g WHERE g.id IN (SELECT fg.idGoal FROM FarmGoal fg WHERE fg.idFarm IN :idFarms)")
+    List<StateGoal> findByIdFarmIn(@Param("idFarms") List<Long> idFarms);
 
     /**
      * Calcula o progresso percentual ponderado de metas da fazenda utilizando a função analítica PostgreSQL 'calculate_goals_progress'.

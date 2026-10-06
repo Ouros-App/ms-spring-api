@@ -44,7 +44,4 @@ public class StateGoal {
 
     @Column(name = "date_end", nullable = false)
     private LocalDate dateEnd;
-
-    @Column(name = "id_farm", nullable = false)
-    private Long idFarm;
 }

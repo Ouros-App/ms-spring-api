@@ -108,7 +108,6 @@ class StateGoalServiceTest {
                 .targetValue(new BigDecimal("1.6500"))
                 .dateCreation(LocalDate.of(2026, 1, 1))
                 .dateEnd(LocalDate.of(2026, 12, 31))
-                .idFarm(10L)
                 .build();
 
         goal2 = StateGoal.builder()
@@ -120,7 +119,6 @@ class StateGoalServiceTest {
                 .targetValue(new BigDecimal("1.7000"))
                 .dateCreation(LocalDate.of(2026, 1, 1))
                 .dateEnd(LocalDate.of(2026, 12, 31))
-                .idFarm(20L)
                 .build();
 
         requestDTO = new StateGoalRequestDTO(
@@ -297,8 +295,9 @@ class StateGoalServiceTest {
     @DisplayName("Deve listar metas com filtro de fazenda e região compatível")
     void deveListarMetasComFiltroFazendaERegiao() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(farmGoalRepository.findByIdFarm(10L)).thenReturn(List.of());
-        when(stateGoalRepository.findByIdFarm(10L)).thenReturn(List.of(goal));
+        when(farmGoalRepository.findByIdFarm(10L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
+        when(stateGoalRepository.findAllById(List.of(1L))).thenReturn(List.of(goal));
 
         List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(10L, "Sudeste", admPrincipal);
 
@@ -310,8 +309,9 @@ class StateGoalServiceTest {
     @DisplayName("Deve filtrar fazenda única por qualquer região e manter a região primária na resposta")
     void deveFiltrarFazendaUnicaPorQualquerRegiao() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(farmGoalRepository.findByIdFarm(10L)).thenReturn(List.of());
-        when(stateGoalRepository.findByIdFarm(10L)).thenReturn(List.of(goal));
+        when(farmGoalRepository.findByIdFarm(10L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
+        when(stateGoalRepository.findAllById(List.of(1L))).thenReturn(List.of(goal));
         when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
                 RegionGoal.builder().id(10L).region("Sudeste").idGoal(1L).build(),
                 RegionGoal.builder().id(11L).region("Sul").idGoal(1L).build()
@@ -328,9 +328,11 @@ class StateGoalServiceTest {
     void deveListarMetasComFiltroFazendaIncluindoJuncaoFarmGoals() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmGoalRepository.findByIdFarm(10L))
-                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(2L).build()));
-        when(stateGoalRepository.findByIdFarm(10L)).thenReturn(List.of(goal));
-        when(stateGoalRepository.findAllById(List.of(2L))).thenReturn(List.of(goal2));
+                .thenReturn(List.of(
+                        FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build(),
+                        FarmGoal.builder().id(2L).idFarm(10L).idGoal(2L).build()
+                ));
+        when(stateGoalRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(goal, goal2));
 
         List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(10L, null, admPrincipal);
 
@@ -353,6 +355,9 @@ class StateGoalServiceTest {
     @DisplayName("Deve listar metas para ADM sem filtros")
     void deveListarMetasParaAdmSemFiltros() {
         when(stateGoalRepository.findAll()).thenReturn(List.of(goal));
+        when(farmGoalRepository.findAll()).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()
+        ));
         when(farmRepository.findAllById(List.of(10L))).thenReturn(List.of(farm));
 
         List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(null, null, admPrincipal);
@@ -365,6 +370,9 @@ class StateGoalServiceTest {
     @DisplayName("Deve listar metas para ADM com filtro de região")
     void deveListarMetasParaAdmComFiltroRegiao() {
         when(stateGoalRepository.findAll()).thenReturn(List.of(goal));
+        when(farmGoalRepository.findAll()).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()
+        ));
         when(farmRepository.findAllById(List.of(10L))).thenReturn(List.of(farm));
 
         List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(null, "Sudeste", admPrincipal);
@@ -377,6 +385,9 @@ class StateGoalServiceTest {
     @DisplayName("Deve filtrar metas do ADM por qualquer região e manter a região primária na resposta")
     void deveFiltrarMetasDoAdmPorQualquerRegiao() {
         when(stateGoalRepository.findAll()).thenReturn(List.of(goal));
+        when(farmGoalRepository.findAll()).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()
+        ));
         when(farmRepository.findAllById(List.of(10L))).thenReturn(List.of(farm));
         when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
                 RegionGoal.builder().id(10L).region("Sudeste").idGoal(1L).build(),
@@ -406,8 +417,9 @@ class StateGoalServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(farmRepository.findAllByIdEnterprise(50L)).thenReturn(List.of(farm));
-        when(stateGoalRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of(goal));
-        when(farmGoalRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of());
+        when(farmGoalRepository.findByIdFarmIn(List.of(10L)))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
+        when(stateGoalRepository.findAllById(List.of(1L))).thenReturn(List.of(goal));
 
         List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(null, "Sudeste", employeePrincipal);
 
@@ -421,8 +433,9 @@ class StateGoalServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(farmRepository.findAllByIdEnterprise(50L)).thenReturn(List.of(farm));
-        when(stateGoalRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of(goal));
-        when(farmGoalRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of());
+        when(farmGoalRepository.findByIdFarmIn(List.of(10L)))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
+        when(stateGoalRepository.findAllById(List.of(1L))).thenReturn(List.of(goal));
         when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
                 RegionGoal.builder().id(10L).region("Sudeste").idGoal(1L).build(),
                 RegionGoal.builder().id(11L).region("Sul").idGoal(1L).build()
@@ -440,10 +453,12 @@ class StateGoalServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(farmRepository.findAllByIdEnterprise(50L)).thenReturn(List.of(farm));
-        when(stateGoalRepository.findByIdFarmIn(List.of(10L))).thenReturn(List.of(goal));
         when(farmGoalRepository.findByIdFarmIn(List.of(10L)))
-                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(2L).build()));
-        when(stateGoalRepository.findAllById(List.of(2L))).thenReturn(List.of(goal2));
+                .thenReturn(List.of(
+                        FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build(),
+                        FarmGoal.builder().id(2L).idFarm(10L).idGoal(2L).build()
+                ));
+        when(stateGoalRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(goal, goal2));
 
         List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(null, null, employeePrincipal);
 
@@ -470,8 +485,9 @@ class StateGoalServiceTest {
         FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(farmGoalRepository.findByIdFarm(10L)).thenReturn(List.of());
-        when(stateGoalRepository.findByIdFarm(10L)).thenReturn(List.of(goal));
+        when(farmGoalRepository.findByIdFarm(10L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
+        when(stateGoalRepository.findAllById(List.of(1L))).thenReturn(List.of(goal));
 
         List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(null, "Sudeste", ownerPrincipal);
 
@@ -486,9 +502,11 @@ class StateGoalServiceTest {
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmGoalRepository.findByIdFarm(10L))
-                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(2L).build()));
-        when(stateGoalRepository.findByIdFarm(10L)).thenReturn(List.of(goal));
-        when(stateGoalRepository.findAllById(List.of(2L))).thenReturn(List.of(goal2));
+                .thenReturn(List.of(
+                        FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build(),
+                        FarmGoal.builder().id(2L).idFarm(10L).idGoal(2L).build()
+                ));
+        when(stateGoalRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(goal, goal2));
 
         List<StateGoalResponseDTO> result = stateGoalService.getStateGoalsForUser(null, null, ownerPrincipal);
 
@@ -527,6 +545,8 @@ class StateGoalServiceTest {
     @DisplayName("Deve buscar meta estadual por ID com sucesso")
     void deveBuscarMetaPorIdComSucesso() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
 
         StateGoalResponseDTO response = stateGoalService.getStateGoalById(1L, admPrincipal);
@@ -539,6 +559,8 @@ class StateGoalServiceTest {
     @DisplayName("Deve buscar meta estadual por ID retornando a região personalizada da tabela regions_goals")
     void deveBuscarMetaPorIdComRegiaoPersonalizada() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(regionGoalRepository.findByIdGoal(1L))
                 .thenReturn(List.of(RegionGoal.builder().id(50L).region("Centro-Oeste").idGoal(1L).build()));
@@ -564,7 +586,9 @@ class StateGoalServiceTest {
     void deveBuscarMetaPorIdComSucessoParaFarmOwnerDeFazendaSecundaria() {
         FarmOwner secondaryOwner = FarmOwner.builder().id(3L).idFarm(20L).build();
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(secondaryOwner));
-        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal)); // goal.idFarm = 10L
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(true);
 
@@ -585,11 +609,11 @@ class StateGoalServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(foreignPrimaryFarm));
         when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
                 FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build(),
                 FarmGoal.builder().id(2L).idFarm(20L).idGoal(1L).build()
         ));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(foreignPrimaryFarm));
         when(farmRepository.findAllById(List.of(20L))).thenReturn(List.of(farm2));
 
         StateGoalResponseDTO response = stateGoalService.getStateGoalById(1L, employeePrincipal);
@@ -602,7 +626,9 @@ class StateGoalServiceTest {
     void deveLancar403AoBuscarMetaPorIdParaFarmOwnerSemVinculo() {
         FarmOwner unlinkedOwner = FarmOwner.builder().id(3L).idFarm(99L).build();
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(unlinkedOwner));
-        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal)); // goal.idFarm = 10L
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmGoalRepository.existsByIdFarmAndIdGoal(99L, 1L)).thenReturn(false);
 
@@ -626,6 +652,8 @@ class StateGoalServiceTest {
         );
 
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(stateGoalRepository.save(any(StateGoal.class))).thenReturn(goal);
 
@@ -645,6 +673,8 @@ class StateGoalServiceTest {
         );
 
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(regionGoalRepository.findByIdGoal(1L))
                 .thenReturn(List.of(RegionGoal.builder().id(50L).region("Centro-Oeste").idGoal(1L).build()));
@@ -662,6 +692,8 @@ class StateGoalServiceTest {
     void deveRetornarSemAlteracoesQuandoSemUpdates() {
         StateGoalUpdateDTO noUpdates = new StateGoalUpdateDTO(null, null, null);
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
 
         StateGoalResponseDTO response = stateGoalService.updateStateGoal(1L, noUpdates, admPrincipal);
@@ -675,6 +707,8 @@ class StateGoalServiceTest {
     void deveLancar400AoAtualizarDataTerminoInvalida() {
         StateGoalUpdateDTO invalidDate = new StateGoalUpdateDTO(null, LocalDate.of(2025, 1, 1), null);
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
@@ -688,6 +722,8 @@ class StateGoalServiceTest {
     void devePropagarDataIntegrityViolationNoUpdate() {
         StateGoalUpdateDTO updateDTO = new StateGoalUpdateDTO("ACHIEVED", null, null);
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(stateGoalRepository.save(any(StateGoal.class))).thenThrow(new DataIntegrityViolationException("Erro"));
 
@@ -703,6 +739,8 @@ class StateGoalServiceTest {
     @DisplayName("Deve remover meta estadual e suas associações com sucesso")
     void deveRemoverMetaEstadualComSucesso() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
 
         assertDoesNotThrow(() -> stateGoalService.deleteStateGoal(1L, admPrincipal));
@@ -720,6 +758,8 @@ class StateGoalServiceTest {
     @DisplayName("Deve vincular fazenda a meta estadual (farm_goals)")
     void deveVincularFazendaAMetaEstadual() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmRepository.findById(20L)).thenReturn(Optional.of(farm2));
         when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(false);
@@ -732,6 +772,8 @@ class StateGoalServiceTest {
     @DisplayName("Deve ser idempotente ao vincular fazenda já associada")
     void deveSerIdempotenteAoVincularFazendaJaAssociada() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmRepository.findById(20L)).thenReturn(Optional.of(farm2));
         when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(true);
@@ -747,6 +789,8 @@ class StateGoalServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(foreignPrimaryFarm));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
@@ -763,6 +807,8 @@ class StateGoalServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmRepository.findById(20L)).thenReturn(Optional.of(foreignTargetFarm));
 
@@ -777,6 +823,8 @@ class StateGoalServiceTest {
     @DisplayName("Deve desvincular fazenda de meta estadual com sucesso")
     void deveDesvincularFazendaDeMetaEstadual() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmRepository.findById(20L)).thenReturn(Optional.of(farm2));
 
@@ -788,6 +836,8 @@ class StateGoalServiceTest {
     @DisplayName("Deve lançar 400 Bad Request ao tentar desvincular a fazenda principal da meta estadual")
     void deveLancar400AoTentarDesvincularFazendaPrincipal() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
@@ -805,6 +855,8 @@ class StateGoalServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(foreignPrimaryFarm));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
@@ -821,6 +873,8 @@ class StateGoalServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(50L).build();
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmRepository.findById(20L)).thenReturn(Optional.of(foreignTargetFarm));
 
@@ -835,9 +889,9 @@ class StateGoalServiceTest {
     @DisplayName("Deve listar fazendas vinculadas à meta estadual a partir da junção")
     void deveListarFazendasDaMetaEstadualComJuncao() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmGoalRepository.findByIdGoal(1L))
                 .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmRepository.findAllById(List.of(10L))).thenReturn(List.of(farm));
 
         List<FarmResponseDTO> farms = stateGoalService.getFarmsByStateGoalId(1L, admPrincipal);
@@ -848,17 +902,15 @@ class StateGoalServiceTest {
     }
 
     @Test
-    @DisplayName("Deve retornar fazenda primária quando não houver registros em farm_goals")
+    @DisplayName("Deve retornar lista vazia quando não houver registros em farm_goals")
     void deveListarFazendaPrimariaQuandoSemJuncao() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
 
         List<FarmResponseDTO> farms = stateGoalService.getFarmsByStateGoalId(1L, admPrincipal);
 
         assertNotNull(farms);
-        assertEquals(1, farms.size());
-        assertEquals(10L, farms.get(0).id());
+        assertTrue(farms.isEmpty());
     }
 
     // ==========================================
@@ -869,6 +921,8 @@ class StateGoalServiceTest {
     @DisplayName("Deve adicionar região à meta estadual (regions_goals)")
     void deveAdicionarRegiaoAMetaEstadual() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(regionGoalRepository.existsByRegionAndIdGoal("Sul", 1L)).thenReturn(false);
         when(regionGoalRepository.save(any(RegionGoal.class)))
@@ -883,6 +937,8 @@ class StateGoalServiceTest {
     @DisplayName("Deve ser idempotente ao adicionar região já existente")
     void deveSerIdempotenteAoAdicionarRegiaoJaExistente() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(regionGoalRepository.existsByRegionAndIdGoal("Sul", 1L)).thenReturn(true);
 
@@ -895,6 +951,8 @@ class StateGoalServiceTest {
     void deveRemoverRegiaoDaMetaEstadual() {
         RegionGoal rg = RegionGoal.builder().id(200L).region("Sul").idGoal(1L).build();
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(regionGoalRepository.findByRegionAndIdGoal("Sul", 1L)).thenReturn(Optional.of(rg));
 
@@ -907,6 +965,8 @@ class StateGoalServiceTest {
     @DisplayName("Deve listar regiões vinculadas à meta estadual")
     void deveListarRegioesDaMetaEstadual() {
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(regionGoalRepository.findByIdGoal(1L))
                 .thenReturn(List.of(
@@ -927,14 +987,14 @@ class StateGoalServiceTest {
     void deveListarFazendasDaMetaParaFarmOwnerDeFazendaSecundaria() {
         FarmOwner secondaryOwner = FarmOwner.builder().id(3L).idFarm(20L).build();
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(secondaryOwner));
-        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal)); // goal.idFarm = 10L
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(true);
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
         when(farmGoalRepository.findByIdGoal(1L))
                 .thenReturn(List.of(
                         FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build(),
                         FarmGoal.builder().id(2L).idFarm(20L).idGoal(1L).build()
                 ));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(true);
         when(farmRepository.findAllById(List.of(10L, 20L))).thenReturn(List.of(farm, farm2));
 
         List<FarmResponseDTO> farms = stateGoalService.getFarmsByStateGoalId(1L, ownerPrincipal);
@@ -948,7 +1008,9 @@ class StateGoalServiceTest {
     void deveListarRegioesDaMetaParaFarmOwnerDeFazendaSecundaria() {
         FarmOwner secondaryOwner = FarmOwner.builder().id(3L).idFarm(20L).build();
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(secondaryOwner));
-        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal)); // goal.idFarm = 10L
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(true);
         when(regionGoalRepository.findByIdGoal(1L))
@@ -967,6 +1029,8 @@ class StateGoalServiceTest {
         FarmOwner unlinkedOwner = FarmOwner.builder().id(3L).idFarm(99L).build();
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(unlinkedOwner));
         when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
         when(farmGoalRepository.existsByIdFarmAndIdGoal(99L, 1L)).thenReturn(false);
 
@@ -980,8 +1044,9 @@ class StateGoalServiceTest {
     @DisplayName("Deve listar metas para fazenda única utilizando a região customizada em regions_goals")
     void deveListarMetasParaFazendaUnicaComRegiaoCustomizada() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(farmGoalRepository.findByIdFarm(10L)).thenReturn(List.of());
-        when(stateGoalRepository.findByIdFarm(10L)).thenReturn(List.of(goal));
+        when(farmGoalRepository.findByIdFarm(10L))
+                .thenReturn(List.of(FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).build()));
+        when(stateGoalRepository.findAllById(List.of(1L))).thenReturn(List.of(goal));
         when(regionGoalRepository.findByIdGoal(1L))
                 .thenReturn(List.of(RegionGoal.builder().id(10L).region("Nordeste").idGoal(1L).build()));
 

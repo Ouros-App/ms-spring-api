@@ -60,14 +60,15 @@ public record StateGoalResponseDTO(
         String region
 ) {
     /**
-     * Converte uma entidade {@link StateGoal} e a região correspondente em {@link StateGoalResponseDTO}.
+     * Converte uma entidade {@link StateGoal}, o ID da fazenda e a região correspondente em {@link StateGoalResponseDTO}.
      *
      * @param goal   entidade a ser convertida (não deve ser nula)
+     * @param idFarm identificador da fazenda vinculada (pode ser nulo)
      * @param region região associada à fazenda da meta
      * @return DTO correspondente
      * @throws NullPointerException se goal for nulo
      */
-    public static StateGoalResponseDTO fromEntity(StateGoal goal, String region) {
+    public static StateGoalResponseDTO fromEntity(StateGoal goal, Long idFarm, String region) {
         Objects.requireNonNull(goal, "StateGoal não pode ser nulo");
         return new StateGoalResponseDTO(
                 goal.getId(),
@@ -78,8 +79,20 @@ public record StateGoalResponseDTO(
                 goal.getTargetValue(),
                 goal.getDateCreation(),
                 goal.getDateEnd(),
-                goal.getIdFarm(),
+                idFarm,
                 region
         );
+    }
+
+    /**
+     * Converte uma entidade {@link StateGoal} e a região correspondente em {@link StateGoalResponseDTO}.
+     *
+     * @param goal   entidade a ser convertida (não deve ser nula)
+     * @param region região associada à fazenda da meta
+     * @return DTO correspondente
+     * @throws NullPointerException se goal for nulo
+     */
+    public static StateGoalResponseDTO fromEntity(StateGoal goal, String region) {
+        return fromEntity(goal, null, region);
     }
 }

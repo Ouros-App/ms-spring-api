@@ -1787,7 +1787,6 @@ class DTOAndEntityTest {
         goal.setTargetValue(new BigDecimal("1.6500"));
         goal.setDateCreation(LocalDate.of(2026, 1, 1));
         goal.setDateEnd(LocalDate.of(2026, 12, 31));
-        goal.setIdFarm(10L);
 
         assertEquals(1L, goal.getId());
         assertEquals("Meta Estadual SP", goal.getTitle());
@@ -1797,7 +1796,6 @@ class DTOAndEntityTest {
         assertEquals(new BigDecimal("1.6500"), goal.getTargetValue());
         assertEquals(LocalDate.of(2026, 1, 1), goal.getDateCreation());
         assertEquals(LocalDate.of(2026, 12, 31), goal.getDateEnd());
-        assertEquals(10L, goal.getIdFarm());
 
         StateGoal built = StateGoal.builder()
                 .id(2L)
@@ -1808,7 +1806,6 @@ class DTOAndEntityTest {
                 .targetValue(new BigDecimal("2.1000"))
                 .dateCreation(LocalDate.of(2026, 2, 1))
                 .dateEnd(LocalDate.of(2026, 11, 30))
-                .idFarm(20L)
                 .build();
 
         assertEquals(2L, built.getId());
@@ -1947,17 +1944,19 @@ class DTOAndEntityTest {
                 .targetValue(new BigDecimal("1.6500"))
                 .dateCreation(LocalDate.of(2026, 1, 1))
                 .dateEnd(LocalDate.of(2026, 12, 31))
-                .idFarm(10L)
                 .build();
 
-        StateGoalResponseDTO dto = StateGoalResponseDTO.fromEntity(goal, "Sudeste");
-        assertEquals(1L, dto.id());
-        assertEquals("Meta Estadual", dto.title());
-        assertEquals("Sudeste", dto.region());
-        assertEquals(new BigDecimal("1.6500"), dto.targetValue());
-        assertEquals(10L, dto.idFarm());
+        StateGoalResponseDTO dtoWithFarm = StateGoalResponseDTO.fromEntity(goal, 10L, "Sudeste");
+        assertEquals(1L, dtoWithFarm.id());
+        assertEquals("Meta Estadual", dtoWithFarm.title());
+        assertEquals("Sudeste", dtoWithFarm.region());
+        assertEquals(new BigDecimal("1.6500"), dtoWithFarm.targetValue());
+        assertEquals(10L, dtoWithFarm.idFarm());
 
-        String json = objectMapper.writeValueAsString(dto);
+        StateGoalResponseDTO dtoWithoutFarm = StateGoalResponseDTO.fromEntity(goal, "Sudeste");
+        assertNull(dtoWithoutFarm.idFarm());
+
+        String json = objectMapper.writeValueAsString(dtoWithFarm);
         assertTrue(json.contains("\"target_value\":1.6500"));
         assertTrue(json.contains("\"region\":\"Sudeste\""));
 
