@@ -1,8 +1,10 @@
 package com.ourosapp.springapi.controller;
 
+import com.ourosapp.springapi.dto.farm.FarmGoalsProgressResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRequestDTO;
 import com.ourosapp.springapi.dto.farm.FarmResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmUpdateDTO;
+import com.ourosapp.springapi.dto.farm.FarmWaterConsumptionResponseDTO;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.FarmService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -155,5 +157,53 @@ public class FarmController {
     ) {
         farmService.deleteFarm(id, principal);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Endpoint para consultar o consumo mais recente de água da fazenda.
+     * Utiliza a função analítica PostgreSQL calculate_water_consumption.
+     *
+     * @param id        identificador único da fazenda
+     * @param principal dados do usuário autenticado via token JWT
+     * @return resposta HTTP 200 (OK) com o consumo recente de água
+     */
+    @Operation(summary = "Obter consumo recente de água", description = "Retorna o consumo recente de água da fazenda baseado no hidrômetro calculado via função do PostgreSQL.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Consumo de água retornado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
+            @ApiResponse(responseCode = "404", description = "Fazenda não encontrada")
+    })
+    @GetMapping("/{id}/metrics/water-consumption")
+    public ResponseEntity<FarmWaterConsumptionResponseDTO> getFarmWaterConsumption(
+            @Parameter(description = "Identificador único da fazenda", example = "1")
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(farmService.getFarmWaterConsumption(id, principal));
+    }
+
+    /**
+     * Endpoint para consultar o progresso consolidado de metas da fazenda.
+     * Utiliza a função analítica PostgreSQL calculate_goals_progress.
+     *
+     * @param id        identificador único da fazenda
+     * @param principal dados do usuário autenticado via token JWT
+     * @return resposta HTTP 200 (OK) com o percentual ponderado de progresso de metas (0 a 100%)
+     */
+    @Operation(summary = "Obter progresso de metas da fazenda", description = "Retorna o progresso percentual ponderado de metas da fazenda (0 a 100%) calculado via função do PostgreSQL.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Progresso de metas retornado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
+            @ApiResponse(responseCode = "404", description = "Fazenda não encontrada")
+    })
+    @GetMapping("/{id}/goals-progress")
+    public ResponseEntity<FarmGoalsProgressResponseDTO> getFarmGoalsProgress(
+            @Parameter(description = "Identificador único da fazenda", example = "1")
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(farmService.getFarmGoalsProgress(id, principal));
     }
 }

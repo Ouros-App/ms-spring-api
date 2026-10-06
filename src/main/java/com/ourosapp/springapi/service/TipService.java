@@ -12,7 +12,6 @@ import com.ourosapp.springapi.entity.*;
 import com.ourosapp.springapi.repository.*;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,45 +63,51 @@ public class TipService {
         validateFarmAccessPermission(farm, principal, "cadastrar dicas técnicas nesta fazenda");
 
         List<Category> categories = validateAndFetchCategories(request.categoryIds());
+        Integer farmIdInt = farm.getId() != null ? farm.getId().intValue() : null;
+        Integer primaryCategoryId = (!categories.isEmpty() && categories.get(0).getId() != null)
+                ? categories.get(0).getId().intValue()
+                : null;
 
-        Tip tip = Tip.builder()
+        Integer generatedTipIdInt = tipRepository.callCreateTip(request.tip(), farmIdInt, primaryCategoryId);
+        Long generatedTipId = generatedTipIdInt != null ? generatedTipIdInt.longValue() : null;
+
+        // Se o payload informar múltiplas categorias, vincula as demais na tabela associativa
+        if (categories.size() > 1) {
+            for (int i = 1; i < categories.size(); i++) {
+                Category cat = categories.get(i);
+                if (!tipCategoryRepository.existsByIdTipAndIdCategory(generatedTipId, cat.getId())) {
+                    tipCategoryRepository.save(TipCategory.builder()
+                            .idTip(generatedTipId)
+                            .idCategory(cat.getId())
+                            .build());
+                }
+            }
+        }
+
+        List<String> categoryNames = categories.stream()
+                .map(Category::getCategory)
+                .distinct()
+                .toList();
+
+        Tip savedTip = Tip.builder()
+                .id(generatedTipId)
                 .tip(request.tip())
                 .build();
 
-        try {
-            Tip saved = tipRepository.save(tip);
+        return TipResponseDTO.fromEntity(savedTip, farm.getId(), categoryNames, 0, 0.0);
+    }
 
-            if (!farmTipRepository.existsByIdFarmAndIdTip(farm.getId(), saved.getId())) {
-                farmTipRepository.save(FarmTip.builder()
-                        .idFarm(farm.getId())
-                        .idTip(saved.getId())
-                        .build());
-            }
-
-            if (!categories.isEmpty()) {
-                for (Category cat : categories) {
-                    if (!tipCategoryRepository.existsByIdTipAndIdCategory(saved.getId(), cat.getId())) {
-                        tipCategoryRepository.save(TipCategory.builder()
-                                .idTip(saved.getId())
-                                .idCategory(cat.getId())
-                                .build());
-                    }
-                }
-            }
-
-            List<String> categoryNames = categories.stream()
-                    .map(Category::getCategory)
-                    .distinct()
-                    .toList();
-
-            return TipResponseDTO.fromEntity(saved, farm.getId(), categoryNames, 0, 0.0);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar dica técnica",
-                    ex
-            );
-        }
+    /**
+     * Cadastra uma nova dica técnica utilizando a stored procedure PostgreSQL 'create_tip'.
+     * Substitui múltiplos inserts manuais pela chamada atômica da procedure com retorno de ID.
+     *
+     * @param request   dados da dica técnica a ser cadastrada
+     * @param principal dados do usuário logado
+     * @return DTO com os dados da dica técnica criada e ID gerado
+     */
+    @Transactional
+    public TipResponseDTO createTipViaProcedure(TipRequestDTO request, UserPrincipal principal) {
+        return createTip(request, principal);
     }
 
     /**
@@ -218,16 +223,8 @@ public class TipService {
             }
         }
 
-        try {
-            Tip updated = tipRepository.save(tip);
-            return enrichTips(List.of(updated)).get(0);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao atualizar dica técnica",
-                    ex
-            );
-        }
+        Tip updated = tipRepository.save(tip);
+        return enrichTips(List.of(updated)).get(0);
     }
 
     /**
@@ -252,18 +249,10 @@ public class TipService {
         List<FarmTip> farmTips = farmTipRepository.findByIdTip(tip.getId());
         validateTipWritePermission(farmTips, principal, "remover dica técnica desta fazenda");
 
-        try {
-            tipCategoryRepository.deleteByIdTip(tip.getId());
-            farmTipRepository.deleteByIdTip(tip.getId());
-            reviewRepository.deleteByIdTip(tip.getId());
-            tipRepository.delete(tip);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Não é possível remover a dica técnica pois existem dados vinculados a ela",
-                    ex
-            );
-        }
+        tipCategoryRepository.deleteByIdTip(tip.getId());
+        farmTipRepository.deleteByIdTip(tip.getId());
+        reviewRepository.deleteByIdTip(tip.getId());
+        tipRepository.delete(tip);
     }
 
     private List<TipResponseDTO> getTipsForSingleFarm(Farm farm) {

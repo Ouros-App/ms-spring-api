@@ -1787,7 +1787,6 @@ class DTOAndEntityTest {
         goal.setTargetValue(new BigDecimal("1.6500"));
         goal.setDateCreation(LocalDate.of(2026, 1, 1));
         goal.setDateEnd(LocalDate.of(2026, 12, 31));
-        goal.setIdFarm(10L);
 
         assertEquals(1L, goal.getId());
         assertEquals("Meta Estadual SP", goal.getTitle());
@@ -1797,7 +1796,6 @@ class DTOAndEntityTest {
         assertEquals(new BigDecimal("1.6500"), goal.getTargetValue());
         assertEquals(LocalDate.of(2026, 1, 1), goal.getDateCreation());
         assertEquals(LocalDate.of(2026, 12, 31), goal.getDateEnd());
-        assertEquals(10L, goal.getIdFarm());
 
         StateGoal built = StateGoal.builder()
                 .id(2L)
@@ -1808,7 +1806,6 @@ class DTOAndEntityTest {
                 .targetValue(new BigDecimal("2.1000"))
                 .dateCreation(LocalDate.of(2026, 2, 1))
                 .dateEnd(LocalDate.of(2026, 11, 30))
-                .idFarm(20L)
                 .build();
 
         assertEquals(2L, built.getId());
@@ -1888,6 +1885,15 @@ class DTOAndEntityTest {
         assertFalse(validator.validate(invalidDateOrder).isEmpty());
 
         // DTO inválido com campos nulos e valores negativos
+        StateGoalRequestDTO allNulls = new StateGoalRequestDTO(
+                null, null, null, null, null, null, null, null, null
+        );
+        assertNull(allNulls.title());
+        assertNull(allNulls.description());
+        assertNull(allNulls.type());
+        assertNull(allNulls.status());
+        assertNull(allNulls.region());
+
         StateGoalRequestDTO invalid = new StateGoalRequestDTO(
                 "", null, "", "", new BigDecimal("-10.0000"), null, null, -1L, null
         );
@@ -1947,7 +1953,6 @@ class DTOAndEntityTest {
                 .targetValue(new BigDecimal("1.6500"))
                 .dateCreation(LocalDate.of(2026, 1, 1))
                 .dateEnd(LocalDate.of(2026, 12, 31))
-                .idFarm(10L)
                 .build();
 
         StateGoalResponseDTO dto = StateGoalResponseDTO.fromEntity(goal, "Sudeste");
@@ -1955,7 +1960,6 @@ class DTOAndEntityTest {
         assertEquals("Meta Estadual", dto.title());
         assertEquals("Sudeste", dto.region());
         assertEquals(new BigDecimal("1.6500"), dto.targetValue());
-        assertEquals(10L, dto.idFarm());
 
         String json = objectMapper.writeValueAsString(dto);
         assertTrue(json.contains("\"target_value\":1.6500"));

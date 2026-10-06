@@ -14,12 +14,12 @@ import com.ourosapp.springapi.entity.*;
 import com.ourosapp.springapi.repository.*;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,20 +51,41 @@ public class StateGoalService {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         ensureAuthenticated(principal);
 
-        Long farmId = resolveFarmIdForCreation(request.idFarm(), principal);
-        Farm farm = findFarmByIdOrThrow(farmId);
-        validateFarmAccessPermission(farm, principal, "cadastrar metas estaduais nesta fazenda");
-
-        if (request.dateEnd().isBefore(request.dateCreation())) {
+        if (request.dateEnd() != null && request.dateCreation() != null && request.dateEnd().isBefore(request.dateCreation())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "A data de término não pode ser anterior à data de criação"
             );
         }
 
-        String region = request.region() != null && !request.region().isBlank() ? request.region() : farm.getRegion();
+        Long farmId = resolveFarmIdForCreation(request.idFarm(), principal);
+        Farm farm = farmId != null ? findFarmByIdOrThrow(farmId) : null;
+        if (farm != null) {
+            validateFarmAccessPermission(farm, principal, "cadastrar metas estaduais nesta fazenda");
+        }
 
-        StateGoal goal = StateGoal.builder()
+        String region = request.region() != null && !request.region().isBlank()
+                ? request.region()
+                : (farm != null ? farm.getRegion() : null);
+        Integer farmIdInt = farm != null && farm.getId() != null ? farm.getId().intValue() : null;
+        LocalDateTime dateCreation = request.dateCreation() != null ? request.dateCreation().atStartOfDay() : null;
+        LocalDateTime dateEnd = request.dateEnd() != null ? request.dateEnd().atStartOfDay() : null;
+
+        Integer generatedGoalIdInt = stateGoalRepository.callCreateStateGoal(
+                request.title(),
+                request.description(),
+                request.type(),
+                request.status(),
+                request.targetValue(),
+                dateCreation,
+                dateEnd,
+                farmIdInt,
+                region
+        );
+        Long generatedGoalId = generatedGoalIdInt != null ? generatedGoalIdInt.longValue() : null;
+
+        StateGoal saved = StateGoal.builder()
+                .id(generatedGoalId)
                 .title(request.title())
                 .description(request.description())
                 .type(request.type())
@@ -72,39 +93,35 @@ public class StateGoalService {
                 .targetValue(request.targetValue())
                 .dateCreation(request.dateCreation())
                 .dateEnd(request.dateEnd())
-                .idFarm(farm.getId())
                 .build();
 
-        try {
-            StateGoal saved = stateGoalRepository.save(goal);
+        return StateGoalResponseDTO.fromEntity(saved, region);
+    }
 
-            // Sincroniza tabela de junção farm_goals
-            if (!farmGoalRepository.existsByIdFarmAndIdGoal(farm.getId(), saved.getId())) {
-                farmGoalRepository.save(FarmGoal.builder()
-                        .idFarm(farm.getId())
-                        .idGoal(saved.getId())
-                        .build());
-            }
+    /**
+     * Cadastra uma nova meta estadual utilizando a stored procedure PostgreSQL 'create_state_goal'.
+     * Substitui a persistência encadeada de 4 entidades por uma execução transacional atômica no banco de dados.
+     *
+     * @param request   dados da meta estadual
+     * @param principal dados do usuário autenticado no JWT
+     * @return DTO com os dados da meta estadual criada e ID gerado
+     */
+    @Transactional
+    public StateGoalResponseDTO createStateGoalViaProcedure(StateGoalRequestDTO request, UserPrincipal principal) {
+        return createStateGoal(request, principal);
+    }
 
-            // Sincroniza tabelas regions_goals e state_goal_regions
-            RegionGoal regionGoal = regionGoalRepository.save(RegionGoal.builder()
-                    .region(region)
-                    .idGoal(saved.getId())
-                    .build());
-
-            stateGoalRegionRepository.save(StateGoalRegion.builder()
-                    .idGoal(saved.getId())
-                    .idRegion(regionGoal.getId())
-                    .build());
-
-            return StateGoalResponseDTO.fromEntity(saved, region);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao cadastrar meta estadual",
-                    ex
-            );
-        }
+    /**
+     * Sobrecarga de compatibilidade para chamada com idRegion numérico legado.
+     *
+     * @param request   dados da meta estadual
+     * @param idRegion  identificador numérico da região (ignorado em favor da região textual)
+     * @param principal dados do usuário autenticado no JWT
+     * @return DTO com os dados da meta estadual criada e ID gerado
+     */
+    @Transactional
+    public StateGoalResponseDTO createStateGoalViaProcedure(StateGoalRequestDTO request, Long idRegion, UserPrincipal principal) {
+        return createStateGoal(request, principal);
     }
 
     /**
@@ -127,13 +144,18 @@ public class StateGoalService {
                 return List.of();
             }
 
+            List<FarmGoal> allFarmGoals = farmGoalRepository.findAll();
+            Map<Long, Long> goalToFarmId = allFarmGoals.stream()
+                    .collect(Collectors.toMap(FarmGoal::getIdGoal, FarmGoal::getIdFarm, (existing, replacement) -> existing));
+
             Map<Long, Farm> farmMap = farmRepository.findAllById(
-                    allGoals.stream().map(StateGoal::getIdFarm).distinct().toList()
+                    goalToFarmId.values().stream().distinct().toList()
             ).stream().collect(Collectors.toMap(Farm::getId, Function.identity()));
 
             return allGoals.stream()
                     .flatMap(goal -> {
-                        Farm f = farmMap.get(goal.getIdFarm());
+                        Long farmId = goalToFarmId.get(goal.getId());
+                        Farm f = farmId != null ? farmMap.get(farmId) : null;
                         String defaultRegion = f != null ? f.getRegion() : null;
                         return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
                     })
@@ -149,24 +171,17 @@ public class StateGoalService {
                     .collect(Collectors.toMap(Farm::getId, Function.identity()));
 
             List<Long> farmIds = farms.stream().map(Farm::getId).toList();
-            List<StateGoal> directGoals = stateGoalRepository.findByIdFarmIn(farmIds);
-
             List<FarmGoal> linkedFarmGoals = farmGoalRepository.findByIdFarmIn(farmIds);
-            List<Long> linkedGoalIds = linkedFarmGoals.stream().map(FarmGoal::getIdGoal).toList();
-            List<StateGoal> junctionGoals = linkedGoalIds.isEmpty() ? List.of() : stateGoalRepository.findAllById(linkedGoalIds);
+            List<Long> linkedGoalIds = linkedFarmGoals.stream().map(FarmGoal::getIdGoal).distinct().toList();
+            List<StateGoal> goals = linkedGoalIds.isEmpty() ? List.of() : stateGoalRepository.findAllById(linkedGoalIds);
 
-            Map<Long, Long> goalToFarmId = new java.util.HashMap<>();
-            directGoals.forEach(g -> goalToFarmId.put(g.getId(), g.getIdFarm()));
-            linkedFarmGoals.forEach(fg -> goalToFarmId.putIfAbsent(fg.getIdGoal(), fg.getIdFarm()));
+            Map<Long, Long> goalToFarmId = linkedFarmGoals.stream()
+                    .collect(Collectors.toMap(FarmGoal::getIdGoal, FarmGoal::getIdFarm, (existing, replacement) -> existing));
 
-            Map<Long, StateGoal> combinedGoals = new java.util.LinkedHashMap<>();
-            directGoals.forEach(g -> combinedGoals.put(g.getId(), g));
-            junctionGoals.forEach(g -> combinedGoals.putIfAbsent(g.getId(), g));
-
-            return combinedGoals.values().stream()
+            return goals.stream()
                     .flatMap(goal -> {
                         Long matchedFarmId = goalToFarmId.get(goal.getId());
-                        Farm f = matchedFarmId != null ? farmMap.get(matchedFarmId) : farmMap.get(goal.getIdFarm());
+                        Farm f = matchedFarmId != null ? farmMap.get(matchedFarmId) : null;
                         String defaultRegion = f != null ? f.getRegion() : null;
                         return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
                     })
@@ -190,16 +205,12 @@ public class StateGoalService {
         List<Long> linkedGoalIds = farmGoalRepository.findByIdFarm(farm.getId())
                 .stream()
                 .map(FarmGoal::getIdGoal)
+                .distinct()
                 .toList();
 
-        List<StateGoal> directGoals = stateGoalRepository.findByIdFarm(farm.getId());
-        List<StateGoal> junctionGoals = linkedGoalIds.isEmpty() ? List.of() : stateGoalRepository.findAllById(linkedGoalIds);
+        List<StateGoal> goals = linkedGoalIds.isEmpty() ? List.of() : stateGoalRepository.findAllById(linkedGoalIds);
 
-        Map<Long, StateGoal> combinedGoals = new java.util.LinkedHashMap<>();
-        directGoals.forEach(g -> combinedGoals.put(g.getId(), g));
-        junctionGoals.forEach(g -> combinedGoals.putIfAbsent(g.getId(), g));
-
-        return combinedGoals.values().stream()
+        return goals.stream()
                 .flatMap(goal -> toResponseIfRegionMatches(goal, farm.getRegion(), regionFilter).stream())
                 .toList();
     }
@@ -239,14 +250,14 @@ public class StateGoalService {
         ensureAuthenticated(principal);
 
         StateGoal goal = findStateGoalByIdOrThrow(id);
-        Farm farm = findFarmByIdOrThrow(goal.getIdFarm());
-        validateStateGoalReadPermission(goal, farm, principal, "visualizar esta meta estadual");
+        Farm primaryFarm = findPrimaryFarmForGoal(goal.getId());
+        validateStateGoalReadPermission(goal, primaryFarm, principal, "visualizar esta meta estadual");
 
         String region = regionGoalRepository.findByIdGoal(goal.getId())
                 .stream()
                 .map(RegionGoal::getRegion)
                 .findFirst()
-                .orElse(farm.getRegion());
+                .orElse(primaryFarm != null ? primaryFarm.getRegion() : null);
 
         return StateGoalResponseDTO.fromEntity(goal, region);
     }
@@ -260,14 +271,18 @@ public class StateGoalService {
         ensureAuthenticated(principal);
 
         StateGoal goal = findStateGoalByIdOrThrow(id);
-        Farm farm = findFarmByIdOrThrow(goal.getIdFarm());
-        validateFarmAccessPermission(farm, principal, "alterar metas estaduais desta fazenda");
+        Farm primaryFarm = findPrimaryFarmForGoal(goal.getId());
+        if (primaryFarm != null) {
+            validateFarmAccessPermission(primaryFarm, principal, "alterar metas estaduais desta fazenda");
+        } else if (!ADM.equals(principal.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para alterar metas estaduais");
+        }
 
         String region = regionGoalRepository.findByIdGoal(goal.getId())
                 .stream()
                 .map(RegionGoal::getRegion)
                 .findFirst()
-                .orElse(farm.getRegion());
+                .orElse(primaryFarm != null ? primaryFarm.getRegion() : null);
 
         if (!request.hasUpdates()) {
             return StateGoalResponseDTO.fromEntity(goal, region);
@@ -289,16 +304,8 @@ public class StateGoalService {
             goal.setTargetValue(request.targetValue());
         }
 
-        try {
-            StateGoal updated = stateGoalRepository.save(goal);
-            return StateGoalResponseDTO.fromEntity(updated, region);
-        } catch (DataIntegrityViolationException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Conflito de integridade de dados ao atualizar meta estadual",
-                    ex
-            );
-        }
+        StateGoal updated = stateGoalRepository.save(goal);
+        return StateGoalResponseDTO.fromEntity(updated, region);
     }
 
     /**
@@ -309,8 +316,12 @@ public class StateGoalService {
         ensureAuthenticated(principal);
 
         StateGoal goal = findStateGoalByIdOrThrow(id);
-        Farm farm = findFarmByIdOrThrow(goal.getIdFarm());
-        validateFarmAccessPermission(farm, principal, "remover meta estadual desta fazenda");
+        Farm primaryFarm = findPrimaryFarmForGoal(goal.getId());
+        if (primaryFarm != null) {
+            validateFarmAccessPermission(primaryFarm, principal, "remover meta estadual desta fazenda");
+        } else if (!ADM.equals(principal.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para remover meta estadual");
+        }
 
         stateGoalRegionRepository.deleteByIdGoal(goal.getId());
         regionGoalRepository.deleteByIdGoal(goal.getId());
@@ -327,8 +338,12 @@ public class StateGoalService {
         ensureAuthenticated(principal);
 
         StateGoal goal = findStateGoalByIdOrThrow(goalId);
-        Farm primaryFarm = findFarmByIdOrThrow(goal.getIdFarm());
-        validateFarmAccessPermission(primaryFarm, principal, "gerenciar esta meta estadual");
+        Farm primaryFarm = findPrimaryFarmForGoal(goal.getId());
+        if (primaryFarm != null) {
+            validateFarmAccessPermission(primaryFarm, principal, "gerenciar esta meta estadual");
+        } else if (!ADM.equals(principal.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para gerenciar esta meta estadual");
+        }
 
         Farm farm = findFarmByIdOrThrow(farmId);
         validateFarmAccessPermission(farm, principal, "vincular fazenda a esta meta estadual");
@@ -351,13 +366,17 @@ public class StateGoalService {
         ensureAuthenticated(principal);
 
         StateGoal goal = findStateGoalByIdOrThrow(goalId);
-        Farm primaryFarm = findFarmByIdOrThrow(goal.getIdFarm());
-        validateFarmAccessPermission(primaryFarm, principal, "gerenciar esta meta estadual");
+        Farm primaryFarm = findPrimaryFarmForGoal(goal.getId());
+        if (primaryFarm != null) {
+            validateFarmAccessPermission(primaryFarm, principal, "gerenciar esta meta estadual");
+        } else if (!ADM.equals(principal.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para gerenciar esta meta estadual");
+        }
 
         Farm farm = findFarmByIdOrThrow(farmId);
         validateFarmAccessPermission(farm, principal, "desvincular fazenda desta meta estadual");
 
-        if (Objects.equals(goal.getIdFarm(), farm.getId())) {
+        if (primaryFarm != null && Objects.equals(primaryFarm.getId(), farm.getId())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Não é permitido desvincular a fazenda principal da meta estadual. Para remover a meta, utilize o endpoint de exclusão."
@@ -375,13 +394,13 @@ public class StateGoalService {
         ensureAuthenticated(principal);
 
         StateGoal goal = findStateGoalByIdOrThrow(goalId);
-        Farm primaryFarm = findFarmByIdOrThrow(goal.getIdFarm());
+        Farm primaryFarm = findPrimaryFarmForGoal(goal.getId());
         validateStateGoalReadPermission(goal, primaryFarm, principal, "visualizar fazendas vinculadas a esta meta estadual");
 
         List<FarmGoal> farmGoals = farmGoalRepository.findByIdGoal(goal.getId());
         List<Long> farmIds = farmGoals.stream().map(FarmGoal::getIdFarm).toList();
         if (farmIds.isEmpty()) {
-            return List.of(FarmResponseDTO.fromEntity(primaryFarm));
+            return primaryFarm != null ? List.of(FarmResponseDTO.fromEntity(primaryFarm)) : List.of();
         }
 
         return farmRepository.findAllById(farmIds)
@@ -399,8 +418,10 @@ public class StateGoalService {
         ensureAuthenticated(principal);
 
         StateGoal goal = findStateGoalByIdOrThrow(goalId);
-        Farm farm = findFarmByIdOrThrow(goal.getIdFarm());
-        validateFarmAccessPermission(farm, principal, "adicionar região a esta meta estadual");
+        Farm farm = findPrimaryFarmForGoal(goal.getId());
+        if (farm != null) {
+            validateFarmAccessPermission(farm, principal, "adicionar região a esta meta estadual");
+        }
 
         if (regionGoalRepository.existsByRegionAndIdGoal(request.region(), goal.getId())) {
             return; // Idempotente
@@ -425,8 +446,10 @@ public class StateGoalService {
         ensureAuthenticated(principal);
 
         StateGoal goal = findStateGoalByIdOrThrow(goalId);
-        Farm farm = findFarmByIdOrThrow(goal.getIdFarm());
-        validateFarmAccessPermission(farm, principal, "remover região desta meta estadual");
+        Farm farm = findPrimaryFarmForGoal(goal.getId());
+        if (farm != null) {
+            validateFarmAccessPermission(farm, principal, "remover região desta meta estadual");
+        }
 
         regionGoalRepository.findByRegionAndIdGoal(region, goal.getId()).ifPresent(rg -> {
             stateGoalRegionRepository.deleteByIdGoalAndIdRegion(goal.getId(), rg.getId());
@@ -442,7 +465,7 @@ public class StateGoalService {
         ensureAuthenticated(principal);
 
         StateGoal goal = findStateGoalByIdOrThrow(goalId);
-        Farm farm = findFarmByIdOrThrow(goal.getIdFarm());
+        Farm farm = findPrimaryFarmForGoal(goal.getId());
         validateStateGoalReadPermission(goal, farm, principal, "visualizar regiões vinculadas a esta meta estadual");
 
         return regionGoalRepository.findByIdGoal(goal.getId())
@@ -450,6 +473,14 @@ public class StateGoalService {
                 .map(RegionGoal::getRegion)
                 .distinct()
                 .toList();
+    }
+
+    private Farm findPrimaryFarmForGoal(Long goalId) {
+        List<FarmGoal> farmGoals = farmGoalRepository.findByIdGoal(goalId);
+        if (farmGoals.isEmpty()) {
+            return null;
+        }
+        return farmRepository.findById(farmGoals.get(0).getIdFarm()).orElse(null);
     }
 
     private void validateStateGoalReadPermission(StateGoal goal, Farm primaryFarm, UserPrincipal principal, String action) {
@@ -464,7 +495,7 @@ public class StateGoalService {
             );
             case FARM_OWNER -> {
                 FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-                yield Objects.equals(primaryFarm.getId(), owner.getIdFarm())
+                yield (primaryFarm != null && Objects.equals(primaryFarm.getId(), owner.getIdFarm()))
                         || (owner.getIdFarm() != null && farmGoalRepository.existsByIdFarmAndIdGoal(owner.getIdFarm(), goal.getId()));
             }
             default -> throw new ResponseStatusException(
@@ -479,14 +510,14 @@ public class StateGoalService {
     }
 
     private boolean hasEnterpriseAccessToStateGoal(StateGoal goal, Farm primaryFarm, Long enterpriseId) {
-        if (Objects.equals(primaryFarm.getIdEnterprise(), enterpriseId)) {
+        if (primaryFarm != null && Objects.equals(primaryFarm.getIdEnterprise(), enterpriseId)) {
             return true;
         }
 
         List<Long> linkedFarmIds = farmGoalRepository.findByIdGoal(goal.getId())
                 .stream()
                 .map(FarmGoal::getIdFarm)
-                .filter(idFarm -> !Objects.equals(idFarm, primaryFarm.getId()))
+                .filter(idFarm -> primaryFarm == null || !Objects.equals(idFarm, primaryFarm.getId()))
                 .distinct()
                 .toList();
 
@@ -524,21 +555,25 @@ public class StateGoalService {
             return idFarm;
         }
 
-        if (!FARM_OWNER.equals(principal.getRole())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "O ID da fazenda é obrigatório para administradores e funcionários da empresa"
-            );
+        if (ADM.equals(principal.getRole()) || COMPANY_EMPLOYEE.equals(principal.getRole())) {
+            return null;
         }
 
-        FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-        if (owner.getIdFarm() == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Produtor rural logado não possui fazenda vinculada para cadastrar meta estadual"
-            );
+        if (FARM_OWNER.equals(principal.getRole())) {
+            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
+            if (owner.getIdFarm() == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Produtor rural logado não possui fazenda vinculada para cadastrar meta estadual"
+                );
+            }
+            return owner.getIdFarm();
         }
-        return owner.getIdFarm();
+
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Perfil de usuário sem permissão para cadastrar metas estaduais"
+        );
     }
 
     private void ensureAuthenticated(UserPrincipal principal) {

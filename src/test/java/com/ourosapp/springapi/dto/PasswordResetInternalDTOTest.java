@@ -93,4 +93,13 @@ class PasswordResetInternalDTOTest {
         PasswordResetInternalResponseDTO response = new PasswordResetInternalResponseDTO("Sucesso");
         assertEquals("Sucesso", response.message());
     }
+
+    @Test
+    @DisplayName("Deve aceitar valores nulos no construtor compacto")
+    void shouldHandleNullFieldsInCompactConstructor() {
+        PasswordResetInternalDTO dto = new PasswordResetInternalDTO(null, null, null);
+        assertNull(dto.accountType());
+        assertNull(dto.id());
+        assertNull(dto.newPassword());
+    }
 }
