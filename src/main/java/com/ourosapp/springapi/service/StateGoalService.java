@@ -51,10 +51,6 @@ public class StateGoalService {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         ensureAuthenticated(principal);
 
-        Long farmId = resolveFarmIdForCreation(request.idFarm(), principal);
-        Farm farm = findFarmByIdOrThrow(farmId);
-        validateFarmAccessPermission(farm, principal, "cadastrar metas estaduais nesta fazenda");
-
         if (request.dateEnd().isBefore(request.dateCreation())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -62,8 +58,16 @@ public class StateGoalService {
             );
         }
 
-        String region = request.region() != null && !request.region().isBlank() ? request.region() : farm.getRegion();
-        Integer farmIdInt = farm.getId() != null ? farm.getId().intValue() : null;
+        Long farmId = resolveFarmIdForCreation(request.idFarm(), principal);
+        Farm farm = farmId != null ? findFarmByIdOrThrow(farmId) : null;
+        if (farm != null) {
+            validateFarmAccessPermission(farm, principal, "cadastrar metas estaduais nesta fazenda");
+        }
+
+        String region = request.region() != null && !request.region().isBlank()
+                ? request.region()
+                : (farm != null ? farm.getRegion() : null);
+        Integer farmIdInt = farm != null && farm.getId() != null ? farm.getId().intValue() : null;
         LocalDateTime dateCreation = request.dateCreation() != null ? request.dateCreation().atStartOfDay() : null;
         LocalDateTime dateEnd = request.dateEnd() != null ? request.dateEnd().atStartOfDay() : null;
 
@@ -91,7 +95,7 @@ public class StateGoalService {
                 .dateEnd(request.dateEnd())
                 .build();
 
-        return StateGoalResponseDTO.fromEntity(saved, farm.getId(), region);
+        return StateGoalResponseDTO.fromEntity(saved, farmId, region);
     }
 
     /**
@@ -495,7 +499,7 @@ public class StateGoalService {
             );
             case FARM_OWNER -> {
                 FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-                yield Objects.equals(primaryFarm.getId(), owner.getIdFarm())
+                yield (primaryFarm != null && Objects.equals(primaryFarm.getId(), owner.getIdFarm()))
                         || (owner.getIdFarm() != null && farmGoalRepository.existsByIdFarmAndIdGoal(owner.getIdFarm(), goal.getId()));
             }
             default -> throw new ResponseStatusException(
@@ -510,14 +514,14 @@ public class StateGoalService {
     }
 
     private boolean hasEnterpriseAccessToStateGoal(StateGoal goal, Farm primaryFarm, Long enterpriseId) {
-        if (Objects.equals(primaryFarm.getIdEnterprise(), enterpriseId)) {
+        if (primaryFarm != null && Objects.equals(primaryFarm.getIdEnterprise(), enterpriseId)) {
             return true;
         }
 
         List<Long> linkedFarmIds = farmGoalRepository.findByIdGoal(goal.getId())
                 .stream()
                 .map(FarmGoal::getIdFarm)
-                .filter(idFarm -> !Objects.equals(idFarm, primaryFarm.getId()))
+                .filter(idFarm -> primaryFarm == null || !Objects.equals(idFarm, primaryFarm.getId()))
                 .distinct()
                 .toList();
 
@@ -555,21 +559,32 @@ public class StateGoalService {
             return idFarm;
         }
 
-        if (!FARM_OWNER.equals(principal.getRole())) {
+        if (ADM.equals(principal.getRole())) {
+            return null;
+        }
+
+        if (FARM_OWNER.equals(principal.getRole())) {
+            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
+            if (owner.getIdFarm() == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Produtor rural logado não possui fazenda vinculada para cadastrar meta estadual"
+                );
+            }
+            return owner.getIdFarm();
+        }
+
+        if (COMPANY_EMPLOYEE.equals(principal.getRole())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "O ID da fazenda é obrigatório para administradores e funcionários da empresa"
+                    "O ID da fazenda é obrigatório para funcionários da empresa"
             );
         }
 
-        FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
-        if (owner.getIdFarm() == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Produtor rural logado não possui fazenda vinculada para cadastrar meta estadual"
-            );
-        }
-        return owner.getIdFarm();
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Perfil de usuário sem permissão para cadastrar metas estaduais"
+        );
     }
 
     private void ensureAuthenticated(UserPrincipal principal) {

@@ -23,8 +23,8 @@ import java.time.LocalDate;
  * @param targetValue  Valor numérico alvo a ser atingido (maior que zero)
  * @param dateCreation Data de início/criação da vigência da meta estadual
  * @param dateEnd      Data de término/conclusão da vigência da meta estadual
- * @param idFarm       Identificador único da fazenda vinculada (opcional para produtor rural logado)
- * @param region       Região de abrangência da meta (opcional, inferida da fazenda vinculada)
+ * @param idFarm       Identificador único da fazenda vinculada (opcional para ADM e produtor rural)
+ * @param region       Região de abrangência da meta (opcional, inferida da fazenda vinculada se informada)
  */
 @Schema(description = "Dados para cadastro de uma meta estadual")
 public record StateGoalRequestDTO(
@@ -67,7 +67,7 @@ public record StateGoalRequestDTO(
         @NotNull(message = "A data de término é obrigatória")
         LocalDate dateEnd,
 
-        @Schema(description = "Identificador único da fazenda vinculada (obrigatório para ADM e funcionários; opcional para produtor rural)", example = "1")
+        @Schema(description = "Identificador único da fazenda vinculada (opcional para ADM e produtor rural)", example = "1")
         @JsonProperty("id_farm")
         @JsonAlias("idFarm")
         @Positive(message = "O ID da fazenda deve ser maior que zero")

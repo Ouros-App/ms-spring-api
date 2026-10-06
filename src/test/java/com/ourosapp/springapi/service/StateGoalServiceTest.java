@@ -210,7 +210,6 @@ class StateGoalServiceTest {
                 new BigDecimal("1.6500"), LocalDate.of(2026, 12, 31), LocalDate.of(2026, 1, 1),
                 10L, "Sudeste"
         );
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> stateGoalService.createStateGoal(invalidDates, admPrincipal));
@@ -262,8 +261,36 @@ class StateGoalServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 400 Bad Request quando ADM não informar idFarm")
-    void deveLancar400QuandoAdmNaoInformarFarmId() {
+    @DisplayName("Deve criar meta estadual com sucesso para ADM sem informar idFarm")
+    void deveCriarMetaEstadualComSucessoParaAdmSemInformarFarmId() {
+        StateGoalRequestDTO dtoWithoutFarm = new StateGoalRequestDTO(
+                "Meta Regional Geral", "Meta sem fazenda inicial", "FEED_CONVERSION", "IN_PROGRESS",
+                new BigDecimal("1.6500"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
+                null, "Sudeste"
+        );
+        when(stateGoalRepository.callCreateStateGoal(
+                eq(dtoWithoutFarm.title()),
+                eq(dtoWithoutFarm.description()),
+                eq(dtoWithoutFarm.type()),
+                eq(dtoWithoutFarm.status()),
+                eq(dtoWithoutFarm.targetValue()),
+                eq(dtoWithoutFarm.dateCreation().atStartOfDay()),
+                eq(dtoWithoutFarm.dateEnd().atStartOfDay()),
+                isNull(),
+                eq("Sudeste")
+        )).thenReturn(1);
+
+        StateGoalResponseDTO response = stateGoalService.createStateGoal(dtoWithoutFarm, admPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        assertNull(response.idFarm());
+        assertEquals("Sudeste", response.region());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 400 Bad Request quando COMPANY_EMPLOYEE não informar idFarm")
+    void deveLancar400QuandoCompanyEmployeeNaoInformarFarmId() {
         StateGoalRequestDTO dtoWithoutFarm = new StateGoalRequestDTO(
                 "Meta", "Desc", "FEED_CONVERSION", "IN_PROGRESS",
                 new BigDecimal("1.6500"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
@@ -271,9 +298,10 @@ class StateGoalServiceTest {
         );
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> stateGoalService.createStateGoal(dtoWithoutFarm, admPrincipal));
+                () -> stateGoalService.createStateGoal(dtoWithoutFarm, employeePrincipal));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("O ID da fazenda é obrigatório para funcionários da empresa", ex.getReason());
     }
 
     @Test
@@ -1109,8 +1137,6 @@ class StateGoalServiceTest {
                 10L,
                 "Sudeste"
         );
-
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 stateGoalService.createStateGoalViaProcedure(invalidDateRequest, admPrincipal)
