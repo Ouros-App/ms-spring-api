@@ -559,7 +559,7 @@ public class StateGoalService {
             return idFarm;
         }
 
-        if (ADM.equals(principal.getRole())) {
+        if (ADM.equals(principal.getRole()) || COMPANY_EMPLOYEE.equals(principal.getRole())) {
             return null;
         }
 
@@ -572,13 +572,6 @@ public class StateGoalService {
                 );
             }
             return owner.getIdFarm();
-        }
-
-        if (COMPANY_EMPLOYEE.equals(principal.getRole())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "O ID da fazenda é obrigatório para funcionários da empresa"
-            );
         }
 
         throw new ResponseStatusException(

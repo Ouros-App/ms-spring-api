@@ -289,19 +289,31 @@ class StateGoalServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 400 Bad Request quando COMPANY_EMPLOYEE não informar idFarm")
-    void deveLancar400QuandoCompanyEmployeeNaoInformarFarmId() {
+    @DisplayName("Deve criar meta estadual com sucesso para COMPANY_EMPLOYEE sem informar idFarm")
+    void deveCriarMetaEstadualComSucessoParaCompanyEmployeeSemInformarFarmId() {
         StateGoalRequestDTO dtoWithoutFarm = new StateGoalRequestDTO(
-                "Meta", "Desc", "FEED_CONVERSION", "IN_PROGRESS",
+                "Meta Regional Geral", "Meta sem fazenda inicial", "FEED_CONVERSION", "IN_PROGRESS",
                 new BigDecimal("1.6500"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
-                null, null
+                null, "Sudeste"
         );
+        when(stateGoalRepository.callCreateStateGoal(
+                eq(dtoWithoutFarm.title()),
+                eq(dtoWithoutFarm.description()),
+                eq(dtoWithoutFarm.type()),
+                eq(dtoWithoutFarm.status()),
+                eq(dtoWithoutFarm.targetValue()),
+                eq(dtoWithoutFarm.dateCreation().atStartOfDay()),
+                eq(dtoWithoutFarm.dateEnd().atStartOfDay()),
+                isNull(),
+                eq("Sudeste")
+        )).thenReturn(1);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> stateGoalService.createStateGoal(dtoWithoutFarm, employeePrincipal));
+        StateGoalResponseDTO response = stateGoalService.createStateGoal(dtoWithoutFarm, employeePrincipal);
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertEquals("O ID da fazenda é obrigatório para funcionários da empresa", ex.getReason());
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        assertNull(response.idFarm());
+        assertEquals("Sudeste", response.region());
     }
 
     @Test
