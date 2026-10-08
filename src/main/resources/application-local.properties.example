@@ -16,4 +16,8 @@ app.security.oauth2.audience=ms-spring-api
 app.security.oauth2.client-id=ms-spring-api
 app.cors.allowed-origins=http://localhost:3000,http://localhost:5173,http://localhost:8080
 
-
+# Configurações do Redis NoSQL (Upstash)
+app.redis.host=rapid-hare-284662.upstash.io
+app.redis.port=6379
+app.redis.password=<UPSTASH_REDIS_REST_TOKEN>
+app.redis.ssl.enabled=true
