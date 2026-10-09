@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.controller;
 
+import com.ourosapp.springapi.dto.farm.FarmPodiumRankingResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRankingResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmScoreUpdateDTO;
 import com.ourosapp.springapi.security.UserPrincipal;
@@ -20,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Controlador REST responsável por expor os serviços de Ranking de Fazendas utilizando Redis NoSQL.
+ * Controlador REST responsável por expor os serviços de Ranking de Fazendas utilizando Redis NoSQL e PostgreSQL.
  * Todas as rotas são protegidas por autenticação JWT (Bearer token).
  */
 @RestController
@@ -79,6 +80,29 @@ public class FarmRankingController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         return ResponseEntity.ok(farmRankingService.getFarmPosition(id, principal));
+    }
+
+    /**
+     * Retorna o pódio relativo da fazenda com concorrentes imediatos (acima, atual e abaixo).
+     *
+     * @param id        identificador da fazenda
+     * @param principal dados do usuário logado
+     * @return DTO com o trio relativo de classificação
+     */
+    @Operation(summary = "Consultar pódio relativo da fazenda no ranking", description = "Retorna a fazenda solicitante e o trio de concorrência direta (imediatamente acima e abaixo) na sua integradora.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Pódio relativo retornado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para consultar esta fazenda"),
+            @ApiResponse(responseCode = "404", description = "Fazenda não encontrada")
+    })
+    @GetMapping("/{id}/ranking/podium")
+    public ResponseEntity<FarmPodiumRankingResponseDTO> getFarmPodiumRanking(
+            @Parameter(description = "Identificador único da fazenda", example = "1")
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(farmRankingService.getFarmPodiumRanking(id, principal));
     }
 
     /**

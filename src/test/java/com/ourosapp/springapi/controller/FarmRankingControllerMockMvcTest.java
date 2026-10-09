@@ -2,6 +2,8 @@ package com.ourosapp.springapi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
+import com.ourosapp.springapi.dto.farm.FarmPodiumItemDTO;
+import com.ourosapp.springapi.dto.farm.FarmPodiumRankingResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRankingResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmScoreUpdateDTO;
 import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
@@ -66,11 +68,11 @@ class FarmRankingControllerMockMvcTest {
     }
 
     @Test
-    @DisplayName("Deve retornar 200 OK com lista de granjas no ranking")
+    @DisplayName("Deve retornar 200 OK com lista de granjas no ranking contendo apenas os dados essenciais")
     void deveRetornarTopRankingsComSucesso() throws Exception {
         UserPrincipal principal = createMockUser("ADM");
         FarmRankingResponseDTO item = new FarmRankingResponseDTO(
-                1L, 1L, 98.5, "Granja Sol Poente", "Sudeste", 50000, 48000
+                1L, "Granja Sol Poente", "Sudeste", 1.15, 1L
         );
 
         when(farmRankingService.getTopRankings(eq(1L), eq(10), any(UserPrincipal.class)))
@@ -83,17 +85,21 @@ class FarmRankingControllerMockMvcTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].farm_id").value(1))
+                .andExpect(jsonPath("$[0].farm_name").value("Granja Sol Poente"))
+                .andExpect(jsonPath("$[0].region").value("Sudeste"))
+                .andExpect(jsonPath("$[0].score").value(1.15))
                 .andExpect(jsonPath("$[0].rank_position").value(1))
-                .andExpect(jsonPath("$[0].score").value(98.5))
-                .andExpect(jsonPath("$[0].farm_name").value("Granja Sol Poente"));
+                .andExpect(jsonPath("$[0].poultry_capacity").doesNotExist())
+                .andExpect(jsonPath("$[0].chickens_now").doesNotExist())
+                .andExpect(jsonPath("$[0].medal").doesNotExist());
     }
 
     @Test
-    @DisplayName("Deve retornar 200 OK com posição individual da granja")
+    @DisplayName("Deve retornar 200 OK com posição individual da granja e dados essenciais")
     void deveRetornarPosicaoDaGranjaComSucesso() throws Exception {
         UserPrincipal principal = createMockUser("COMPANY_EMPLOYEE");
         FarmRankingResponseDTO item = new FarmRankingResponseDTO(
-                2L, 3L, 85.0, "Granja Aurora", "Sul", 30000, 25000
+                2L, "Granja Aurora", "Sul", 1.50, 3L
         );
 
         when(farmRankingService.getFarmPosition(eq(2L), any(UserPrincipal.class)))
@@ -104,9 +110,53 @@ class FarmRankingControllerMockMvcTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.farm_id").value(2))
-                .andExpect(jsonPath("$.rank_position").value(3))
-                .andExpect(jsonPath("$.score").value(85.0))
-                .andExpect(jsonPath("$.farm_name").value("Granja Aurora"));
+                .andExpect(jsonPath("$.farm_name").value("Granja Aurora"))
+                .andExpect(jsonPath("$.region").value("Sul"))
+                .andExpect(jsonPath("$.score").value(1.50))
+                .andExpect(jsonPath("$.rank_position").value(3));
+    }
+
+    @Test
+    @DisplayName("Deve retornar 200 OK com pódio relativo da fazenda")
+    void deveRetornarPodiumDaFazendaComSucesso() throws Exception {
+        UserPrincipal principal = createMockUser("FARM_OWNER");
+        FarmPodiumItemDTO above = new FarmPodiumItemDTO(1L, "Granja 1", "Sudeste", 1.0, 1L, "ABOVE");
+        FarmPodiumItemDTO current = new FarmPodiumItemDTO(2L, "Granja 2", "Sudeste", 1.2, 2L, "CURRENT");
+        FarmPodiumItemDTO below = new FarmPodiumItemDTO(3L, "Granja 3", "Sudeste", 1.4, 3L, "BELOW");
+
+        FarmPodiumRankingResponseDTO podiumResponse = new FarmPodiumRankingResponseDTO(
+                2L, List.of(above, current, below)
+        );
+
+        when(farmRankingService.getFarmPodiumRanking(eq(2L), any(UserPrincipal.class)))
+                .thenReturn(podiumResponse);
+
+        mockMvc.perform(get("/farms/2/ranking/podium")
+                        .with(user(principal))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.current_farm_id").value(2))
+                .andExpect(jsonPath("$.ranking_podium[0].relation").value("ABOVE"))
+                .andExpect(jsonPath("$.ranking_podium[0].farm_name").value("Granja 1"))
+                .andExpect(jsonPath("$.ranking_podium[0].region").value("Sudeste"))
+                .andExpect(jsonPath("$.ranking_podium[0].score").value(1.0))
+                .andExpect(jsonPath("$.ranking_podium[1].relation").value("CURRENT"))
+                .andExpect(jsonPath("$.ranking_podium[1].farm_id").value(2))
+                .andExpect(jsonPath("$.ranking_podium[2].relation").value("BELOW"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar 403 Forbidden quando produtor consultar pódio de outra fazenda")
+    void deveRetornar403QuandoProdutorConsultarPodiumAlheio() throws Exception {
+        UserPrincipal principal = createMockUser("FARM_OWNER");
+
+        when(farmRankingService.getFarmPodiumRanking(eq(99L), any(UserPrincipal.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado a esta fazenda"));
+
+        mockMvc.perform(get("/farms/99/ranking/podium")
+                        .with(user(principal))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -127,9 +177,9 @@ class FarmRankingControllerMockMvcTest {
     @DisplayName("Deve retornar 200 OK ao atualizar pontuação de ranking de uma fazenda")
     void deveAtualizarScoreComSucesso() throws Exception {
         UserPrincipal principal = createMockUser("COMPANY_EMPLOYEE");
-        FarmScoreUpdateDTO dto = new FarmScoreUpdateDTO(97.3);
+        FarmScoreUpdateDTO dto = new FarmScoreUpdateDTO(1.23);
         FarmRankingResponseDTO responseDTO = new FarmRankingResponseDTO(
-                1L, 1L, 97.3, "Granja Boa Vista", "Sudeste", 40000, 39000
+                1L, "Granja Boa Vista", "Sudeste", 1.23, 1L
         );
 
         when(farmRankingService.updateFarmScore(eq(1L), any(FarmScoreUpdateDTO.class), any(UserPrincipal.class)))
@@ -140,8 +190,10 @@ class FarmRankingControllerMockMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.score").value(97.3))
-                .andExpect(jsonPath("$.farm_name").value("Granja Boa Vista"));
+                .andExpect(jsonPath("$.score").value(1.23))
+                .andExpect(jsonPath("$.farm_name").value("Granja Boa Vista"))
+                .andExpect(jsonPath("$.region").value("Sudeste"))
+                .andExpect(jsonPath("$.rank_position").value(1));
     }
 
     @Test
