@@ -404,8 +404,11 @@ public class FarmRankingService {
     private FarmPodiumItemDTO mapHashToPodiumItem(Long farmId, String relation, Long rankPos, Map<Object, Object> entries) {
         String name = (entries != null && entries.get("farm_name") != null) ? (String) entries.get("farm_name") : "Granja #" + farmId;
         String region = (entries != null && entries.get("region") != null) ? (String) entries.get("region") : null;
-        Double score = (entries != null && entries.get("score") != null) ? parseDouble(entries.get("score"))
-                : (entries != null && entries.get("cgi") != null ? parseDouble(entries.get("cgi")) : 0.0);
+        Double parsedScore = (entries != null) ? parseDouble(entries.get("score")) : null;
+        if (parsedScore == null && entries != null) {
+            parsedScore = parseDouble(entries.get("cgi"));
+        }
+        Double score = parsedScore != null ? parsedScore : 0.0;
         Long finalRankPos = (rankPos != null) ? rankPos : (entries != null ? parseLong(entries.get("rank_position")) : null);
 
         return new FarmPodiumItemDTO(farmId, name, region, score, finalRankPos != null ? finalRankPos : 1L, relation);
@@ -451,13 +454,6 @@ public class FarmRankingService {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para consultar dados de outra integradora");
             }
             return employee.getIdEnterprise();
-        }
-
-        if (FARM_OWNER.equals(role)) {
-            FarmOwner owner = farmOwnerRepository.findById(principal.getId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produtor rural não encontrado"));
-            Farm farm = findFarmByIdOrThrow(owner.getIdFarm());
-            return farm.getIdEnterprise();
         }
 
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Perfil de usuário sem permissão para acessar ranking");

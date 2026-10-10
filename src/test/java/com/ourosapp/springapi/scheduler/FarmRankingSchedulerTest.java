@@ -67,4 +67,17 @@ class FarmRankingSchedulerTest {
         verify(farmRankingService).recalculateAndCacheEnterpriseRanking(1L);
         verify(farmRankingService).recalculateAndCacheEnterpriseRanking(2L);
     }
+
+    @Test
+    @DisplayName("Deve tolerar falha geral no repositório de empresas sem propagar exceção")
+    void deveTolerarFalhaGeralNoRepositorio() {
+        when(enterpriseRepository.findAll()).thenThrow(new RuntimeException("Banco de dados indisponível"));
+
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
+                farmRankingScheduler.scheduleWeeklyRankingCalculation()
+        );
+
+        verify(enterpriseRepository).findAll();
+        verifyNoInteractions(farmRankingService);
+    }
 }

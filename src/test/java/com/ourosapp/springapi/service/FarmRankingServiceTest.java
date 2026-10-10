@@ -498,4 +498,630 @@ class FarmRankingServiceTest {
 
         assertNull(countdown);
     }
+
+    @Test
+    @DisplayName("Deve retornar lista vazia quando projeções forem nulas ou vazias ao recalcular ranking")
+    void deveRetornarListaVaziaQuandoProjectionsForemNulasOuVazias() {
+        when(farmRepository.calculateFarmRankings(1L)).thenReturn(Collections.emptyList());
+        var resultVazio = farmRankingService.recalculateAndCacheEnterpriseRanking(1L);
+        assertNotNull(resultVazio);
+        assertTrue(resultVazio.isEmpty());
+
+        when(farmRepository.calculateFarmRankings(2L)).thenReturn(null);
+        var resultNulo = farmRankingService.recalculateAndCacheEnterpriseRanking(2L);
+        assertNotNull(resultNulo);
+        assertTrue(resultNulo.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Deve ignorar projeção com farmId nulo e aplicar valores padrão para campos nulos ao recalcular")
+    void deveIgnorarFarmIdNuloEAplicarDefaultsAoRecalcular() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+
+        FarmRankingProjection projComIdNulo = mock(FarmRankingProjection.class);
+        when(projComIdNulo.getIdEnterprise()).thenReturn(1L);
+        when(projComIdNulo.getFarmId()).thenReturn(null);
+
+        FarmRankingProjection projComCamposNulos = mock(FarmRankingProjection.class);
+        when(projComCamposNulos.getIdEnterprise()).thenReturn(1L);
+        when(projComCamposNulos.getFarmId()).thenReturn(10L);
+        when(projComCamposNulos.getFarmName()).thenReturn(null);
+        when(projComCamposNulos.getRegion()).thenReturn(null);
+        when(projComCamposNulos.getCgi()).thenReturn(null);
+        when(projComCamposNulos.getCaa()).thenReturn(null);
+        when(projComCamposNulos.getCea()).thenReturn(null);
+        when(projComCamposNulos.getMedal()).thenReturn(null);
+        when(projComCamposNulos.getPercentilePct()).thenReturn(null);
+        when(projComCamposNulos.getPoultryCapacity()).thenReturn(null);
+        when(projComCamposNulos.getChickensNow()).thenReturn(null);
+        when(projComCamposNulos.getRankPosition()).thenReturn(null);
+
+        when(farmRepository.calculateFarmRankings(1L))
+                .thenReturn(List.of(projComIdNulo, projComCamposNulos));
+
+        List<FarmRankingResponseDTO> result = farmRankingService.recalculateAndCacheEnterpriseRanking(1L);
+
+        assertEquals(1, result.size());
+        verify(zSetOperations, never()).add(anyString(), eq("null"), anyDouble());
+        verify(zSetOperations).add("ranking:enterprise:1:zset", "10", 0.0);
+    }
+
+    @Test
+    @DisplayName("Deve recalcular sob demanda em caso de cache miss no pódio")
+    void deveRecalcularSobDemandaEmCacheMissNoPodium() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(FarmOwner.builder().id(3L).idFarm(10L).build()));
+
+        // Primeiro rank retorna null (cache miss), segundo após recálculo retorna 0L
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "10"))
+                .thenReturn(null)
+                .thenReturn(0L);
+
+        FarmRankingProjection proj = createMockProjection(10L, "Granja Ouro Fino", 1L, 1L, 1.15, "OURO", 10.0);
+        when(farmRepository.calculateFarmRankings(1L)).thenReturn(List.of(proj));
+
+        when(zSetOperations.range("ranking:enterprise:1:zset", 0L, 1L))
+                .thenReturn(new LinkedHashSet<>(List.of("10")));
+
+        Map<Object, Object> details10 = createFarmDetailsHash(10L, "Granja Ouro Fino", 1L, 1.15);
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(details10);
+
+        FarmPodiumRankingResponseDTO response = farmRankingService.getFarmPodiumRanking(10L, ownerPrincipal);
+
+        assertNotNull(response);
+        assertEquals(10L, response.currentFarmId());
+        verify(farmRepository).calculateFarmRankings(1L);
+    }
+
+    @Test
+    @DisplayName("Deve retornar fallback simples quando rank continuar nulo após recálculo no pódio")
+    void deveRetornarFallbackSimplesQuandoRankContinuarNuloAposRecalculoEmPodium() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(FarmOwner.builder().id(3L).idFarm(10L).build()));
+
+        // Ambos os ranks retornam null
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "10")).thenReturn(null);
+        when(farmRepository.calculateFarmRankings(1L)).thenReturn(Collections.emptyList());
+
+        FarmPodiumRankingResponseDTO response = farmRankingService.getFarmPodiumRanking(10L, ownerPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1, response.rankingPodium().size());
+        assertEquals("CURRENT", response.rankingPodium().get(0).relation());
+        assertEquals(1L, response.rankingPodium().get(0).rankPosition());
+    }
+
+    @Test
+    @DisplayName("Deve retornar fallback simples quando range retornar vazio no pódio")
+    void deveRetornarFallbackSimplesQuandoRangeRetornarVazioEmPodium() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(FarmOwner.builder().id(3L).idFarm(10L).build()));
+
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "10")).thenReturn(0L);
+        when(zSetOperations.range("ranking:enterprise:1:zset", 0L, 1L)).thenReturn(Collections.emptySet());
+
+        FarmPodiumRankingResponseDTO response = farmRankingService.getFarmPodiumRanking(10L, ownerPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1, response.rankingPodium().size());
+        assertEquals("CURRENT", response.rankingPodium().get(0).relation());
+        assertEquals(1L, response.rankingPodium().get(0).rankPosition());
+    }
+
+    @Test
+    @DisplayName("Deve mapear hash para item do pódio cobrindo formatos alternativos e valores inválidos")
+    void deveMapearHashParaItemDoPodiumComValoresAlternativosEInvalidos() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(FarmOwner.builder().id(3L).idFarm(10L).build()));
+
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "10")).thenReturn(0L);
+        when(zSetOperations.range("ranking:enterprise:1:zset", 0L, 1L))
+                .thenReturn(new LinkedHashSet<>(List.of("10")));
+
+        // Hash sem farm_name, sem region, com cgi em vez de score, e valores não numéricos
+        Map<Object, Object> details = new HashMap<>();
+        details.put("cgi", "1.45");
+        details.put("score", "invalido");
+        details.put("rank_position", "invalido");
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(details);
+
+        FarmPodiumRankingResponseDTO response = farmRankingService.getFarmPodiumRanking(10L, ownerPrincipal);
+
+        assertNotNull(response);
+        FarmPodiumItemDTO item = response.rankingPodium().get(0);
+        assertEquals("Granja #10", item.farmName());
+        assertNull(item.region());
+        assertEquals(1.45, item.score()); // 'invalido' virou null no parseDouble, fallback para o cgi (1.45)
+        assertEquals(1L, item.rankPosition());
+    }
+
+    @Test
+    @DisplayName("Deve permitir funcionário consultar pódio de fazenda da sua empresa")
+    void devePermitirFuncionarioConsultarPodiumDaSuaEmpresa() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "10")).thenReturn(0L);
+        when(zSetOperations.range("ranking:enterprise:1:zset", 0L, 1L))
+                .thenReturn(new LinkedHashSet<>(List.of("10")));
+
+        Map<Object, Object> details = createFarmDetailsHash(10L, "Granja Ouro Fino", 1L, 1.25);
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(details);
+
+        FarmPodiumRankingResponseDTO response = farmRankingService.getFarmPodiumRanking(10L, employeePrincipal);
+
+        assertNotNull(response);
+        assertEquals(10L, response.currentFarmId());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando funcionário consultar pódio de fazenda de outra empresa")
+    void deveLancar403QuandoFuncionarioConsultarPodiumDeOutraEmpresa() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(2L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getFarmPodiumRanking(10L, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals("Acesso negado a esta fazenda", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando funcionário não for encontrado ao validar acesso a fazenda")
+    void deveLancar404QuandoFuncionarioNaoEncontradoAoAcessarFazenda() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getFarmPodiumRanking(10L, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Funcionário não encontrado", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando produtor rural não for encontrado ao validar acesso a fazenda")
+    void deveLancar404QuandoProdutorNaoEncontradoAoAcessarFazenda() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getFarmPodiumRanking(10L, ownerPrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Produtor rural não encontrado", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando usuário com perfil desconhecido tentar acessar fazenda")
+    void deveLancar403QuandoPerfilDesconhecidoAcessarFazenda() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        UserPrincipal guestPrincipal = new UserPrincipal(99L, "guest@ouros.com", "Guest", "GUEST",
+                List.of(new SimpleGrantedAuthority("ROLE_GUEST")));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getFarmPodiumRanking(10L, guestPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals("Perfil de usuário sem permissão para acessar esta fazenda", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve recalcular para todas as empresas quando ADM consultar Top Rankings sem informar empresa")
+    void deveRecalcularParaTodasQuandoAdmConsultarSemEmpresa() {
+        FarmRankingProjection proj = createMockProjection(10L, "Granja Ouro Fino", 1L, 1L, 1.15, "OURO", 10.0);
+        when(farmRepository.calculateFarmRankings(null)).thenReturn(List.of(proj));
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+
+        List<FarmRankingResponseDTO> result = farmRankingService.getTopRankings(null, 10, admPrincipal);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        verify(farmRepository).calculateFarmRankings(null);
+    }
+
+    @Test
+    @DisplayName("Deve recalcular sob demanda quando zCard for zero em Top Rankings")
+    void deveRecalcularQuandoZCardForZeroEmTopRankings() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(zSetOperations.zCard("ranking:enterprise:1:zset")).thenReturn(0L);
+
+        FarmRankingProjection proj = createMockProjection(10L, "Granja Ouro Fino", 1L, 1L, 1.15, "OURO", 10.0);
+        when(farmRepository.calculateFarmRankings(1L)).thenReturn(List.of(proj));
+
+        when(zSetOperations.range("ranking:enterprise:1:zset", 0, 9)).thenReturn(new LinkedHashSet<>(List.of("10")));
+        Map<Object, Object> details = createFarmDetailsHash(10L, "Granja Ouro Fino", 1L, 1.15);
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(details);
+
+        List<FarmRankingResponseDTO> result = farmRankingService.getTopRankings(1L, 10, admPrincipal);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        verify(farmRepository).calculateFarmRankings(1L);
+    }
+
+    @Test
+    @DisplayName("Deve retornar lista vazia quando range retornar vazio em Top Rankings")
+    void deveRetornarListaVaziaQuandoRangeRetornarVazioEmTopRankings() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(zSetOperations.zCard("ranking:enterprise:1:zset")).thenReturn(5L);
+        when(zSetOperations.range("ranking:enterprise:1:zset", 0, 9)).thenReturn(Collections.emptySet());
+
+        List<FarmRankingResponseDTO> result = farmRankingService.getTopRankings(1L, 10, admPrincipal);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Deve recorrer ao banco e zset quando hash de detalhes for vazio em Top Rankings")
+    void deveRecorrerAoBancoQuandoHashDeDetalhesForVazioEmTopRankings() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(zSetOperations.zCard("ranking:enterprise:1:zset")).thenReturn(2L);
+        when(zSetOperations.range("ranking:enterprise:1:zset", 0, 9))
+                .thenReturn(new LinkedHashSet<>(List.of("10", "99")));
+
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(Collections.emptyMap());
+        when(hashOperations.entries("ranking:farm:99:details")).thenReturn(Collections.emptyMap());
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(farmRepository.findById(99L)).thenReturn(Optional.empty());
+
+        when(zSetOperations.score("ranking:enterprise:1:zset", "10")).thenReturn(1.10);
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "10")).thenReturn(0L);
+        when(zSetOperations.score("ranking:enterprise:1:zset", "99")).thenReturn(null);
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "99")).thenReturn(null);
+
+        List<FarmRankingResponseDTO> result = farmRankingService.getTopRankings(1L, 10, admPrincipal);
+
+        assertEquals(2, result.size());
+        assertEquals("Granja Ouro Fino", result.get(0).farmName());
+        assertEquals(1L, result.get(0).rankPosition());
+        assertEquals("Granja #99", result.get(1).farmName());
+        assertNull(result.get(1).region());
+        assertEquals(0.0, result.get(1).score());
+        assertEquals(1L, result.get(1).rankPosition());
+    }
+
+    @Test
+    @DisplayName("Deve delegar corretamente em getEnterpriseRankings")
+    void deveDelegarEmGetEnterpriseRankings() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(zSetOperations.zCard("ranking:enterprise:1:zset")).thenReturn(1L);
+        when(zSetOperations.range("ranking:enterprise:1:zset", 0, 99))
+                .thenReturn(new LinkedHashSet<>(List.of("10")));
+
+        Map<Object, Object> details = createFarmDetailsHash(10L, "Granja Ouro Fino", 1L, 1.25);
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(details);
+
+        List<FarmRankingResponseDTO> result = farmRankingService.getEnterpriseRankings(1L, admPrincipal);
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    @DisplayName("Deve ajustar limite seguro quando limit for menor ou igual a zero ou maior que 100")
+    void deveAjustarLimiteSeguroEmTopRankings() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(zSetOperations.zCard("ranking:enterprise:1:zset")).thenReturn(1L);
+
+        when(zSetOperations.range("ranking:enterprise:1:zset", 0, 9))
+                .thenReturn(new LinkedHashSet<>(List.of("10")));
+        when(hashOperations.entries("ranking:farm:10:details"))
+                .thenReturn(createFarmDetailsHash(10L, "Granja Ouro Fino", 1L, 1.25));
+
+        var resZero = farmRankingService.getTopRankings(1L, 0, admPrincipal);
+        assertEquals(1, resZero.size());
+        verify(zSetOperations).range("ranking:enterprise:1:zset", 0, 9);
+
+        when(zSetOperations.range("ranking:enterprise:1:zset", 0, 99))
+                .thenReturn(new LinkedHashSet<>(List.of("10")));
+        var res150 = farmRankingService.getTopRankings(1L, 150, admPrincipal);
+        assertEquals(1, res150.size());
+        verify(zSetOperations).range("ranking:enterprise:1:zset", 0, 99);
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando ADM informar empresa que não existe")
+    void deveLancar404QuandoAdmInformarEmpresaInexistente() {
+        when(enterpriseRepository.existsById(999L)).thenReturn(false);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getTopRankings(999L, 10, admPrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Empresa integradora não encontrada"));
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando funcionário tentar consultar outra integradora")
+    void deveLancar403QuandoFuncionarioConsultarOutraIntegradora() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getTopRankings(2L, 10, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals("Acesso negado para consultar dados de outra integradora", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando funcionário não for encontrado ao resolver empresa")
+    void deveLancar404QuandoFuncionarioNaoEncontradoAoResolverEmpresa() {
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getTopRankings(1L, 10, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Funcionário não encontrado", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando perfil desconhecido tentar resolver empresa alvo")
+    void deveLancar403QuandoPerfilDesconhecidoResolverEmpresa() {
+        UserPrincipal guestPrincipal = new UserPrincipal(99L, "guest@ouros.com", "Guest", "GUEST",
+                List.of(new SimpleGrantedAuthority("ROLE_GUEST")));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getTopRankings(1L, 10, guestPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals("Perfil de usuário sem permissão para acessar ranking", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve recalcular posição sob demanda e recorrer a valores básicos quando hash for vazio em getFarmPosition")
+    void deveRecorrerAValoresBasicosEmGetFarmPosition() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "10"))
+                .thenReturn(null)
+                .thenReturn(2L);
+
+        when(farmRepository.calculateFarmRankings(1L)).thenReturn(Collections.emptyList());
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(Collections.emptyMap());
+        when(zSetOperations.score("ranking:enterprise:1:zset", "10")).thenReturn(1.35);
+
+        FarmRankingResponseDTO response = farmRankingService.getFarmPosition(10L, admPrincipal);
+
+        assertNotNull(response);
+        assertEquals(10L, response.farmId());
+        assertEquals("Granja Ouro Fino", response.farmName());
+        assertEquals(1.35, response.score());
+        assertEquals(3L, response.rankPosition());
+    }
+
+    @Test
+    @DisplayName("Deve permitir funcionário consultar posição de fazenda da sua empresa")
+    void devePermitirFuncionarioConsultarPosicaoDeFazendaDaSuaEmpresa() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "10")).thenReturn(0L);
+        Map<Object, Object> details = createFarmDetailsHash(10L, "Granja Ouro Fino", 1L, 1.25);
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(details);
+
+        FarmRankingResponseDTO response = farmRankingService.getFarmPosition(10L, employeePrincipal);
+
+        assertNotNull(response);
+        assertEquals(10L, response.farmId());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando funcionário consultar posição de fazenda de outra integradora")
+    void deveLancar403QuandoFuncionarioConsultarPosicaoDeFazendaDeOutraIntegradora() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(2L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getFarmPosition(10L, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals("Acesso negado a esta fazenda", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve permitir funcionário atualizar pontuação de fazenda da sua empresa")
+    void devePermitirFuncionarioAtualizarScoreDeFazendaDaSuaEmpresa() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "10")).thenReturn(null);
+
+        FarmScoreUpdateDTO dto = new FarmScoreUpdateDTO(1.50);
+        FarmRankingResponseDTO response = farmRankingService.updateFarmScore(10L, dto, employeePrincipal);
+
+        assertNotNull(response);
+        assertEquals(1.50, response.score());
+        assertEquals(1L, response.rankPosition());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando funcionário tentar atualizar score de fazenda de outra empresa")
+    void deveLancar403QuandoFuncionarioAtualizarScoreDeOutraEmpresa() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(2L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        FarmScoreUpdateDTO dto = new FarmScoreUpdateDTO(1.50);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.updateFarmScore(10L, dto, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Acesso negado"));
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando funcionário não for encontrado ao atualizar score")
+    void deveLancar404QuandoFuncionarioNaoEncontradoAoAtualizarScore() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.empty());
+
+        FarmScoreUpdateDTO dto = new FarmScoreUpdateDTO(1.50);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.updateFarmScore(10L, dto, employeePrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Funcionário não encontrado", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando perfil desconhecido tentar atualizar score de fazenda")
+    void deveLancar403QuandoPerfilDesconhecidoAtualizarScore() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        UserPrincipal guestPrincipal = new UserPrincipal(99L, "guest@ouros.com", "Guest", "GUEST",
+                List.of(new SimpleGrantedAuthority("ROLE_GUEST")));
+
+        FarmScoreUpdateDTO dto = new FarmScoreUpdateDTO(1.50);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.updateFarmScore(10L, dto, guestPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals("Perfil de usuário sem permissão para alterar ranking de fazendas", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando produtor tentar sincronizar ranking de fazendas")
+    void deveLancar403QuandoProdutorTentarSincronizarRanking() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.syncAllFarmsToRanking(null, ownerPrincipal)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals("Produtor rural não possui permissão para executar sincronização de ranking", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve permitir funcionário sincronizar ranking de fazendas da sua empresa")
+    void devePermitirFuncionarioSincronizarRankingDaSuaEmpresa() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        FarmRankingProjection proj = createMockProjection(10L, "Granja Ouro Fino", 1L, 1L, 1.15, "OURO", 10.0);
+        when(farmRepository.calculateFarmRankings(1L)).thenReturn(List.of(proj));
+
+        long synced = farmRankingService.syncAllFarmsToRanking(null, employeePrincipal);
+
+        assertEquals(1L, synced);
+    }
+
+    @Test
+    @DisplayName("Deve lançar 401 quando principal for nulo ou não possuir ID")
+    void deveLancar401QuandoPrincipalNuloOuSemId() {
+        ResponseStatusException exNull = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getTopRankings(1L, 10, null)
+        );
+        assertEquals(HttpStatus.UNAUTHORIZED, exNull.getStatusCode());
+
+        UserPrincipal principalSemId = new UserPrincipal(null, "semid@ouros.com", "Sem Id", "ADM", List.of());
+        ResponseStatusException exSemId = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getFarmPosition(10L, principalSemId)
+        );
+        assertEquals(HttpStatus.UNAUTHORIZED, exSemId.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando ID da fazenda for nulo")
+    void deveLancar404QuandoIdDaFazendaForNulo() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                farmRankingService.getFarmPosition(null, admPrincipal)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Fazenda não encontrada para o ID: null", ex.getReason());
+    }
+
+    @Test
+    @DisplayName("Deve cair no fallback da timezone America/Sao_Paulo quando zona for inválida")
+    void deveCairNoFallbackDeTimezoneQuandoZonaInvalida() {
+        farmRankingService.setRankingCron("0 0 0 * * SUN");
+        farmRankingService.setRankingZone("Zona_Totalmente_Invalida");
+
+        var countdown = farmRankingService.calculateRankingCountdown();
+
+        assertNotNull(countdown);
+        assertNotNull(countdown.secondsUntilNextReset());
+    }
+
+    @Test
+    @DisplayName("Deve formatar durações humanas com 1, 2 partes e apenas segundos")
+    void deveFormatarDuracoesHumanasEmDiferentesCasos() {
+        // Cron a cada segundo: gera tempo restante em segundos (< 60s)
+        farmRankingService.setRankingCron("* * * * * *");
+        farmRankingService.setRankingZone("America/Sao_Paulo");
+
+        var countdown = farmRankingService.calculateRankingCountdown();
+        assertNotNull(countdown);
+        assertNotNull(countdown.timeUntilNextReset());
+    }
+
+    @Test
+    @DisplayName("Deve mapear hash para ranking response tratando campos não numéricos graciosamente")
+    void deveMapearHashParaRankingResponseComCamposNaoNumericos() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "10")).thenReturn(0L);
+
+        Map<Object, Object> details = new HashMap<>();
+        details.put("farm_name", "Granja Ouro Fino");
+        details.put("region", "Sudeste");
+        details.put("score", "invalido");
+        details.put("cgi", "invalido");
+        details.put("rank_position", "invalido");
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(details);
+
+        FarmRankingResponseDTO response = farmRankingService.getFarmPosition(10L, admPrincipal);
+
+        assertNotNull(response);
+        assertEquals(10L, response.farmId());
+        assertEquals(0.0, response.score());
+        assertEquals(1L, response.rankPosition());
+    }
 }
