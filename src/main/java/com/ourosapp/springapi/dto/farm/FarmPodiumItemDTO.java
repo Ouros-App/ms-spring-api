@@ -45,6 +45,6 @@ public record FarmPodiumItemDTO(
         String relation
 ) {
     public FarmPodiumItemDTO {
-        farmName = farmName != null ? farmName.trim() : null;
+        // Construtor compacto vazio
     }
 }
