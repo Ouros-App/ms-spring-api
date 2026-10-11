@@ -32,10 +32,10 @@ public class Farm {
     @Column(name = "region", nullable = false, length = 50)
     private String region;
 
-    @Column(name = "poultry_capacity", nullable = false)
+    @Transient
     private Integer poultryCapacity;
 
-    @Column(name = "place", nullable = false, length = 50)
+    @Transient
     private String place;
 
     @Builder.Default
