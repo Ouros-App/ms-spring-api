@@ -63,7 +63,7 @@ public record FarmRankingResponseDTO(
 ) {
 
     public FarmRankingResponseDTO {
-        // Construtor compacto vazio
+        farmName = farmName != null ? farmName.trim() : null;
     }
 
     public FarmRankingResponseDTO(Long farmId, String farmName, String region, Double score, Long rankPosition) {
