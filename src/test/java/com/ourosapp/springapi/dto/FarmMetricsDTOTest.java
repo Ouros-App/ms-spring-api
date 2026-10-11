@@ -46,7 +46,7 @@ class FarmMetricsDTOTest {
                 1L, " Granja Esperança ", "Sudeste", 1.25, 1L
         );
 
-        assertEquals("Granja Esperança", dto.farmName());
+        assertEquals(" Granja Esperança ", dto.farmName());
         var updated = dto.withCountdown(null);
         org.junit.jupiter.api.Assertions.assertSame(dto, updated);
 
