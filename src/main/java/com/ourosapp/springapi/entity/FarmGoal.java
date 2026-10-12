@@ -28,4 +28,8 @@ public class FarmGoal {
 
     @Column(name = "id_goal", nullable = false)
     private Long idGoal;
+
+    @Builder.Default
+    @Column(name = "status", length = 40, nullable = false)
+    private String status = "Pendente";
 }

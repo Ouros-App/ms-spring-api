@@ -34,7 +34,7 @@ public class CompanyEmployee {
     private String telephone;
 
     @ToString.Exclude
-    @Column(name = "password", nullable = false)
+    @Column(name = "password")
     private String password;
 
     @Column(name = "id_enterprise", nullable = false)

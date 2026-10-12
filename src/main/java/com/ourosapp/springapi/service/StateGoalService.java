@@ -71,11 +71,15 @@ public class StateGoalService {
         LocalDateTime dateCreation = request.dateCreation() != null ? request.dateCreation().atStartOfDay() : null;
         LocalDateTime dateEnd = request.dateEnd() != null ? request.dateEnd().atStartOfDay() : null;
 
+        String status = (request.status() != null && !request.status().isBlank())
+                ? request.status()
+                : "Pendente";
+
         Integer generatedGoalIdInt = stateGoalRepository.callCreateStateGoal(
                 request.title(),
                 request.description(),
                 request.type(),
-                request.status(),
+                status,
                 request.targetValue(),
                 dateCreation,
                 dateEnd,
@@ -89,13 +93,13 @@ public class StateGoalService {
                 .title(request.title())
                 .description(request.description())
                 .type(request.type())
-                .status(request.status())
+                .status(status)
                 .targetValue(request.targetValue())
                 .dateCreation(request.dateCreation())
                 .dateEnd(request.dateEnd())
                 .build();
 
-        return StateGoalResponseDTO.fromEntity(saved, region);
+        return StateGoalResponseDTO.fromEntity(saved, status, region);
     }
 
     /**
@@ -145,21 +149,14 @@ public class StateGoalService {
             }
 
             List<FarmGoal> allFarmGoals = farmGoalRepository.findAll();
-            Map<Long, Long> goalToFarmId = allFarmGoals.stream()
-                    .collect(Collectors.toMap(FarmGoal::getIdGoal, FarmGoal::getIdFarm, (existing, replacement) -> existing));
+            Map<Long, FarmGoal> goalToFarmGoal = allFarmGoals.stream()
+                    .collect(Collectors.toMap(FarmGoal::getIdGoal, Function.identity(), (existing, replacement) -> existing));
 
             Map<Long, Farm> farmMap = farmRepository.findAllById(
-                    goalToFarmId.values().stream().distinct().toList()
+                    allFarmGoals.stream().map(FarmGoal::getIdFarm).distinct().toList()
             ).stream().collect(Collectors.toMap(Farm::getId, Function.identity()));
 
-            return allGoals.stream()
-                    .flatMap(goal -> {
-                        Long farmId = goalToFarmId.get(goal.getId());
-                        Farm f = farmId != null ? farmMap.get(farmId) : null;
-                        String defaultRegion = f != null ? f.getRegion() : null;
-                        return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
-                    })
-                    .toList();
+            return mapGoalsToResponse(allGoals, goalToFarmGoal, farmMap, regionFilter);
         } else if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
             List<Farm> farms = farmRepository.findAllByIdEnterprise(employee.getIdEnterprise());
@@ -175,17 +172,10 @@ public class StateGoalService {
             List<Long> linkedGoalIds = linkedFarmGoals.stream().map(FarmGoal::getIdGoal).distinct().toList();
             List<StateGoal> goals = linkedGoalIds.isEmpty() ? List.of() : stateGoalRepository.findAllById(linkedGoalIds);
 
-            Map<Long, Long> goalToFarmId = linkedFarmGoals.stream()
-                    .collect(Collectors.toMap(FarmGoal::getIdGoal, FarmGoal::getIdFarm, (existing, replacement) -> existing));
+            Map<Long, FarmGoal> goalToFarmGoal = linkedFarmGoals.stream()
+                    .collect(Collectors.toMap(FarmGoal::getIdGoal, Function.identity(), (existing, replacement) -> existing));
 
-            return goals.stream()
-                    .flatMap(goal -> {
-                        Long matchedFarmId = goalToFarmId.get(goal.getId());
-                        Farm f = matchedFarmId != null ? farmMap.get(matchedFarmId) : null;
-                        String defaultRegion = f != null ? f.getRegion() : null;
-                        return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
-                    })
-                    .toList();
+            return mapGoalsToResponse(goals, goalToFarmGoal, farmMap, regionFilter);
         } else if (FARM_OWNER.equals(role)) {
             FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
             if (owner.getIdFarm() == null) {
@@ -201,8 +191,30 @@ public class StateGoalService {
         }
     }
 
+    private List<StateGoalResponseDTO> mapGoalsToResponse(
+            List<StateGoal> goals,
+            Map<Long, FarmGoal> goalToFarmGoal,
+            Map<Long, Farm> farmMap,
+            String regionFilter
+    ) {
+        return goals.stream()
+                .map(goal -> {
+                    FarmGoal fg = goalToFarmGoal.get(goal.getId());
+                    goal.setStatus(fg != null && fg.getStatus() != null ? fg.getStatus() : "Pendente");
+                    return goal;
+                })
+                .flatMap(goal -> {
+                    FarmGoal fg = goalToFarmGoal.get(goal.getId());
+                    Farm f = fg != null ? farmMap.get(fg.getIdFarm()) : null;
+                    String defaultRegion = f != null ? f.getRegion() : null;
+                    return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
+                })
+                .toList();
+    }
+
     private List<StateGoalResponseDTO> getGoalsForSingleFarm(Farm farm, String regionFilter) {
-        List<Long> linkedGoalIds = farmGoalRepository.findByIdFarm(farm.getId())
+        List<FarmGoal> linkedFarmGoals = farmGoalRepository.findByIdFarm(farm.getId());
+        List<Long> linkedGoalIds = linkedFarmGoals
                 .stream()
                 .map(FarmGoal::getIdGoal)
                 .distinct()
@@ -210,7 +222,19 @@ public class StateGoalService {
 
         List<StateGoal> goals = linkedGoalIds.isEmpty() ? List.of() : stateGoalRepository.findAllById(linkedGoalIds);
 
+        Map<Long, String> goalStatusMap = linkedFarmGoals.stream()
+                .collect(Collectors.toMap(
+                        FarmGoal::getIdGoal,
+                        fg -> fg.getStatus() != null ? fg.getStatus() : "Pendente",
+                        (existing, replacement) -> existing
+                ));
+
         return goals.stream()
+                .map(goal -> {
+                    String status = goalStatusMap.get(goal.getId());
+                    goal.setStatus(status != null ? status : "Pendente");
+                    return goal;
+                })
                 .flatMap(goal -> toResponseIfRegionMatches(goal, farm.getRegion(), regionFilter).stream())
                 .toList();
     }
@@ -253,13 +277,16 @@ public class StateGoalService {
         Farm primaryFarm = findPrimaryFarmForGoal(goal.getId());
         validateStateGoalReadPermission(goal, primaryFarm, principal, "visualizar esta meta estadual");
 
+        String status = resolveGoalStatus(goal, primaryFarm, principal);
+        goal.setStatus(status);
+
         String region = regionGoalRepository.findByIdGoal(goal.getId())
                 .stream()
                 .map(RegionGoal::getRegion)
                 .findFirst()
                 .orElse(primaryFarm != null ? primaryFarm.getRegion() : null);
 
-        return StateGoalResponseDTO.fromEntity(goal, region);
+        return StateGoalResponseDTO.fromEntity(goal, status, region);
     }
 
     /**
@@ -285,12 +312,20 @@ public class StateGoalService {
                 .orElse(primaryFarm != null ? primaryFarm.getRegion() : null);
 
         if (!request.hasUpdates()) {
-            return StateGoalResponseDTO.fromEntity(goal, region);
+            String currentStatus = resolveGoalStatus(goal, primaryFarm, principal);
+            goal.setStatus(currentStatus);
+            return StateGoalResponseDTO.fromEntity(goal, currentStatus, region);
         }
 
+        String status = resolveGoalStatus(goal, primaryFarm, principal);
         if (request.status() != null && !request.status().isBlank()) {
-            goal.setStatus(request.status());
+            status = request.status();
+            goal.setStatus(status);
+            updateFarmGoalStatus(goal, primaryFarm, principal, status);
+        } else {
+            goal.setStatus(status);
         }
+
         if (request.dateEnd() != null) {
             if (request.dateEnd().isBefore(goal.getDateCreation())) {
                 throw new ResponseStatusException(
@@ -305,7 +340,7 @@ public class StateGoalService {
         }
 
         StateGoal updated = stateGoalRepository.save(goal);
-        return StateGoalResponseDTO.fromEntity(updated, region);
+        return StateGoalResponseDTO.fromEntity(updated, status, region);
     }
 
     /**
@@ -355,6 +390,7 @@ public class StateGoalService {
         farmGoalRepository.save(FarmGoal.builder()
                 .idFarm(farm.getId())
                 .idGoal(goal.getId())
+                .status("Pendente")
                 .build());
     }
 
@@ -473,6 +509,54 @@ public class StateGoalService {
                 .map(RegionGoal::getRegion)
                 .distinct()
                 .toList();
+    }
+
+    private String resolveGoalStatus(StateGoal goal, Farm primaryFarm, UserPrincipal principal) {
+        if (FARM_OWNER.equals(principal.getRole())) {
+            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
+            if (owner.getIdFarm() != null) {
+                Optional<FarmGoal> fg = farmGoalRepository.findByIdFarmAndIdGoal(owner.getIdFarm(), goal.getId());
+                if (fg.isPresent() && fg.get().getStatus() != null) {
+                    return fg.get().getStatus();
+                }
+            }
+        }
+
+        if (primaryFarm != null) {
+            Optional<FarmGoal> fg = farmGoalRepository.findByIdFarmAndIdGoal(primaryFarm.getId(), goal.getId());
+            if (fg.isPresent() && fg.get().getStatus() != null) {
+                return fg.get().getStatus();
+            }
+        }
+
+        List<FarmGoal> goals = farmGoalRepository.findByIdGoal(goal.getId());
+        if (!goals.isEmpty() && goals.get(0).getStatus() != null) {
+            return goals.get(0).getStatus();
+        }
+
+        return goal.getStatus() != null ? goal.getStatus() : "Pendente";
+    }
+
+    private void updateFarmGoalStatus(StateGoal goal, Farm primaryFarm, UserPrincipal principal, String newStatus) {
+        if (FARM_OWNER.equals(principal.getRole())) {
+            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
+            if (owner.getIdFarm() != null) {
+                farmGoalRepository.findByIdFarmAndIdGoal(owner.getIdFarm(), goal.getId())
+                        .ifPresent(fg -> {
+                            fg.setStatus(newStatus);
+                            farmGoalRepository.save(fg);
+                        });
+                return;
+            }
+        }
+
+        List<FarmGoal> farmGoals = farmGoalRepository.findByIdGoal(goal.getId());
+        if (!farmGoals.isEmpty()) {
+            for (FarmGoal fg : farmGoals) {
+                fg.setStatus(newStatus);
+            }
+            farmGoalRepository.saveAll(farmGoals);
+        }
     }
 
     private Farm findPrimaryFarmForGoal(Long goalId) {

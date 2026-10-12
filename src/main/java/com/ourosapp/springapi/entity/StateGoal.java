@@ -33,7 +33,7 @@ public class StateGoal {
     @Column(name = "type", length = 50, nullable = false)
     private String type;
 
-    @Column(name = "status", length = 40, nullable = false)
+    @Transient
     private String status;
 
     @Column(name = "target_value", precision = 19, scale = 4, nullable = false)
@@ -42,6 +42,6 @@ public class StateGoal {
     @Column(name = "date_creation", nullable = false)
     private LocalDate dateCreation;
 
-    @Column(name = "date_end", nullable = false)
+    @Column(name = "date_end")
     private LocalDate dateEnd;
 }

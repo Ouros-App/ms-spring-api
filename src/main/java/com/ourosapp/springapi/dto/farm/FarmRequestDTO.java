@@ -49,15 +49,13 @@ public record FarmRequestDTO(
         @Size(max = 50, message = "A região deve ter no máximo 50 caracteres")
         String region,
 
-        @Schema(description = "Capacidade de alojamento de aves", example = "50000")
+        @Schema(description = "Capacidade de alojamento de aves (opcional)", example = "50000")
         @JsonProperty("poultry_capacity")
         @JsonAlias("poultryCapacity")
-        @NotNull(message = "A capacidade de aves é obrigatória")
         @Min(value = 0, message = "A capacidade de aves não pode ser negativa")
         Integer poultryCapacity,
 
-        @Schema(description = "Local ou denominação do sítio/granja", example = "Gleba 4 - Setor Sul")
-        @NotBlank(message = "O local não pode estar em branco")
+        @Schema(description = "Local ou denominação do sítio/granja (opcional)", example = "Gleba 4 - Setor Sul")
         @Size(max = 50, message = "O local deve ter no máximo 50 caracteres")
         String place,
 

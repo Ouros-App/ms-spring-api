@@ -1505,4 +1505,298 @@ class StateGoalServiceTest {
         assertNotNull(res);
         assertTrue(res.isEmpty());
     }
+
+    @Test
+    @DisplayName("getStateGoalsForUser - Deve suportar status independente por fazenda para a mesma meta estadual")
+    void deveSuportarStatusIndependentePorFazendaParaMesmaMetaEstadual() {
+        // Cenário PR #51: A mesma meta estadual possui status "Concluída" para a Farm 10 e "Pendente" para a Farm 20
+        StateGoal sharedGoal = StateGoal.builder()
+                .id(1L)
+                .title("Meta Compartilhada")
+                .description("Descrição")
+                .type("MORTALITY")
+                .targetValue(new BigDecimal("2.0000"))
+                .dateCreation(LocalDate.of(2026, 1, 1))
+                .dateEnd(LocalDate.of(2026, 12, 31))
+                .build();
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmGoalRepository.findByIdFarm(10L)).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).status("Concluída").build()
+        ));
+        when(stateGoalRepository.findAllById(List.of(1L))).thenReturn(List.of(sharedGoal));
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
+                RegionGoal.builder().id(1L).region("Sudeste").idGoal(1L).build()
+        ));
+
+        List<StateGoalResponseDTO> resFarm1 = stateGoalService.getStateGoalsForUser(10L, null, admPrincipal);
+        assertEquals(1, resFarm1.size());
+        assertEquals("Concluída", resFarm1.get(0).status());
+
+        when(farmRepository.findById(20L)).thenReturn(Optional.of(farm2));
+        when(farmGoalRepository.findByIdFarm(20L)).thenReturn(List.of(
+                FarmGoal.builder().id(2L).idFarm(20L).idGoal(1L).status("Pendente").build()
+        ));
+        List<StateGoalResponseDTO> resFarm2 = stateGoalService.getStateGoalsForUser(20L, null, admPrincipal);
+        assertEquals(1, resFarm2.size());
+        assertEquals("Pendente", resFarm2.get(0).status());
+    }
+
+    @Test
+    @DisplayName("createStateGoal - Deve utilizar status padrão Pendente quando status for nulo ou vazio no request")
+    void deveUtilizarStatusPadraoPendenteQuandoStatusForNuloOuVazioNoRequest() {
+        StateGoalRequestDTO nullStatusRequest = new StateGoalRequestDTO(
+                "Meta Sem Status",
+                "Descrição",
+                "MORTALITY",
+                null,
+                new BigDecimal("2.5000"),
+                LocalDate.of(2026, 1, 1),
+                null,
+                10L,
+                "Sudeste"
+        );
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(stateGoalRepository.callCreateStateGoal(
+                eq("Meta Sem Status"),
+                eq("Descrição"),
+                eq("MORTALITY"),
+                eq("Pendente"),
+                eq(new BigDecimal("2.5000")),
+                any(),
+                isNull(),
+                eq(10),
+                eq("Sudeste")
+        )).thenReturn(99);
+
+        StateGoalResponseDTO res = stateGoalService.createStateGoal(nullStatusRequest, admPrincipal);
+
+        assertNotNull(res);
+        assertEquals(99L, res.id());
+        assertEquals("Pendente", res.status());
+        assertNull(res.dateEnd());
+    }
+
+    @Test
+    @DisplayName("updateStateGoal - Deve atualizar status no repositório de FarmGoal quando status for alterado")
+    void deveAtualizarStatusNoFarmGoalQuandoAtualizarMetaEstadual() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).status("Pendente").build()
+        ));
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+        when(stateGoalRepository.save(any(StateGoal.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StateGoalUpdateDTO updateRequest = new StateGoalUpdateDTO("Concluída", null, null);
+
+        StateGoalResponseDTO res = stateGoalService.updateStateGoal(1L, updateRequest, admPrincipal);
+
+        assertNotNull(res);
+        assertEquals("Concluída", res.status());
+        verify(farmGoalRepository, atLeastOnce()).saveAll(argThat(iterable -> {
+            List<FarmGoal> list = (List<FarmGoal>) iterable;
+            return !list.isEmpty() && "Concluída".equals(list.get(0).getStatus());
+        }));
+    }
+
+    @Test
+    @DisplayName("addFarmToStateGoal - Deve vincular fazenda à meta com status inicial Pendente")
+    void deveVincularFazendaAMetaComStatusInicialPendente() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+        when(farmRepository.findById(20L)).thenReturn(Optional.of(farm2));
+        when(farmGoalRepository.existsByIdFarmAndIdGoal(20L, 1L)).thenReturn(false);
+
+        stateGoalService.addFarmToStateGoal(1L, 20L, admPrincipal);
+
+        verify(farmGoalRepository).save(argThat(fg ->
+                Long.valueOf(20L).equals(fg.getIdFarm()) &&
+                Long.valueOf(1L).equals(fg.getIdGoal()) &&
+                "Pendente".equals(fg.getStatus())
+        ));
+    }
+
+    @Test
+    @DisplayName("getStateGoalById - Deve resolver status diretamente do FarmGoal vinculado à fazenda do FarmOwner")
+    void deveResolverStatusDoFarmGoalParaFarmOwnerComStatusPreenchido() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).status("Concluída").build()
+        ));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(
+                FarmOwner.builder().id(3L).idFarm(10L).build()
+        ));
+        when(farmGoalRepository.findByIdFarmAndIdGoal(10L, 1L)).thenReturn(Optional.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).status("Em andamento").build()
+        ));
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        StateGoalResponseDTO res = stateGoalService.getStateGoalById(1L, ownerPrincipal);
+
+        assertNotNull(res);
+        assertEquals("Em andamento", res.status());
+    }
+
+    @Test
+    @DisplayName("getStateGoalById - Deve resolver status do FarmGoal da fazenda principal para CompanyEmployee")
+    void deveResolverStatusDoFarmGoalParaPrimaryFarmComStatusPreenchido() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).status("Pendente").build()
+        ));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(
+                CompanyEmployee.builder().id(2L).idEnterprise(50L).build()
+        ));
+        when(farmGoalRepository.findByIdFarmAndIdGoal(10L, 1L)).thenReturn(Optional.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).status("Concluída").build()
+        ));
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        StateGoalResponseDTO res = stateGoalService.getStateGoalById(1L, employeePrincipal);
+
+        assertNotNull(res);
+        assertEquals("Concluída", res.status());
+    }
+
+    @Test
+    @DisplayName("updateStateGoal - Deve atualizar status no FarmGoal específico do FarmOwner")
+    void deveAtualizarStatusNoFarmGoalEspecificoDoFarmOwner() {
+        FarmGoal existingFarmGoal = FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).status("Pendente").build();
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of(existingFarmGoal));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(
+                FarmOwner.builder().id(3L).idFarm(10L).build()
+        ));
+        when(farmGoalRepository.findByIdFarmAndIdGoal(10L, 1L)).thenReturn(Optional.of(existingFarmGoal));
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+        when(stateGoalRepository.save(any(StateGoal.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StateGoalUpdateDTO updateRequest = new StateGoalUpdateDTO("Concluída", null, null);
+
+        StateGoalResponseDTO res = stateGoalService.updateStateGoal(1L, updateRequest, ownerPrincipal);
+
+        assertNotNull(res);
+        assertEquals("Concluída", res.status());
+        verify(farmGoalRepository).save(argThat(fg -> "Concluída".equals(fg.getStatus())));
+    }
+
+    @Test
+    @DisplayName("updateStateGoal - Deve manter status resolvido quando status não for informado no payload de atualização")
+    void deveAtualizarMetaEstadualSemAlterarStatusMantendoStatusResolvido() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).status("Em andamento").build()
+        ));
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+        when(stateGoalRepository.save(any(StateGoal.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StateGoalUpdateDTO updateRequest = new StateGoalUpdateDTO(null, null, new BigDecimal("3.5000"));
+
+        StateGoalResponseDTO res = stateGoalService.updateStateGoal(1L, updateRequest, admPrincipal);
+
+        assertNotNull(res);
+        assertEquals("Em andamento", res.status());
+        assertEquals(new BigDecimal("3.5000"), res.targetValue());
+        verify(farmGoalRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("getStateGoalById - Deve retornar Pendente quando meta não tiver farm_goals associados nem status na entidade")
+    void deveRetornarStatusPendenteQuandoNaoHouverFarmGoalsNemStatusNaEntidade() {
+        StateGoal emptyStatusGoal = StateGoal.builder()
+                .id(99L)
+                .title("Meta Isolada")
+                .type("MORTALITY")
+                .dateCreation(LocalDate.of(2026, 1, 1))
+                .build();
+
+        when(stateGoalRepository.findById(99L)).thenReturn(Optional.of(emptyStatusGoal));
+        when(farmGoalRepository.findByIdGoal(99L)).thenReturn(List.of());
+        when(regionGoalRepository.findByIdGoal(99L)).thenReturn(List.of());
+
+        StateGoalResponseDTO res = stateGoalService.getStateGoalById(99L, admPrincipal);
+
+        assertNotNull(res);
+        assertEquals("Pendente", res.status());
+    }
+
+    @Test
+    @DisplayName("getStateGoalsForUser - Deve definir status Pendente quando FarmGoal tiver status nulo")
+    void deveListarMetasParaAdmComStatusPendenteQuandoFarmGoalEstiverComStatusNulo() {
+        when(stateGoalRepository.findAll()).thenReturn(List.of(goal));
+        when(farmGoalRepository.findAll()).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).status(null).build()
+        ));
+        when(farmRepository.findAllById(List.of(10L))).thenReturn(List.of(farm));
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+
+        List<StateGoalResponseDTO> res = stateGoalService.getStateGoalsForUser(null, null, admPrincipal);
+
+        assertEquals(1, res.size());
+        assertEquals("Pendente", res.get(0).status());
+    }
+
+    @Test
+    @DisplayName("updateStateGoal - Deve lançar 403 para FarmOwner sem fazenda vinculada tentar atualizar meta estadual")
+    void deveLancar403ParaFarmOwnerSemFazendaVinculadaTentarAtualizarMetaEstadual() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).status("Pendente").build()
+        ));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(
+                FarmOwner.builder().id(3L).idFarm(null).build()
+        ));
+
+        StateGoalUpdateDTO updateRequest = new StateGoalUpdateDTO("Concluída", null, null);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                stateGoalService.updateStateGoal(1L, updateRequest, ownerPrincipal)
+        );
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("updateStateGoal - Deve atualizar meta com sucesso mesmo se FarmGoal do FarmOwner não for encontrado")
+    void deveAtualizarMetaComSucessoMesmoSeFarmGoalDoFarmOwnerNaoForEncontrado() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of(
+                FarmGoal.builder().id(1L).idFarm(10L).idGoal(1L).status("Pendente").build()
+        ));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(
+                FarmOwner.builder().id(3L).idFarm(10L).build()
+        ));
+        when(farmGoalRepository.findByIdFarmAndIdGoal(10L, 1L)).thenReturn(Optional.empty());
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+        when(stateGoalRepository.save(any(StateGoal.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StateGoalUpdateDTO updateRequest = new StateGoalUpdateDTO("Concluída", null, null);
+
+        StateGoalResponseDTO res = stateGoalService.updateStateGoal(1L, updateRequest, ownerPrincipal);
+
+        assertNotNull(res);
+        assertEquals("Concluída", res.status());
+    }
+
+    @Test
+    @DisplayName("updateStateGoal - Deve atualizar meta quando não houver farm_goals vinculados")
+    void deveAtualizarMetaEstadualQuandoNaoHouverFarmGoalsVinculados() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(farmGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+        when(regionGoalRepository.findByIdGoal(1L)).thenReturn(List.of());
+        when(stateGoalRepository.save(any(StateGoal.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StateGoalUpdateDTO updateRequest = new StateGoalUpdateDTO("Concluída", null, null);
+
+        StateGoalResponseDTO res = stateGoalService.updateStateGoal(1L, updateRequest, admPrincipal);
+
+        assertNotNull(res);
+        assertEquals("Concluída", res.status());
+        verify(farmGoalRepository, never()).saveAll(any());
+    }
 }
