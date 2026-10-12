@@ -156,23 +156,7 @@ public class StateGoalService {
                     allFarmGoals.stream().map(FarmGoal::getIdFarm).distinct().toList()
             ).stream().collect(Collectors.toMap(Farm::getId, Function.identity()));
 
-            return allGoals.stream()
-                    .map(goal -> {
-                        FarmGoal fg = goalToFarmGoal.get(goal.getId());
-                        if (fg != null && fg.getStatus() != null) {
-                            goal.setStatus(fg.getStatus());
-                        } else if (goal.getStatus() == null) {
-                            goal.setStatus("Pendente");
-                        }
-                        return goal;
-                    })
-                    .flatMap(goal -> {
-                        FarmGoal fg = goalToFarmGoal.get(goal.getId());
-                        Farm f = fg != null ? farmMap.get(fg.getIdFarm()) : null;
-                        String defaultRegion = f != null ? f.getRegion() : null;
-                        return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
-                    })
-                    .toList();
+            return mapGoalsToResponse(allGoals, goalToFarmGoal, farmMap, regionFilter);
         } else if (COMPANY_EMPLOYEE.equals(role)) {
             CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
             List<Farm> farms = farmRepository.findAllByIdEnterprise(employee.getIdEnterprise());
@@ -191,23 +175,7 @@ public class StateGoalService {
             Map<Long, FarmGoal> goalToFarmGoal = linkedFarmGoals.stream()
                     .collect(Collectors.toMap(FarmGoal::getIdGoal, Function.identity(), (existing, replacement) -> existing));
 
-            return goals.stream()
-                    .map(goal -> {
-                        FarmGoal fg = goalToFarmGoal.get(goal.getId());
-                        if (fg != null && fg.getStatus() != null) {
-                            goal.setStatus(fg.getStatus());
-                        } else if (goal.getStatus() == null) {
-                            goal.setStatus("Pendente");
-                        }
-                        return goal;
-                    })
-                    .flatMap(goal -> {
-                        FarmGoal fg = goalToFarmGoal.get(goal.getId());
-                        Farm f = fg != null ? farmMap.get(fg.getIdFarm()) : null;
-                        String defaultRegion = f != null ? f.getRegion() : null;
-                        return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
-                    })
-                    .toList();
+            return mapGoalsToResponse(goals, goalToFarmGoal, farmMap, regionFilter);
         } else if (FARM_OWNER.equals(role)) {
             FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
             if (owner.getIdFarm() == null) {
@@ -221,6 +189,27 @@ public class StateGoalService {
                     "Perfil de usuário sem permissão para listar metas estaduais"
             );
         }
+    }
+
+    private List<StateGoalResponseDTO> mapGoalsToResponse(
+            List<StateGoal> goals,
+            Map<Long, FarmGoal> goalToFarmGoal,
+            Map<Long, Farm> farmMap,
+            String regionFilter
+    ) {
+        return goals.stream()
+                .map(goal -> {
+                    FarmGoal fg = goalToFarmGoal.get(goal.getId());
+                    goal.setStatus(fg != null && fg.getStatus() != null ? fg.getStatus() : "Pendente");
+                    return goal;
+                })
+                .flatMap(goal -> {
+                    FarmGoal fg = goalToFarmGoal.get(goal.getId());
+                    Farm f = fg != null ? farmMap.get(fg.getIdFarm()) : null;
+                    String defaultRegion = f != null ? f.getRegion() : null;
+                    return toResponseIfRegionMatches(goal, defaultRegion, regionFilter).stream();
+                })
+                .toList();
     }
 
     private List<StateGoalResponseDTO> getGoalsForSingleFarm(Farm farm, String regionFilter) {
@@ -243,11 +232,7 @@ public class StateGoalService {
         return goals.stream()
                 .map(goal -> {
                     String status = goalStatusMap.get(goal.getId());
-                    if (status != null) {
-                        goal.setStatus(status);
-                    } else if (goal.getStatus() == null) {
-                        goal.setStatus("Pendente");
-                    }
+                    goal.setStatus(status != null ? status : "Pendente");
                     return goal;
                 })
                 .flatMap(goal -> toResponseIfRegionMatches(goal, farm.getRegion(), regionFilter).stream())

@@ -2006,7 +2006,26 @@ class DTOAndEntityTest {
         assertTrue(json.contains("\"target_value\":1.6500"));
         assertTrue(json.contains("\"region\":\"Sudeste\""));
 
+        // Sobrecarga com status explícito
+        StateGoalResponseDTO dtoExplicitStatus = StateGoalResponseDTO.fromEntity(goal, "Concluída", "Sudeste");
+        assertEquals("Concluída", dtoExplicitStatus.status());
+
+        // Sobrecarga com status nulo, caindo no status da entidade
+        StateGoalResponseDTO dtoEntityStatus = StateGoalResponseDTO.fromEntity(goal, null, "Sudeste");
+        assertEquals("IN_PROGRESS", dtoEntityStatus.status());
+
+        // Sobrecarga com status nulo e entidade sem status, caindo no fallback "Pendente"
+        StateGoal goalSemStatus = StateGoal.builder()
+                .id(2L)
+                .title("Meta Sem Status")
+                .type("MORTALITY")
+                .dateCreation(LocalDate.of(2026, 1, 1))
+                .build();
+        StateGoalResponseDTO dtoFallbackStatus = StateGoalResponseDTO.fromEntity(goalSemStatus, null, "Sul");
+        assertEquals("Pendente", dtoFallbackStatus.status());
+
         assertThrows(NullPointerException.class, () -> StateGoalResponseDTO.fromEntity(null, "Sudeste"));
+        assertThrows(NullPointerException.class, () -> StateGoalResponseDTO.fromEntity(null, "Concluída", "Sudeste"));
     }
 
     /**
