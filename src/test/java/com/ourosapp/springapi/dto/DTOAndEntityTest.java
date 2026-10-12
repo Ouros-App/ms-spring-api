@@ -110,6 +110,15 @@ class DTOAndEntityTest {
         assertEquals("Maria", built.getName());
         assertTrue(built.toString().contains("Maria"));
         assertFalse(built.toString().contains("pass2"));
+
+        // Suporte a password nula conforme PR #45
+        CompanyEmployee nullPasswordEmp = CompanyEmployee.builder()
+                .id(3L)
+                .name("Colaborador Legado")
+                .email("legado@empresa.com")
+                .password(null)
+                .build();
+        assertNull(nullPasswordEmp.getPassword());
     }
 
     /**
@@ -809,6 +818,23 @@ class DTOAndEntityTest {
                 2L
         );
         assertTrue(validator.validate(validWithNested).isEmpty());
+
+        // DTO válido com poultryCapacity e place nulos (alinhado às PRs #43 e #49)
+        FarmRequestDTO validWithNullCapacityAndPlace = new FarmRequestDTO(
+                "Fazenda Sem Capacidade",
+                new BigDecimal("120.00"),
+                "Sudeste",
+                null,
+                null,
+                1L,
+                null,
+                null,
+                null,
+                2L
+        );
+        assertTrue(validator.validate(validWithNullCapacityAndPlace).isEmpty());
+        assertNull(validWithNullCapacityAndPlace.poultryCapacity());
+        assertNull(validWithNullCapacityAndPlace.place());
 
         // DTO inválido sem id_address nem address
         FarmRequestDTO noAddress = new FarmRequestDTO(
@@ -1876,6 +1902,21 @@ class DTOAndEntityTest {
         assertTrue(valid.isDateRangeValid());
         assertTrue(validator.validate(valid).isEmpty());
 
+        // DTO válido com status e dateEnd nulos (alinhado às PRs #45 e #51)
+        StateGoalRequestDTO validWithNullDateEndAndStatus = new StateGoalRequestDTO(
+                "Meta Opcional",
+                "Descricao",
+                "FEED_CONVERSION",
+                null,
+                new BigDecimal("1.5000"),
+                LocalDate.of(2026, 1, 1),
+                null,
+                1L,
+                "Sudeste"
+        );
+        assertTrue(validator.validate(validWithNullDateEndAndStatus).isEmpty());
+        assertTrue(validWithNullDateEndAndStatus.isDateRangeValid());
+
         // DTO inválido com data de término anterior à data de criação
         StateGoalRequestDTO invalidDateOrder = new StateGoalRequestDTO(
                 "Meta", "Desc", "MORTALITY", "PENDING", new BigDecimal("1.5000"),
@@ -2005,12 +2046,15 @@ class DTOAndEntityTest {
         fg.setId(1L);
         fg.setIdFarm(10L);
         fg.setIdGoal(20L);
+        fg.setStatus("Concluída");
         assertEquals(1L, fg.getId());
         assertEquals(10L, fg.getIdFarm());
         assertEquals(20L, fg.getIdGoal());
+        assertEquals("Concluída", fg.getStatus());
 
         FarmGoal fgBuilt = FarmGoal.builder().id(2L).idFarm(11L).idGoal(21L).build();
         assertEquals(2L, fgBuilt.getId());
+        assertEquals("Pendente", fgBuilt.getStatus());
         assertTrue(fgBuilt.toString().contains("idFarm=11"));
 
         RegionGoal rg = new RegionGoal();

@@ -63,13 +63,27 @@ public record StateGoalResponseDTO(
      * @throws NullPointerException se goal for nulo
      */
     public static StateGoalResponseDTO fromEntity(StateGoal goal, String region) {
+        return fromEntity(goal, goal != null ? goal.getStatus() : null, region);
+    }
+
+    /**
+     * Converte uma entidade {@link StateGoal}, o status resolvido e a região em {@link StateGoalResponseDTO}.
+     *
+     * @param goal   entidade a ser convertida (não deve ser nula)
+     * @param status status resolvido da meta (obtido de farm_goals ou da entidade)
+     * @param region região associada à meta
+     * @return DTO correspondente
+     * @throws NullPointerException se goal for nulo
+     */
+    public static StateGoalResponseDTO fromEntity(StateGoal goal, String status, String region) {
         Objects.requireNonNull(goal, "StateGoal não pode ser nulo");
+        String resolvedStatus = status != null ? status : (goal.getStatus() != null ? goal.getStatus() : "Pendente");
         return new StateGoalResponseDTO(
                 goal.getId(),
                 goal.getTitle(),
                 goal.getDescription(),
                 goal.getType(),
-                goal.getStatus(),
+                resolvedStatus,
                 goal.getTargetValue(),
                 goal.getDateCreation(),
                 goal.getDateEnd(),

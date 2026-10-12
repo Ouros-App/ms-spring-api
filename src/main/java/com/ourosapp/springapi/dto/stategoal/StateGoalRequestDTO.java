@@ -42,8 +42,7 @@ public record StateGoalRequestDTO(
         @Size(max = 50, message = "O tipo da meta deve ter no máximo 50 caracteres")
         String type,
 
-        @Schema(description = "Status da meta", example = "IN_PROGRESS")
-        @NotBlank(message = "O status da meta não pode estar em branco")
+        @Schema(description = "Status da meta (opcional, padrão 'Pendente')", example = "IN_PROGRESS")
         @Size(max = 40, message = "O status da meta deve ter no máximo 40 caracteres")
         String status,
 
@@ -61,10 +60,9 @@ public record StateGoalRequestDTO(
         @NotNull(message = "A data de criação/início é obrigatória")
         LocalDate dateCreation,
 
-        @Schema(description = "Data de término da vigência da meta", example = "2026-12-31")
+        @Schema(description = "Data de término da vigência da meta (opcional)", example = "2026-12-31")
         @JsonProperty("date_end")
         @JsonAlias("dateEnd")
-        @NotNull(message = "A data de término é obrigatória")
         LocalDate dateEnd,
 
         @Schema(description = "Identificador único da fazenda vinculada (opcional; inferido automaticamente para produtor rural)", example = "1")
