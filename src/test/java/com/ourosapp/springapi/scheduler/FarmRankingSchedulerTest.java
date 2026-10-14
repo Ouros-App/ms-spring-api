@@ -27,6 +27,9 @@ class FarmRankingSchedulerTest {
     @Mock
     private EnterpriseRepository enterpriseRepository;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
+
     @InjectMocks
     private FarmRankingScheduler farmRankingScheduler;
 
@@ -47,6 +50,7 @@ class FarmRankingSchedulerTest {
         verify(enterpriseRepository).findAll();
         verify(farmRankingService).recalculateAndCacheEnterpriseRanking(1L);
         verify(farmRankingService).recalculateAndCacheEnterpriseRanking(2L);
+        verify(applicationEventPublisher, times(2)).publishEvent(any(com.ourosapp.springapi.event.RankingUpdatedEvent.class));
     }
 
     @Test
