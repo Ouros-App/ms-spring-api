@@ -155,6 +155,36 @@ class StateGoalControllerMockMvcTest {
     }
 
     @Test
+    @DisplayName("PATCH /state-goals/{id} - Deve retornar 200 OK ao atualizar status como FARM_OWNER")
+    void deveRetornar200AoAtualizarStatusComoFarmOwner() throws Exception {
+        UserPrincipal ownerPrincipal = new UserPrincipal(
+                3L,
+                "owner@ouros.com",
+                "senha123",
+                "FARM_OWNER",
+                List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
+        );
+
+        StateGoalUpdateDTO updateDTO = new StateGoalUpdateDTO("Em andamento", null, null);
+        StateGoalResponseDTO responseDTO = new StateGoalResponseDTO(
+                10L, "Meta Regional SP", "Meta estadual", "FEED_CONVERSION", "Em andamento",
+                new BigDecimal("1.5500"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 11, 30),
+                "Sudeste"
+        );
+
+        when(stateGoalService.updateStateGoal(eq(10L), any(StateGoalUpdateDTO.class), any(UserPrincipal.class)))
+                .thenReturn(responseDTO);
+
+        mockMvc.perform(patch("/state-goals/10")
+                        .with(user(ownerPrincipal))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDTO)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(10L))
+                .andExpect(jsonPath("$.status").value("Em andamento"));
+    }
+
+    @Test
     @DisplayName("DELETE /state-goals/{id} - Deve retornar 204 No Content ao excluir")
     void deveRetornar204AoExcluirMetaEstadual() throws Exception {
         doNothing().when(stateGoalService).deleteStateGoal(eq(10L), any(UserPrincipal.class));
