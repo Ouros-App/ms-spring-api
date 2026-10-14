@@ -299,10 +299,37 @@ public class StateGoalService {
 
         StateGoal goal = findStateGoalByIdOrThrow(id);
         Farm primaryFarm = findPrimaryFarmForGoal(goal.getId());
-        if (primaryFarm != null) {
-            validateFarmAccessPermission(primaryFarm, principal, "alterar metas estaduais desta fazenda");
+
+        // Validação diferenciada por perfil RBAC:
+        if (FARM_OWNER.equals(principal.getRole())) {
+            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
+            if (owner.getIdFarm() == null || !farmGoalRepository.existsByIdFarmAndIdGoal(owner.getIdFarm(), goal.getId())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Acesso negado: a sua fazenda não participa desta meta estadual"
+                );
+            }
+
+            // Bloquear tentativa do produtor de alterar metas macro globais compartilhadas com outras fazendas
+            if (request.targetValue() != null || request.dateEnd() != null) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Produtores rurais têm permissão apenas para atualizar o status da sua própria fazenda nesta meta estadual"
+                );
+            }
+        } else if (COMPANY_EMPLOYEE.equals(principal.getRole())) {
+            Long userEnterpriseId = getCompanyEmployeeOrThrow(principal.getId()).getIdEnterprise();
+            if (!hasEnterpriseAccessToStateGoal(goal, primaryFarm, userEnterpriseId)) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Acesso negado para alterar metas estaduais desta empresa"
+                );
+            }
         } else if (!ADM.equals(principal.getRole())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para alterar metas estaduais");
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Acesso negado para alterar metas estaduais"
+            );
         }
 
         String region = regionGoalRepository.findByIdGoal(goal.getId())
