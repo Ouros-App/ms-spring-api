@@ -5,6 +5,9 @@ import static com.ourosapp.springapi.constants.RoleConstants.ADM;
 import static com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE;
 import static com.ourosapp.springapi.constants.RoleConstants.FARM_OWNER;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ourosapp.springapi.constants.RoleConstants;
 import com.ourosapp.springapi.dto.tip.TipRequestDTO;
 import com.ourosapp.springapi.dto.tip.TipResponseDTO;
 import com.ourosapp.springapi.dto.tip.TipUpdateDTO;
@@ -12,6 +15,7 @@ import com.ourosapp.springapi.entity.*;
 import com.ourosapp.springapi.repository.*;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +30,7 @@ import java.util.stream.Collectors;
  * Serviço responsável pelas regras de negócio e persistência de {@link Tip},
  * incluindo as tabelas de associação {@link TipCategory}, {@link FarmTip} e métricas de {@link Review}.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TipService {
@@ -38,6 +43,10 @@ public class TipService {
     private final FarmRepository farmRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final FarmOwnerRepository farmOwnerRepository;
+    private final NotificationService notificationService;
+    private final DeviceTokenRepository deviceTokenRepository;
+    private final FcmPushService fcmPushService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Cadastra uma nova dica técnica vinculada a uma fazenda e a suas categorias.
@@ -93,6 +102,9 @@ public class TipService {
                 .id(generatedTipId)
                 .tip(request.tip())
                 .build();
+
+        // Notifica produtores rurais da fazenda sobre a nova dica técnica cadastrada
+        notifyFarmOwnersAboutNewTip(farm, generatedTipId, request.tip());
 
         return TipResponseDTO.fromEntity(savedTip, farm.getId(), categoryNames, 0, 0.0);
     }
@@ -439,5 +451,79 @@ public class TipService {
                         HttpStatus.NOT_FOUND,
                         "Dica técnica não encontrada para o ID: " + tipId
                 ));
+    }
+
+    private void notifyFarmOwnersAboutNewTip(Farm farm, Long tipId, String tipContent) {
+        if (farm == null || farm.getId() == null || tipId == null) {
+            return;
+        }
+
+        try {
+            List<FarmOwner> owners = farmOwnerRepository.findAllByIdFarm(farm.getId());
+            if (owners == null || owners.isEmpty()) {
+                log.info("Nenhum produtor rural associado à fazenda ID {} para notificação da dica ID {}.", farm.getId(), tipId);
+                return;
+            }
+
+            String title = "Nova Dica Técnica!";
+            String farmName = (farm.getName() != null && !farm.getName().isBlank()) ? farm.getName() : "sua fazenda";
+            String message = String.format("Uma nova recomendação técnica foi registrada para a fazenda %s. Confira no aplicativo!", farmName);
+
+            Map<String, String> payloadMap = new HashMap<>();
+            payloadMap.put("type", "TIP_CREATED");
+            payloadMap.put("tip_id", String.valueOf(tipId));
+            payloadMap.put("farm_id", String.valueOf(farm.getId()));
+            String jsonPayload = toJson(payloadMap);
+
+            for (FarmOwner owner : owners) {
+                if (owner.getId() == null) {
+                    continue;
+                }
+
+                if (notificationService != null) {
+                    notificationService.createNotification(
+                            owner.getId(),
+                            RoleConstants.FARM_OWNER,
+                            title,
+                            message,
+                            "TIP_CREATED",
+                            tipId,
+                            jsonPayload
+                    );
+                }
+
+                if (deviceTokenRepository != null && fcmPushService != null) {
+                    List<DeviceToken> deviceTokens = deviceTokenRepository.findAllByUserIdAndUserRole(
+                            owner.getId(),
+                            RoleConstants.FARM_OWNER
+                    );
+
+                    if (deviceTokens != null && !deviceTokens.isEmpty()) {
+                        List<String> tokens = deviceTokens.stream()
+                                .map(DeviceToken::getToken)
+                                .filter(Objects::nonNull)
+                                .toList();
+                        fcmPushService.sendMulticastPush(tokens, title, message, payloadMap);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.error("Erro ao notificar produtores rurais sobre nova dica técnica ID {}: {}", tipId, ex.getMessage(), ex);
+        }
+    }
+
+    private String toJson(Object obj) {
+        try {
+            if (this.objectMapper != null) {
+                String serialized = this.objectMapper.writeValueAsString(obj);
+                if (serialized != null) {
+                    return serialized;
+                }
+            }
+            return new ObjectMapper().writeValueAsString(obj);
+        } catch (Exception e) {
+            log.warn("Erro ao serializar payload de notificação para JSON: {}", e.getMessage());
+            return "{}";
+        }
     }
 }

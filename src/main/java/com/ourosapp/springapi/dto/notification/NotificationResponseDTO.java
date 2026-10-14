@@ -35,6 +35,11 @@ public record NotificationResponseDTO(
         @Schema(description = "Tipo do evento de notificação", example = "RANKING_UPDATED")
         String type,
 
+        @Schema(description = "Identificador opcional da dica técnica vinculada", example = "10")
+        @JsonProperty("id_tip")
+        @JsonAlias("idTip")
+        Long idTip,
+
         @Schema(description = "Payload JSON com dados adicionais do evento", example = "{\"farm_id\":1,\"rank_position\":1,\"medal\":\"OURO\"}")
         @JsonProperty("data_payload")
         @JsonAlias("dataPayload")
@@ -55,6 +60,22 @@ public record NotificationResponseDTO(
         @JsonAlias("readAt")
         LocalDateTime readAt
 ) {
+    /**
+     * Construtor de conveniência para criação de notificações sem vínculo a dicas técnicas.
+     */
+    public NotificationResponseDTO(
+            Long id,
+            String title,
+            String message,
+            String type,
+            String dataPayload,
+            boolean isRead,
+            LocalDateTime createdAt,
+            LocalDateTime readAt
+    ) {
+        this(id, title, message, type, null, dataPayload, isRead, createdAt, readAt);
+    }
+
     public static NotificationResponseDTO fromEntity(Notification notification) {
         Objects.requireNonNull(notification, "Notification não pode ser nula");
         return new NotificationResponseDTO(
@@ -62,6 +83,7 @@ public record NotificationResponseDTO(
                 notification.getTitle(),
                 notification.getMessage(),
                 notification.getType(),
+                notification.getIdTip(),
                 notification.getDataPayload(),
                 notification.isRead(),
                 notification.getCreatedAt(),

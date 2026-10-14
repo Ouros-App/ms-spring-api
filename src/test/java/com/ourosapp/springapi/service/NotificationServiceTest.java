@@ -198,6 +198,34 @@ class NotificationServiceTest {
         assertEquals(10L, created.getUserId());
         assertEquals("Título Teste", created.getTitle());
         assertEquals("Mensagem Teste", created.getMessage());
+        assertNull(created.getIdTip());
+        assertFalse(created.isRead());
+        verify(notificationRepository).save(any(Notification.class));
+    }
+
+    @Test
+    @DisplayName("Deve criar e salvar nova notificação in-app vinculada a dica técnica com sucesso")
+    void deveCriarNotificacaoVinculadaADicaTecnicaComSucesso() {
+        when(notificationRepository.save(any(Notification.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Notification created = notificationService.createNotification(
+                10L,
+                RoleConstants.FARM_OWNER,
+                "Nova Dica Técnica!",
+                "Confira a nova recomendação técnica.",
+                "TIP_CREATED",
+                77L,
+                "{\"tip_id\":77}"
+        );
+
+        assertNotNull(created);
+        assertEquals(10L, created.getUserId());
+        assertEquals(RoleConstants.FARM_OWNER, created.getUserRole());
+        assertEquals("Nova Dica Técnica!", created.getTitle());
+        assertEquals("Confira a nova recomendação técnica.", created.getMessage());
+        assertEquals("TIP_CREATED", created.getType());
+        assertEquals(77L, created.getIdTip());
+        assertEquals("{\"tip_id\":77}", created.getDataPayload());
         assertFalse(created.isRead());
         verify(notificationRepository).save(any(Notification.class));
     }

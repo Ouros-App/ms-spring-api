@@ -161,6 +161,33 @@ class NotificationControllerMockMvcTest {
     }
 
     @Test
+    @DisplayName("Deve retornar id_tip serializado quando notificação for de dica técnica")
+    void deveRetornarIdTipSerializadoParaNotificacaoDeDica() throws Exception {
+        UserPrincipal principal = createMockUser(RoleConstants.FARM_OWNER);
+        NotificationResponseDTO dto = new NotificationResponseDTO(
+                10L,
+                "Nova Dica Técnica!",
+                "Confira a nova recomendação técnica.",
+                "TIP_CREATED",
+                88L,
+                "{\"tip_id\":88}",
+                false,
+                LocalDateTime.now(),
+                null
+        );
+
+        when(notificationService.getUserNotifications(any(UserPrincipal.class), eq(null), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(dto)));
+
+        mockMvc.perform(get("/notifications")
+                        .with(user(principal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(10))
+                .andExpect(jsonPath("$.content[0].type").value("TIP_CREATED"))
+                .andExpect(jsonPath("$.content[0].id_tip").value(88));
+    }
+
+    @Test
     @DisplayName("Deve retornar contagem de notificações não lidas com 200 OK")
     void deveRetornarContagemDeNaoLidasComSucesso() throws Exception {
         UserPrincipal principal = createMockUser(RoleConstants.FARM_OWNER);

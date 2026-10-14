@@ -108,7 +108,36 @@ public class NotificationService {
     }
 
     /**
-     * Cria e persiste uma nova notificação in-app no banco de dados.
+     * Cria e persiste uma nova notificação in-app no banco de dados com vínculo opcional a uma dica técnica.
+     *
+     * @param userId      identificador do usuário destinatário
+     * @param userRole    perfil do usuário destinatário
+     * @param title       título da notificação
+     * @param message     conteúdo da mensagem
+     * @param type        tipo da notificação (ex: RANKING_UPDATED, TIP_CREATED)
+     * @param idTip       identificador opcional da dica técnica
+     * @param dataPayload JSON opcional com metadados
+     * @return entidade Notification salva
+     */
+    @Transactional
+    public Notification createNotification(Long userId, String userRole, String title, String message, String type, Long idTip, String dataPayload) {
+        Notification notification = Notification.builder()
+                .userId(userId)
+                .userRole(userRole)
+                .title(title)
+                .message(message)
+                .type(type != null ? type : "RANKING_UPDATED")
+                .idTip(idTip)
+                .dataPayload(dataPayload)
+                .isRead(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return notificationRepository.save(notification);
+    }
+
+    /**
+     * Cria e persiste uma nova notificação in-app no banco de dados sem vínculo a dica técnica.
      *
      * @param userId      identificador do usuário destinatário
      * @param userRole    perfil do usuário destinatário
@@ -120,18 +149,7 @@ public class NotificationService {
      */
     @Transactional
     public Notification createNotification(Long userId, String userRole, String title, String message, String type, String dataPayload) {
-        Notification notification = Notification.builder()
-                .userId(userId)
-                .userRole(userRole)
-                .title(title)
-                .message(message)
-                .type(type != null ? type : "RANKING_UPDATED")
-                .dataPayload(dataPayload)
-                .isRead(false)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        return notificationRepository.save(notification);
+        return createNotification(userId, userRole, title, message, type, null, dataPayload);
     }
 
     /**

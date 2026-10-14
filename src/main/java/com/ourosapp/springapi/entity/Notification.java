@@ -39,6 +39,9 @@ public class Notification {
     @Column(name = "type", length = 50, nullable = false)
     private String type = "RANKING_UPDATED";
 
+    @Column(name = "id_tip")
+    private Long idTip;
+
     @Column(name = "data_payload", columnDefinition = "TEXT")
     private String dataPayload;
 

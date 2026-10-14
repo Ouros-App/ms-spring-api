@@ -1,5 +1,7 @@
 package com.ourosapp.springapi.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ourosapp.springapi.constants.RoleConstants;
 import com.ourosapp.springapi.dto.tip.TipRequestDTO;
 import com.ourosapp.springapi.dto.tip.TipResponseDTO;
 import com.ourosapp.springapi.dto.tip.TipUpdateDTO;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -55,6 +58,18 @@ class TipServiceTest {
 
     @Mock
     private FarmOwnerRepository farmOwnerRepository;
+
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock
+    private DeviceTokenRepository deviceTokenRepository;
+
+    @Mock
+    private FcmPushService fcmPushService;
+
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private TipService tipService;
@@ -154,6 +169,63 @@ class TipServiceTest {
         assertEquals(10L, response.idFarm());
         assertEquals(List.of("Ambiência"), response.categories());
         verify(tipRepository).callCreateTip("Manter ventilação mínima", 10, 5);
+    }
+
+    @Test
+    @DisplayName("createTip - Deve gerar notificação in-app e push FCM para os produtores da fazenda")
+    void deveNotificarProdutoresRuraisEEnviarPushAoCadastrarDica() {
+        TipRequestDTO request = new TipRequestDTO("Ajustar a vazão dos bebedouros", 10L, List.of(5L));
+        DeviceToken token = DeviceToken.builder()
+                .id(1L)
+                .userId(3L)
+                .userRole(RoleConstants.FARM_OWNER)
+                .token("fcm_token_owner_123")
+                .platform("ANDROID")
+                .build();
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
+        when(tipRepository.callCreateTip("Ajustar a vazão dos bebedouros", 10, 5)).thenReturn(101);
+        when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of(sampleFarmOwner));
+        when(deviceTokenRepository.findAllByUserIdAndUserRole(3L, RoleConstants.FARM_OWNER))
+                .thenReturn(List.of(token));
+
+        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(101L, response.id());
+        verify(notificationService).createNotification(
+                eq(3L),
+                eq(RoleConstants.FARM_OWNER),
+                contains("Dica"),
+                anyString(),
+                eq("TIP_CREATED"),
+                eq(101L),
+                anyString()
+        );
+        verify(fcmPushService).sendMulticastPush(
+                eq(List.of("fcm_token_owner_123")),
+                contains("Dica"),
+                anyString(),
+                anyMap()
+        );
+    }
+
+    @Test
+    @DisplayName("createTip - Não deve falhar criação de dica se ocorrer erro ao notificar produtores")
+    void naoDeveFalharCriacaoDeDicaQuandoOcorrerErroNaNotificacao() {
+        TipRequestDTO request = new TipRequestDTO("Ajustar a vazão", 10L, List.of(5L));
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
+        when(tipRepository.callCreateTip("Ajustar a vazão", 10, 5)).thenReturn(102);
+        when(farmOwnerRepository.findAllByIdFarm(10L)).thenThrow(new RuntimeException("Falha temporária de banco"));
+
+        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(102L, response.id());
+        verify(tipRepository).callCreateTip("Ajustar a vazão", 10, 5);
     }
 
     @Test
