@@ -59,4 +59,12 @@ public interface CompanyEmployeeRepository extends JpaRepository<CompanyEmployee
      * @return {@code true} se existir um funcionário com este documento, {@code false} caso contrário
      */
     boolean existsByDocumentNumber(String documentNumber);
+
+    /**
+     * Busca todos os funcionários vinculados a uma empresa integradora.
+     *
+     * @param idEnterprise identificador único da empresa integradora
+     * @return lista de funcionários associados à empresa
+     */
+    java.util.List<CompanyEmployee> findAllByIdEnterprise(Long idEnterprise);
 }

@@ -50,6 +50,7 @@ public class FarmRankingService {
     private final EnterpriseRepository enterpriseRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final FarmOwnerRepository farmOwnerRepository;
+    private final org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
 
     @Value("${app.ranking.cron:0 0 0 */7 * *}")
     private String rankingCron = "0 0 0 */7 * *";
@@ -373,6 +374,9 @@ public class FarmRankingService {
         }
         Long targetEnterpriseId = resolveTargetEnterpriseId(enterpriseId, principal);
         List<FarmRankingResponseDTO> synced = recalculateAndCacheEnterpriseRanking(targetEnterpriseId);
+        if (applicationEventPublisher != null && !synced.isEmpty()) {
+            applicationEventPublisher.publishEvent(new com.ourosapp.springapi.event.RankingUpdatedEvent(targetEnterpriseId, synced));
+        }
         return synced.size();
     }
 
