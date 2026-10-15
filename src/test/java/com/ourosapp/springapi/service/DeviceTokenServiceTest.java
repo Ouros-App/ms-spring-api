@@ -146,4 +146,30 @@ class DeviceTokenServiceTest {
 
         assertEquals(2, tokens.size());
     }
+
+    @Test
+    @DisplayName("getTokensForUsers - Deve retornar lista vazia quando lista de IDs for nula ou vazia")
+    void deveRetornarListaVaziaQuandoIdsNuloOuVazio() {
+        assertTrue(deviceTokenService.getTokensForUsers(RoleConstants.FARM_OWNER, null).isEmpty());
+        assertTrue(deviceTokenService.getTokensForUsers(RoleConstants.FARM_OWNER, List.of()).isEmpty());
+        verify(deviceTokenRepository, never()).findAllByUserRoleAndUserIdIn(any(), any());
+    }
+
+    @Test
+    @DisplayName("deleteToken - Deve ignorar remoção quando token for nulo ou em branco")
+    void deveIgnorarRemocaoQuandoTokenNuloOuEmBranco() {
+        deviceTokenService.deleteToken(ownerPrincipal, null);
+        deviceTokenService.deleteToken(ownerPrincipal, "   ");
+        verify(deviceTokenRepository, never()).deleteByUserIdAndUserRoleAndToken(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("ensureAuthenticated - Deve lançar 401 quando principal tiver ID nulo no deleteToken ou registerOrUpdateToken")
+    void deveLancar401QuandoPrincipalSemId() {
+        UserPrincipal semId = new UserPrincipal(null, "sem@id.com", "pass", "ADM", List.of());
+        DeviceTokenRequestDTO dto = new DeviceTokenRequestDTO("fcm_123", "ANDROID");
+
+        assertThrows(ResponseStatusException.class, () -> deviceTokenService.deleteToken(semId, "token"));
+        assertThrows(ResponseStatusException.class, () -> deviceTokenService.registerOrUpdateToken(semId, dto));
+    }
 }

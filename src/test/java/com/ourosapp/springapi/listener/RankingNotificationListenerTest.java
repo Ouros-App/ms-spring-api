@@ -173,4 +173,75 @@ class RankingNotificationListenerTest {
                 rankingNotificationListener.onRankingUpdated(event)
         );
     }
+
+    @Test
+    @DisplayName("Deve cobrir badges de medalhas (Prata, Bronze e sem medalha) e fazenda sem nome")
+    void deveCobrirBadgesDeMedalhasEPropriedadesOpcionais() {
+        FarmRankingResponseDTO rankPrata = new FarmRankingResponseDTO(20L, null, "Sul", null, 2L);
+        FarmRankingResponseDTO rankBronze = new FarmRankingResponseDTO(30L, "Fazenda Bronze", "Centro", 1.5, 3L);
+        FarmRankingResponseDTO rankQuarto = new FarmRankingResponseDTO(40L, "Fazenda Quatro", "Norte", 1.2, 4L);
+
+        FarmOwner ownerPrata = FarmOwner.builder().id(101L).idFarm(20L).build();
+        FarmOwner ownerBronze = FarmOwner.builder().id(102L).idFarm(30L).build();
+        FarmOwner ownerQuarto = FarmOwner.builder().id(103L).idFarm(40L).build();
+        FarmOwner ownerInvalido = FarmOwner.builder().id(null).idFarm(20L).build();
+        FarmOwner ownerSemFazenda = FarmOwner.builder().id(104L).idFarm(null).build();
+        FarmOwner ownerOutraFazenda = FarmOwner.builder().id(105L).idFarm(999L).build();
+
+        RankingUpdatedEvent event = new RankingUpdatedEvent(null, List.of(rankPrata, rankBronze, rankQuarto));
+
+        when(farmOwnerRepository.findAllByIdFarmIn(anyList()))
+                .thenReturn(List.of(ownerPrata, ownerBronze, ownerQuarto, ownerInvalido, ownerSemFazenda, ownerOutraFazenda));
+        when(deviceTokenRepository.findAllByUserIdAndUserRole(anyLong(), anyString()))
+                .thenReturn(List.of()); // device tokens vazios
+
+        rankingNotificationListener.onRankingUpdated(event);
+
+        verify(notificationService).createNotification(
+                eq(101L), eq(RoleConstants.FARM_OWNER), anyString(), contains("Medalha de Prata 🥈"), anyString(), anyString()
+        );
+        verify(notificationService).createNotification(
+                eq(102L), eq(RoleConstants.FARM_OWNER), anyString(), contains("Medalha de Bronze 🥉"), anyString(), anyString()
+        );
+        verify(notificationService).createNotification(
+                eq(103L), eq(RoleConstants.FARM_OWNER), anyString(), argThat(msg -> msg != null && !msg.contains("Medalha")), anyString(), anyString()
+        );
+
+        // Como enterpriseId é nulo, funcionários não são notificados
+        verifyNoInteractions(companyEmployeeRepository);
+        verifyNoInteractions(fcmPushService);
+    }
+
+    @Test
+    @DisplayName("Deve ignorar envio quando produtores ou funcionários forem vazios")
+    void deveIgnorarQuandoNenhumProdutorOuFuncionarioEncontrado() {
+        RankingUpdatedEvent event = new RankingUpdatedEvent(5L, List.of(rank1));
+
+        when(farmOwnerRepository.findAllByIdFarmIn(anyList())).thenReturn(List.of());
+        when(companyEmployeeRepository.findAllByIdEnterprise(5L)).thenReturn(List.of(
+                CompanyEmployee.builder().id(null).name("Sem ID").build()
+        ));
+
+        rankingNotificationListener.onRankingUpdated(event);
+
+        verify(notificationService, never()).createNotification(anyLong(), anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("toJson - Deve retornar fallback JSON vazio quando serialização falhar")
+    void deveRetornarJsonVazioEmFalhaDeSerializacao() throws Exception {
+        com.fasterxml.jackson.core.JsonProcessingException ex = mock(com.fasterxml.jackson.core.JsonProcessingException.class);
+        doThrow(ex).when(objectMapper).writeValueAsString(any());
+
+        RankingUpdatedEvent event = new RankingUpdatedEvent(1L, List.of(rank1));
+        when(farmOwnerRepository.findAllByIdFarmIn(anyList())).thenReturn(List.of(owner1));
+        when(deviceTokenRepository.findAllByUserIdAndUserRole(anyLong(), anyString())).thenReturn(List.of());
+        when(companyEmployeeRepository.findAllByIdEnterprise(1L)).thenReturn(List.of());
+
+        rankingNotificationListener.onRankingUpdated(event);
+
+        verify(notificationService).createNotification(
+                eq(100L), eq(RoleConstants.FARM_OWNER), anyString(), anyString(), anyString(), eq("{}")
+        );
+    }
 }

@@ -229,6 +229,83 @@ class TipServiceTest {
     }
 
     @Test
+    @DisplayName("createTip - Deve ignorar notificacao quando lista de produtores for vazia")
+    void deveIgnorarNotificacaoQuandoListaDeProdutoresForVazia() {
+        TipRequestDTO request = new TipRequestDTO("Dica sem donos", 10L, List.of(5L));
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
+        when(tipRepository.callCreateTip("Dica sem donos", 10, 5)).thenReturn(103);
+        when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of());
+
+        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(103L, response.id());
+        verifyNoInteractions(notificationService);
+        verifyNoInteractions(fcmPushService);
+    }
+
+    @Test
+    @DisplayName("createTip - Deve ignorar produtor com id nulo e usar 'sua fazenda' quando o nome da fazenda for em branco")
+    void deveIgnorarProdutorSemIdEUsarNomePadraoQuandoNomeFazendaEmBranco() {
+        TipRequestDTO request = new TipRequestDTO("Dica fazenda sem nome", 10L, List.of(5L));
+        Farm farmSemNome = Farm.builder().id(10L).name("   ").build();
+        FarmOwner ownerValido = FarmOwner.builder().id(3L).idFarm(10L).build();
+        FarmOwner ownerSemId = FarmOwner.builder().id(null).idFarm(10L).build();
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farmSemNome));
+        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
+        when(tipRepository.callCreateTip("Dica fazenda sem nome", 10, 5)).thenReturn(104);
+        when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of(ownerSemId, ownerValido));
+        when(deviceTokenRepository.findAllByUserIdAndUserRole(3L, RoleConstants.FARM_OWNER)).thenReturn(List.of());
+
+        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(104L, response.id());
+        verify(notificationService).createNotification(
+                eq(3L),
+                eq(RoleConstants.FARM_OWNER),
+                contains("Nova Dica Técnica!"),
+                contains("sua fazenda"),
+                eq("TIP_CREATED"),
+                eq(104L),
+                anyString()
+        );
+        verify(notificationService, never()).createNotification(
+                isNull(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString()
+        );
+        verifyNoInteractions(fcmPushService);
+    }
+
+    @Test
+    @DisplayName("createTip - Deve filtrar tokens nulos ao enviar notificacao push multicast")
+    void deveFiltrarTokensNulosAoEnviarPushMulticast() {
+        TipRequestDTO request = new TipRequestDTO("Dica com tokens", 10L, List.of(5L));
+        DeviceToken tokenValido = DeviceToken.builder().id(1L).token("fcm_token_ok").build();
+        DeviceToken tokenNulo = DeviceToken.builder().id(2L).token(null).build();
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
+        when(tipRepository.callCreateTip("Dica com tokens", 10, 5)).thenReturn(105);
+        when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of(sampleFarmOwner));
+        when(deviceTokenRepository.findAllByUserIdAndUserRole(3L, RoleConstants.FARM_OWNER))
+                .thenReturn(List.of(tokenValido, tokenNulo));
+
+        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(105L, response.id());
+        verify(fcmPushService).sendMulticastPush(
+                eq(List.of("fcm_token_ok")),
+                contains("Dica"),
+                anyString(),
+                anyMap()
+        );
+    }
+
+    @Test
     @DisplayName("createTip - Deve cadastrar dica técnica com sucesso por COMPANY_EMPLOYEE da mesma empresa")
     void deveCadastrarDicaComSucessoPorCompanyEmployee() {
         TipRequestDTO request = new TipRequestDTO("Manter ventilação mínima", 10L, null);

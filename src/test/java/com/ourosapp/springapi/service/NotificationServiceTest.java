@@ -229,4 +229,40 @@ class NotificationServiceTest {
         assertFalse(created.isRead());
         verify(notificationRepository).save(any(Notification.class));
     }
+
+    @Test
+    @DisplayName("createNotifications - Deve salvar lista de notificações em lote")
+    void deveSalvarNotificacoesEmLote() {
+        List<Notification> list = List.of(sampleNotification);
+        when(notificationRepository.saveAll(list)).thenReturn(list);
+
+        List<Notification> result = notificationService.createNotifications(list);
+
+        assertEquals(1, result.size());
+        verify(notificationRepository).saveAll(list);
+    }
+
+    @Test
+    @DisplayName("createNotifications - Deve retornar lista vazia quando entrada for nula ou vazia")
+    void deveRetornarListaVaziaAoSalvarLoteNuloOuVazio() {
+        assertTrue(notificationService.createNotifications(null).isEmpty());
+        assertTrue(notificationService.createNotifications(List.of()).isEmpty());
+        verify(notificationRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("ensureAuthenticated - Deve lançar 401 quando principal tiver ID nulo")
+    void deveLancar401QuandoPrincipalTiverIdNulo() {
+        UserPrincipal semId = new UserPrincipal(null, "email@teste.com", "pass", "ADM", List.of());
+
+        assertThrows(ResponseStatusException.class, () -> notificationService.getUnreadCount(semId));
+        assertThrows(ResponseStatusException.class, () -> notificationService.markAllAsRead(semId));
+        assertThrows(ResponseStatusException.class, () -> notificationService.markAsRead(1L, semId));
+    }
+
+    @Test
+    @DisplayName("markAsRead - Deve lançar NullPointerException quando ID for nulo")
+    void deveLancarExcecaoQuandoIdNuloAoMarcarComoLida() {
+        assertThrows(NullPointerException.class, () -> notificationService.markAsRead(null, principal));
+    }
 }
