@@ -39,6 +39,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
+        String detailMessage = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        log.warn("[DB Integrity Violation] Conflito de integridade ou duplicidade no banco: {}", detailMessage);
+
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.CONFLICT,
                 "Conflito de integridade de dados ou registro duplicado no banco de dados"
@@ -59,6 +62,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResponseStatusException.class)
     public ProblemDetail handleResponseStatusException(ResponseStatusException ex) {
         String reason = ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString();
+        log.warn("[Business Error] {} - {}", ex.getStatusCode(), reason);
+
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(ex.getStatusCode(), reason);
         problemDetail.setTitle(ex.getStatusCode().toString());
         problemDetail.setType(URI.create("about:blank"));
@@ -75,14 +80,6 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                "Erro de validação nos campos da requisição"
-        );
-        problemDetail.setTitle("Validation Failed");
-        problemDetail.setType(URI.create("about:blank"));
-        problemDetail.setProperty("timestamp", Instant.now());
-
         Map<String, String> errors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
@@ -94,6 +91,16 @@ public class GlobalExceptionHandler {
                     : error.getObjectName() + "_" + (globalErrorIndex++);
             errors.put(key, error.getDefaultMessage());
         }
+
+        log.warn("[Validation Failed] Erros de validação nos campos: {}", errors);
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "Erro de validação nos campos da requisição"
+        );
+        problemDetail.setTitle("Validation Failed");
+        problemDetail.setType(URI.create("about:blank"));
+        problemDetail.setProperty("timestamp", Instant.now());
         problemDetail.setProperty("errors", errors);
 
         return problemDetail;
@@ -108,6 +115,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
     public ProblemDetail handleHttpMessageNotReadableException(org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        log.warn("[Malformed JSON] Corpo da requisição inválido ou malformatado: {}", ex.getMessage());
+
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST,
                 "Corpo da requisição inválido ou malformatado"
@@ -120,6 +129,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ProblemDetail handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException ex) {
+        log.warn("[Method Not Allowed] {}", ex.getMessage());
         return buildProblemDetail(
                 HttpStatus.METHOD_NOT_ALLOWED,
                 "Método HTTP não suportado para esta rota"
@@ -128,6 +138,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ProblemDetail handleHttpMediaTypeNotSupportedException(HttpMediaTypeNotSupportedException ex) {
+        log.warn("[Media Type Not Supported] {}", ex.getMessage());
         return buildProblemDetail(
                 HttpStatus.UNSUPPORTED_MEDIA_TYPE,
                 "Tipo de mídia não suportado"
@@ -136,6 +147,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ProblemDetail handleMissingServletRequestParameterException(MissingServletRequestParameterException ex) {
+        log.warn("[Missing Param] Parâmetro obrigatório ausente: {}", ex.getParameterName());
         return buildProblemDetail(
                 HttpStatus.BAD_REQUEST,
                 "Parâmetro obrigatório ausente: " + ex.getParameterName()
@@ -144,6 +156,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ProblemDetail handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+        log.warn("[Type Mismatch] Valor inválido '{}' para o parâmetro: {}", ex.getValue(), ex.getName());
         return buildProblemDetail(
                 HttpStatus.BAD_REQUEST,
                 "Valor inválido para o parâmetro: " + ex.getName()
@@ -152,6 +165,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
     public ProblemDetail handleNoResourceFoundException(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        log.warn("[Route Not Found] Recurso ou rota não encontrada: {}", ex.getResourcePath());
         return buildProblemDetail(
                 HttpStatus.NOT_FOUND,
                 "Recurso ou rota não encontrada: " + ex.getResourcePath()
