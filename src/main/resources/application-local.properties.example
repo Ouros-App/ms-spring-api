@@ -18,3 +18,8 @@ app.cors.allowed-origins=http://localhost:3000,http://localhost:5173,http://loca
 
 # Configurações do Redis NoSQL (Upstash)
 spring.data.redis.url=rediss://default:<UPSTASH_REDIS_REST_TOKEN>@rapid-hare-284662.upstash.io:6379
+
+# Firebase Cloud Messaging (Push Notifications)
+# Pode ser informado o JSON minificado em uma linha ou a string do JSON codificada em Base64:
+app.firebase.credentials-json=${FIREBASE_CREDENTIALS_JSON:}
+
