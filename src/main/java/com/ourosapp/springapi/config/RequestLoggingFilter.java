@@ -35,23 +35,27 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
                 ? "?" + request.getQueryString()
                 : "";
 
+        boolean exceptionThrown = false;
         try {
             filterChain.doFilter(request, response);
         } catch (Exception ex) {
+            exceptionThrown = true;
             long duration = System.currentTimeMillis() - startTime;
             log.error("[HTTP] {} {}{} - Falha inesperada durante a requisição após {} ms: {}",
                     method, uri, queryString, duration, ex.getMessage(), ex);
             throw ex;
         } finally {
-            long duration = System.currentTimeMillis() - startTime;
-            int status = response.getStatus();
+            if (!exceptionThrown) {
+                long duration = System.currentTimeMillis() - startTime;
+                int status = response.getStatus();
 
-            if (status >= 500) {
-                log.error("[HTTP] {} {}{} - Status: {} ({} ms)", method, uri, queryString, status, duration);
-            } else if (status >= 400) {
-                log.warn("[HTTP] {} {}{} - Status: {} ({} ms)", method, uri, queryString, status, duration);
-            } else {
-                log.info("[HTTP] {} {}{} - Status: {} ({} ms)", method, uri, queryString, status, duration);
+                if (status >= 500) {
+                    log.error("[HTTP] {} {}{} - Status: {} ({} ms)", method, uri, queryString, status, duration);
+                } else if (status >= 400) {
+                    log.warn("[HTTP] {} {}{} - Status: {} ({} ms)", method, uri, queryString, status, duration);
+                } else {
+                    log.info("[HTTP] {} {}{} - Status: {} ({} ms)", method, uri, queryString, status, duration);
+                }
             }
         }
     }
