@@ -57,9 +57,6 @@ class NotificationControllerMockMvcTest {
     private DeviceTokenService deviceTokenService;
 
     @MockitoBean
-    private KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
-
-    @MockitoBean
     private JwtDecoder jwtDecoder;
 
     @MockitoBean
