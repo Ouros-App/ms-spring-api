@@ -41,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Testes de integração Web via MockMvc para o controlador {@link NotificationController}.
  */
 @WebMvcTest(NotificationController.class)
-@Import({SecurityConfig.class, KeycloakJwtAuthenticationConverter.class})
+@Import(SecurityConfig.class)
 class NotificationControllerMockMvcTest {
 
     @Autowired
