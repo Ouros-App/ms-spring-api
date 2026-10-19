@@ -14,7 +14,7 @@ import java.util.List;
  * @param currentFarmId         Identificador da fazenda solicitante
  * @param rankingPodium         Lista contendo o trio de concorrência direta (ABOVE, CURRENT, BELOW)
  * @param secondsUntilNextReset Segundos restantes até o próximo reset do ranking
- * @param timeUntilNextReset    Tempo restante legível em português até o próximo reset
+ * @param time                  Tempo restante estruturado em dias, horas e minutos para exibição mobile
  * @param nextResetAt           Data/hora ISO-8601 exata do próximo reset
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -36,10 +36,10 @@ public record FarmPodiumRankingResponseDTO(
         @JsonAlias("secondsUntilNextReset")
         Long secondsUntilNextReset,
 
-        @Schema(description = "Tempo restante formatado de forma legível em português até o próximo reset", example = "2 dias, 12 horas e 30 minutos")
-        @JsonProperty("time_until_next_reset")
-        @JsonAlias("timeUntilNextReset")
-        String timeUntilNextReset,
+        @Schema(description = "Tempo restante estruturado em dias, horas e minutos para exibição mobile")
+        @JsonProperty("time")
+        @JsonAlias({"time_until_next_reset", "timeUntilNextReset"})
+        RankingTimeDTO time,
 
         @Schema(description = "Data e hora exatas do próximo reset em formato ISO-8601", example = "2026-10-11T00:00:00-03:00")
         @JsonProperty("next_reset_at")
@@ -61,7 +61,7 @@ public record FarmPodiumRankingResponseDTO(
         return new FarmPodiumRankingResponseDTO(
                 currentFarmId, rankingPodium,
                 countdown.secondsUntilNextReset(),
-                countdown.timeUntilNextReset(),
+                countdown.time(),
                 countdown.nextResetAt()
         );
     }

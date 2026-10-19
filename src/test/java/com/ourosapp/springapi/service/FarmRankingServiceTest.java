@@ -486,8 +486,11 @@ class FarmRankingServiceTest {
         assertNotNull(countdown);
         assertNotNull(countdown.secondsUntilNextReset());
         assertTrue(countdown.secondsUntilNextReset() > 0);
-        assertNotNull(countdown.timeUntilNextReset());
-        assertFalse(countdown.timeUntilNextReset().isBlank());
+        assertNotNull(countdown.time());
+        assertNotNull(countdown.time().hours());
+        assertNotNull(countdown.time().minutes());
+        assertFalse(countdown.time().hours().isBlank());
+        assertFalse(countdown.time().minutes().isBlank());
         assertNotNull(countdown.nextResetAt());
         assertTrue(countdown.nextResetAt().contains("T00:00:00"));
     }
@@ -1094,7 +1097,7 @@ class FarmRankingServiceTest {
     }
 
     @Test
-    @DisplayName("Deve formatar durações humanas com 1, 2 partes e apenas segundos")
+    @DisplayName("Deve formatar tempo restante estruturado com segundos quando faltar menos de 60s")
     void deveFormatarDuracoesHumanasEmDiferentesCasos() {
         // Cron a cada segundo: gera tempo restante em segundos (< 60s)
         farmRankingService.setRankingCron("* * * * * *");
@@ -1102,7 +1105,11 @@ class FarmRankingServiceTest {
 
         var countdown = farmRankingService.calculateRankingCountdown();
         assertNotNull(countdown);
-        assertNotNull(countdown.timeUntilNextReset());
+        assertNotNull(countdown.time());
+        assertNotNull(countdown.time().hours());
+        assertNotNull(countdown.time().minutes());
+        assertNotNull(countdown.time().seconds());
+        assertFalse(countdown.time().seconds().isBlank());
     }
 
     @Test

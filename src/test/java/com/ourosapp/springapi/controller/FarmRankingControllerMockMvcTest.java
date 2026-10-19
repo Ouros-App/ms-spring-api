@@ -224,4 +224,30 @@ class FarmRankingControllerMockMvcTest {
                 .andExpect(jsonPath("$.synced_farms").value(5))
                 .andExpect(jsonPath("$.message").value("Sincronização de ranking concluída com sucesso"));
     }
+
+    @Test
+    @DisplayName("Deve retornar 200 OK com objeto time estruturado contendo horas e minutos")
+    void deveRetornarObjetoTimeEstruturadoNoRanking() throws Exception {
+        UserPrincipal principal = createMockUser("ADM");
+        com.ourosapp.springapi.dto.farm.RankingTimeDTO rankingTime =
+                new com.ourosapp.springapi.dto.farm.RankingTimeDTO(null, "6 horas", "8 minutos");
+        FarmRankingResponseDTO item = new FarmRankingResponseDTO(
+                1L, "Granja Sol Poente", "Sudeste", 1.15, 1L,
+                22080L, rankingTime, "2026-10-25T00:00:00-03:00"
+        );
+
+        when(farmRankingService.getFarmPosition(eq(1L), any(UserPrincipal.class)))
+                .thenReturn(item);
+
+        mockMvc.perform(get("/farms/1/ranking")
+                        .with(user(principal))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.farm_id").value(1))
+                .andExpect(jsonPath("$.seconds_until_next_reset").value(22080))
+                .andExpect(jsonPath("$.time.hours").value("6 horas"))
+                .andExpect(jsonPath("$.time.minutes").value("8 minutos"))
+                .andExpect(jsonPath("$.time.days").doesNotExist())
+                .andExpect(jsonPath("$.next_reset_at").value("2026-10-25T00:00:00-03:00"));
+    }
 }
