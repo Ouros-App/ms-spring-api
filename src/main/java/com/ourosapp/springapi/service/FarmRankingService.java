@@ -10,6 +10,7 @@ import com.ourosapp.springapi.dto.farm.FarmPodiumRankingResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRankingResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmScoreUpdateDTO;
 import com.ourosapp.springapi.dto.farm.RankingCountdownDTO;
+import com.ourosapp.springapi.dto.farm.RankingTimeDTO;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Farm;
 import com.ourosapp.springapi.entity.FarmOwner;
@@ -546,42 +547,13 @@ public class FarmRankingService {
             Duration duration = Duration.between(now, nextExecution);
             long totalSeconds = Math.max(0, duration.getSeconds());
 
-            String humanReadable = formatDurationHuman(duration);
+            RankingTimeDTO time = RankingTimeDTO.fromDuration(duration);
             String nextResetAtIso = nextExecution.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
-            return new RankingCountdownDTO(totalSeconds, humanReadable, nextResetAtIso);
+            return new RankingCountdownDTO(totalSeconds, time, nextResetAtIso);
         } catch (Exception e) {
             log.warn("Não foi possível calcular a contagem regressiva para o cron '{}': {}", rankingCron, e.getMessage());
             return null;
-        }
-    }
-
-    private String formatDurationHuman(Duration duration) {
-        long days = duration.toDays();
-        long hours = duration.toHoursPart();
-        long minutes = duration.toMinutesPart();
-        long seconds = duration.toSecondsPart();
-
-        List<String> parts = new ArrayList<>();
-        if (days > 0) {
-            parts.add(days == 1 ? "1 dia" : days + " dias");
-        }
-        if (hours > 0) {
-            parts.add(hours == 1 ? "1 hora" : hours + " horas");
-        }
-        if (minutes > 0) {
-            parts.add(minutes == 1 ? "1 minuto" : minutes + " minutos");
-        }
-        if (parts.isEmpty()) {
-            parts.add(seconds == 1 ? "1 segundo" : seconds + " segundos");
-        }
-
-        if (parts.size() == 1) {
-            return parts.get(0);
-        } else if (parts.size() == 2) {
-            return parts.get(0) + " e " + parts.get(1);
-        } else {
-            return parts.get(0) + ", " + parts.get(1) + " e " + parts.get(2);
         }
     }
 

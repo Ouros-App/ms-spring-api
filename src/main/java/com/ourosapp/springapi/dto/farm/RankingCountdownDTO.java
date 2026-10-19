@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * Dados de contagem regressiva para o próximo recálculo/reset do ranking de fazendas.
  *
  * @param secondsUntilNextReset tempo restante em segundos
- * @param timeUntilNextReset    tempo restante formatado em texto legível (ex: "2 dias, 12 horas e 30 minutos")
+ * @param time                  tempo restante estruturado em objeto JSON com horas, minutos e dias para exibição mobile
  * @param nextResetAt           data/hora ISO-8601 exata do próximo recálculo (ex: "2026-10-11T00:00:00-03:00")
  */
 @Schema(description = "Informações sobre o tempo restante até o próximo recálculo/reset do ranking")
@@ -19,10 +19,10 @@ public record RankingCountdownDTO(
         @JsonAlias("secondsUntilNextReset")
         Long secondsUntilNextReset,
 
-        @Schema(description = "Tempo restante formatado de forma legível em português", example = "2 dias, 12 horas e 30 minutos")
-        @JsonProperty("time_until_next_reset")
-        @JsonAlias("timeUntilNextReset")
-        String timeUntilNextReset,
+        @Schema(description = "Tempo restante estruturado em dias, horas e minutos para exibição mobile")
+        @JsonProperty("time")
+        @JsonAlias({"time_until_next_reset", "timeUntilNextReset"})
+        RankingTimeDTO time,
 
         @Schema(description = "Data e hora exatas do próximo reset em formato ISO-8601", example = "2026-10-11T00:00:00-03:00")
         @JsonProperty("next_reset_at")

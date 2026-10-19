@@ -50,13 +50,15 @@ class FarmMetricsDTOTest {
         var updated = dto.withCountdown(null);
         org.junit.jupiter.api.Assertions.assertSame(dto, updated);
 
+        var rankingTime = new com.ourosapp.springapi.dto.farm.RankingTimeDTO(null, "1 hora", "0 minutos");
         var countdown = new com.ourosapp.springapi.dto.farm.RankingCountdownDTO(
-                3600L, "1 hora", "2026-10-11T00:00:00-03:00"
+                3600L, rankingTime, "2026-10-11T00:00:00-03:00"
         );
         var withCountdown = dto.withCountdown(countdown);
         org.junit.jupiter.api.Assertions.assertNotSame(dto, withCountdown);
         assertEquals(3600L, withCountdown.secondsUntilNextReset());
-        assertEquals("1 hora", withCountdown.timeUntilNextReset());
+        assertEquals(rankingTime, withCountdown.time());
+        assertEquals("1 hora", withCountdown.time().hours());
         assertEquals("2026-10-11T00:00:00-03:00", withCountdown.nextResetAt());
     }
 
@@ -73,13 +75,95 @@ class FarmMetricsDTOTest {
         var updated = podium.withCountdown(null);
         org.junit.jupiter.api.Assertions.assertSame(podium, updated);
 
+        var rankingTime = new com.ourosapp.springapi.dto.farm.RankingTimeDTO("1 dia", "2 horas", "30 minutos");
         var countdown = new com.ourosapp.springapi.dto.farm.RankingCountdownDTO(
-                7200L, "2 horas", "2026-10-11T00:00:00-03:00"
+                7200L, rankingTime, "2026-10-11T00:00:00-03:00"
         );
         var withCountdown = podium.withCountdown(countdown);
         org.junit.jupiter.api.Assertions.assertNotSame(podium, withCountdown);
         assertEquals(7200L, withCountdown.secondsUntilNextReset());
-        assertEquals("2 horas", withCountdown.timeUntilNextReset());
+        assertEquals(rankingTime, withCountdown.time());
+        assertEquals("1 dia", withCountdown.time().days());
+        assertEquals("2 horas", withCountdown.time().hours());
+        assertEquals("30 minutos", withCountdown.time().minutes());
         assertEquals("2026-10-11T00:00:00-03:00", withCountdown.nextResetAt());
+    }
+
+    @Test
+    @DisplayName("Deve serializar RankingTimeDTO em JSON padronizado com hours, minutes e omitindo days se for nulo")
+    void deveSerializarRankingTimeDTO() throws Exception {
+        var timeSemDias = new com.ourosapp.springapi.dto.farm.RankingTimeDTO(null, "6 horas", "8 minutos");
+        String jsonSemDias = objectMapper.writeValueAsString(timeSemDias);
+        org.junit.jupiter.api.Assertions.assertFalse(jsonSemDias.contains("\"days\""));
+        org.junit.jupiter.api.Assertions.assertTrue(jsonSemDias.contains("\"hours\":\"6 horas\""));
+        org.junit.jupiter.api.Assertions.assertTrue(jsonSemDias.contains("\"minutes\":\"8 minutos\""));
+
+        var timeComDias = new com.ourosapp.springapi.dto.farm.RankingTimeDTO("2 dias", "6 horas", "8 minutos");
+        String jsonComDias = objectMapper.writeValueAsString(timeComDias);
+        org.junit.jupiter.api.Assertions.assertTrue(jsonComDias.contains("\"days\":\"2 dias\""));
+        org.junit.jupiter.api.Assertions.assertTrue(jsonComDias.contains("\"hours\":\"6 horas\""));
+        org.junit.jupiter.api.Assertions.assertTrue(jsonComDias.contains("\"minutes\":\"8 minutos\""));
+
+        // Desserialização com aliases em português
+        String jsonLegadoPt = "{\"dias\":\"1 dia\",\"horas\":\"3 horas\",\"minutos\":\"15 minutos\"}";
+        var parsed = objectMapper.readValue(jsonLegadoPt, com.ourosapp.springapi.dto.farm.RankingTimeDTO.class);
+        assertEquals("1 dia", parsed.days());
+        assertEquals("3 horas", parsed.hours());
+        assertEquals("15 minutos", parsed.minutes());
+    }
+
+    @Test
+    @DisplayName("Deve calcular RankingTimeDTO a partir de Duration corretamente")
+    void deveCalcularRankingTimeAPartirDeDuration() {
+        var duration = java.time.Duration.ofDays(2).plusHours(6).plusMinutes(8);
+        var time = com.ourosapp.springapi.dto.farm.RankingTimeDTO.fromDuration(duration);
+        assertEquals("2 dias", time.days());
+        assertEquals("6 horas", time.hours());
+        assertEquals("8 minutos", time.minutes());
+        org.junit.jupiter.api.Assertions.assertNull(time.seconds());
+        assertEquals("2 dias, 6 horas e 8 minutos", time.toHumanReadable());
+
+        var durationMenorQueUmDia = java.time.Duration.ofHours(1).plusMinutes(1);
+        var timeMenor = com.ourosapp.springapi.dto.farm.RankingTimeDTO.fromDuration(durationMenorQueUmDia);
+        org.junit.jupiter.api.Assertions.assertNull(timeMenor.days());
+        assertEquals("1 hora", timeMenor.hours());
+        assertEquals("1 minuto", timeMenor.minutes());
+        assertEquals("1 hora e 1 minuto", timeMenor.toHumanReadable());
+
+        var durationSegundos = java.time.Duration.ofSeconds(45);
+        var timeSegundos = com.ourosapp.springapi.dto.farm.RankingTimeDTO.fromDuration(durationSegundos);
+        org.junit.jupiter.api.Assertions.assertNull(timeSegundos.days());
+        assertEquals("0 horas", timeSegundos.hours());
+        assertEquals("0 minutos", timeSegundos.minutes());
+        assertEquals("45 segundos", timeSegundos.seconds());
+        assertEquals("45 segundos", timeSegundos.toHumanReadable());
+    }
+
+    @Test
+    @DisplayName("Deve cobrir todos os branches e métodos de FarmPodiumRankingResponseDTO e RankingCountdownDTO")
+    void deveCobrirBranchesDeFarmPodiumERankingCountdown() {
+        // Construtor com rankingPodium nulo deve gerar List.of()
+        var podiumComListaNula = new com.ourosapp.springapi.dto.farm.FarmPodiumRankingResponseDTO(
+                1L, null, 100L, null, "2026-10-25T00:00:00Z"
+        );
+        org.junit.jupiter.api.Assertions.assertNotNull(podiumComListaNula.rankingPodium());
+        org.junit.jupiter.api.Assertions.assertTrue(podiumComListaNula.rankingPodium().isEmpty());
+        assertEquals(1L, podiumComListaNula.currentFarmId());
+        assertEquals(100L, podiumComListaNula.secondsUntilNextReset());
+        org.junit.jupiter.api.Assertions.assertNull(podiumComListaNula.time());
+        assertEquals("2026-10-25T00:00:00Z", podiumComListaNula.nextResetAt());
+
+        // Construtor compacto de 2 argumentos
+        var podiumDoisArgs = new com.ourosapp.springapi.dto.farm.FarmPodiumRankingResponseDTO(2L, null);
+        assertEquals(2L, podiumDoisArgs.currentFarmId());
+        org.junit.jupiter.api.Assertions.assertTrue(podiumDoisArgs.rankingPodium().isEmpty());
+
+        // RankingCountdownDTO
+        var time = new com.ourosapp.springapi.dto.farm.RankingTimeDTO("1 dia", "2 horas", "3 minutos");
+        var countdown = new com.ourosapp.springapi.dto.farm.RankingCountdownDTO(3600L, time, "2026-10-25T00:00:00Z");
+        assertEquals(3600L, countdown.secondsUntilNextReset());
+        assertEquals(time, countdown.time());
+        assertEquals("2026-10-25T00:00:00Z", countdown.nextResetAt());
+        org.junit.jupiter.api.Assertions.assertTrue(countdown.toString().contains("RankingCountdownDTO"));
     }
 }
