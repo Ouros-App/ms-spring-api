@@ -6,6 +6,7 @@ import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
 import com.ourosapp.springapi.security.RegistrationRateLimitFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.context.annotation.Bean;
@@ -39,6 +40,7 @@ import java.util.List;
  * Configuração central de segurança do Spring Security.
  * Configura o OAuth2 Resource Server para validação assíncrona de tokens JWT via JWKS do Keycloak.
  */
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -89,12 +91,13 @@ public class SecurityConfig {
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(Customizer.withDefaults())
-                        .authenticationEntryPoint((request, response, authException) ->
-                                response.sendError(
-                                        HttpServletResponse.SC_UNAUTHORIZED,
-                                        "Acesso não autorizado. Token ausente ou inválido."
-                                )
-                        )
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            log.warn("[Auth] Acesso não autorizado em {} {}: {}", request.getMethod(), request.getRequestURI(), authException.getMessage());
+                            response.sendError(
+                                    HttpServletResponse.SC_UNAUTHORIZED,
+                                    "Acesso não autorizado. Token ausente ou inválido."
+                            );
+                        })
                 )
                 .build();
     }
@@ -153,9 +156,10 @@ public class SecurityConfig {
                 .addFilterBefore(registrationRateLimitFilter, BearerTokenAuthenticationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(keycloakJwtAuthenticationConverter))
-                        .authenticationEntryPoint((request, response, authException) ->
-                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Acesso não autorizado. Token ausente ou inválido.")
-                        )
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            log.warn("[Auth] Acesso não autorizado em {} {}: {}", request.getMethod(), request.getRequestURI(), authException.getMessage());
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Acesso não autorizado. Token ausente ou inválido.");
+                        })
                 )
                 .build();
     }
