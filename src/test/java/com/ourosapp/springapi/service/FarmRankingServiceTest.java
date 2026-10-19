@@ -62,6 +62,9 @@ class FarmRankingServiceTest {
     @Mock
     private FarmOwnerRepository farmOwnerRepository;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
+
     @InjectMocks
     private FarmRankingService farmRankingService;
 
@@ -1049,6 +1052,7 @@ class FarmRankingServiceTest {
         long synced = farmRankingService.syncAllFarmsToRanking(null, employeePrincipal);
 
         assertEquals(1L, synced);
+        verify(applicationEventPublisher).publishEvent(any(com.ourosapp.springapi.event.RankingUpdatedEvent.class));
     }
 
     @Test

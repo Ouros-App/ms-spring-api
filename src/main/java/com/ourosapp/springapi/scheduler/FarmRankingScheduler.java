@@ -20,6 +20,7 @@ public class FarmRankingScheduler {
 
     private final FarmRankingService farmRankingService;
     private final EnterpriseRepository enterpriseRepository;
+    private final org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
 
     /**
      * Executa a cada 7 dias (configurável via app.ranking.cron).
@@ -39,6 +40,7 @@ public class FarmRankingScheduler {
                         totalFarmsSynced += rankings.size();
                         log.info("Ranking da empresa ID {} recalculado com sucesso ({} fazendas)",
                                 enterprise.getId(), rankings.size());
+                        applicationEventPublisher.publishEvent(new com.ourosapp.springapi.event.RankingUpdatedEvent(enterprise.getId(), rankings));
                     } catch (Exception ex) {
                         log.error("Erro ao recalcular ranking da empresa ID {}: {}", enterprise.getId(), ex.getMessage(), ex);
                     }

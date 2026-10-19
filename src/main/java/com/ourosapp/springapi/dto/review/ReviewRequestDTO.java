@@ -25,7 +25,7 @@ public record ReviewRequestDTO(
 
         @Schema(description = "Nota de avaliação da dica técnica (intervalo de 0 a 5)", example = "5")
         @JsonProperty("rating")
-        @JsonAlias("rating")
+        @JsonAlias({"rating", "score"})
         @NotNull(message = "A nota da avaliação é obrigatória")
         @Min(value = 0, message = "A nota da avaliação deve ser maior ou igual a 0")
         @Max(value = 5, message = "A nota da avaliação deve ser menor ou igual a 5")
