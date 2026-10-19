@@ -128,7 +128,7 @@ jobs:
           test -n "$INFISICAL_SECRET_PATH"
           test -n "$INFISICAL_SITE_URL"
           cp build/libs/app.jar app.jar
-          rm -rf build
+          rm -rf build src gradle gradlew gradlew.bat .github
           {
             printf 'INFISICAL_CLIENT_ID=%s\n' "$INFISICAL_CLIENT_ID"
             printf 'INFISICAL_CLIENT_SECRET=%s\n' "$INFISICAL_CLIENT_SECRET"
