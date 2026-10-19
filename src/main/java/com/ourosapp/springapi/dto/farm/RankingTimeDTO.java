@@ -111,23 +111,4 @@ public record RankingTimeDTO(
         }
     }
 
-    @JsonIgnore
-    public String dias() {
-        return days;
-    }
-
-    @JsonIgnore
-    public String horas() {
-        return hours;
-    }
-
-    @JsonIgnore
-    public String minutos() {
-        return minutes;
-    }
-
-    @JsonIgnore
-    public String segundos() {
-        return seconds;
-    }
 }

@@ -58,7 +58,7 @@ class FarmMetricsDTOTest {
         org.junit.jupiter.api.Assertions.assertNotSame(dto, withCountdown);
         assertEquals(3600L, withCountdown.secondsUntilNextReset());
         assertEquals(rankingTime, withCountdown.time());
-        assertEquals("1 hora", withCountdown.time().horas());
+        assertEquals("1 hora", withCountdown.time().hours());
         assertEquals("2026-10-11T00:00:00-03:00", withCountdown.nextResetAt());
     }
 

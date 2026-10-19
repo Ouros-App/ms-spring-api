@@ -89,21 +89,6 @@ class RankingTimeDTOTest {
     }
 
     @Test
-    @DisplayName("Deve chamar métodos legados em português e métodos em inglês garantindo compatibilidade")
-    void deveChamarMetodosLegadosEmPortugues() {
-        var dto = new RankingTimeDTO("3 dias", "4 horas", "5 minutos", "6 segundos");
-        assertEquals("3 dias", dto.days());
-        assertEquals("4 horas", dto.hours());
-        assertEquals("5 minutos", dto.minutes());
-        assertEquals("6 segundos", dto.seconds());
-
-        assertEquals("3 dias", dto.dias());
-        assertEquals("4 horas", dto.horas());
-        assertEquals("5 minutos", dto.minutos());
-        assertEquals("6 segundos", dto.segundos());
-    }
-
-    @Test
     @DisplayName("Deve cobrir branches parciais de dias, horas e minutos isolados em fromDuration")
     void deveCobrirBranchesIsoladosEmFromDuration() {
         // totalDays == 0 && totalHours == 0 && totalMinutes > 0
