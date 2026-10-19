@@ -26,7 +26,11 @@ dependencies {
     runtimeOnly 'org.postgresql:postgresql'
 
     // Firebase Cloud Messaging (FCM Push Notifications)
-    implementation 'com.google.firebase:firebase-admin:9.4.3'
+    implementation('com.google.firebase:firebase-admin:9.4.3') {
+        exclude group: 'com.google.cloud', module: 'google-cloud-firestore'
+        exclude group: 'com.google.cloud', module: 'google-cloud-storage'
+    }
+    implementation 'com.google.http-client:google-http-client-jackson2:1.45.3'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
