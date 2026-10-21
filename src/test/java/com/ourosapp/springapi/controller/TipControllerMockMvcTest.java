@@ -66,18 +66,10 @@ class TipControllerMockMvcTest {
     @Test
     @DisplayName("POST /tips - Deve cadastrar dica técnica e retornar 201 Created com Location")
     void deveCadastrarDicaComSucesso() throws Exception {
-        TipRequestDTO request = new TipRequestDTO(
-                "Manejo de Ambiência",
-                "Manter ventilação mínima no galpão.",
-                "https://ouros.com/fotos/dica1.jpg",
-                1L,
-                List.of(1L, 2L)
-        );
+        TipRequestDTO request = new TipRequestDTO("Manter ventilação mínima no galpão.", 1L, List.of(1L, 2L));
         TipResponseDTO response = new TipResponseDTO(
                 10L,
-                "Manejo de Ambiência",
                 "Manter ventilação mínima no galpão.",
-                "https://ouros.com/fotos/dica1.jpg",
                 1L,
                 List.of("Manejo de Ambiência", "Sanitização"),
                 0,
@@ -93,9 +85,7 @@ class TipControllerMockMvcTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/tips/10")))
                 .andExpect(jsonPath("$.id").value(10L))
-                .andExpect(jsonPath("$.title").value("Manejo de Ambiência"))
                 .andExpect(jsonPath("$.tip").value("Manter ventilação mínima no galpão."))
-                .andExpect(jsonPath("$.foto_url").value("https://ouros.com/fotos/dica1.jpg"))
                 .andExpect(jsonPath("$.id_farm").value(1L))
                 .andExpect(jsonPath("$.categories.length()").value(2))
                 .andExpect(jsonPath("$.total_reviews").value(0))
@@ -118,8 +108,8 @@ class TipControllerMockMvcTest {
     @DisplayName("GET /tips - Deve listar dicas e retornar 200 OK")
     void deveListarDicasComSucesso() throws Exception {
         List<TipResponseDTO> responses = List.of(
-                new TipResponseDTO(1L, "Título 1", "Dica 1", "https://ouros.com/1.jpg", 1L, List.of("Ambiência"), 2, 4.5),
-                new TipResponseDTO(2L, "Título 2", "Dica 2", null, 1L, List.of("Nutrição"), 0, 0.0)
+                new TipResponseDTO(1L, "Dica 1", 1L, List.of("Ambiência"), 2, 4.5),
+                new TipResponseDTO(2L, "Dica 2", 1L, List.of("Nutrição"), 0, 0.0)
         );
 
         when(tipService.getTipsForUser(eq(null), eq(mockPrincipal))).thenReturn(responses);
@@ -128,9 +118,7 @@ class TipControllerMockMvcTest {
                         .with(user(mockPrincipal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].title").value("Título 1"))
                 .andExpect(jsonPath("$[0].tip").value("Dica 1"))
-                .andExpect(jsonPath("$[0].foto_url").value("https://ouros.com/1.jpg"))
                 .andExpect(jsonPath("$[0].total_reviews").value(2))
                 .andExpect(jsonPath("$[0].average_rating").value(4.5));
     }
@@ -139,7 +127,7 @@ class TipControllerMockMvcTest {
     @DisplayName("GET /tips?farm_id=1 - Deve listar dicas filtrando por fazenda")
     void deveListarDicasComFiltroDeFazenda() throws Exception {
         List<TipResponseDTO> responses = List.of(
-                new TipResponseDTO(1L, "Título 1", "Dica 1", null, 1L, List.of("Ambiência"), 1, 5.0)
+                new TipResponseDTO(1L, "Dica 1", 1L, List.of("Ambiência"), 1, 5.0)
         );
 
         when(tipService.getTipsForUser(eq(1L), eq(mockPrincipal))).thenReturn(responses);
@@ -149,14 +137,13 @@ class TipControllerMockMvcTest {
                         .with(user(mockPrincipal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(1L))
-                .andExpect(jsonPath("$[0].title").value("Título 1"));
+                .andExpect(jsonPath("$[0].id").value(1L));
     }
 
     @Test
     @DisplayName("GET /tips/{id} - Deve retornar detalhes de uma dica específica")
     void deveBuscarDicaPorIdComSucesso() throws Exception {
-        TipResponseDTO response = new TipResponseDTO(1L, "Dica Especial", "Dica detalhada", "https://ouros.com/banner.jpg", 1L, List.of("Biosseguridade"), 1, 4.0);
+        TipResponseDTO response = new TipResponseDTO(1L, "Dica detalhada", 1L, List.of("Biosseguridade"), 1, 4.0);
 
         when(tipService.getTipById(eq(1L), eq(mockPrincipal))).thenReturn(response);
 
@@ -164,16 +151,14 @@ class TipControllerMockMvcTest {
                         .with(user(mockPrincipal)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.title").value("Dica Especial"))
-                .andExpect(jsonPath("$.tip").value("Dica detalhada"))
-                .andExpect(jsonPath("$.foto_url").value("https://ouros.com/banner.jpg"));
+                .andExpect(jsonPath("$.tip").value("Dica detalhada"));
     }
 
     @Test
     @DisplayName("PATCH /tips/{id} - Deve atualizar parcialmente uma dica técnica")
     void deveAtualizarDicaComSucesso() throws Exception {
         TipUpdateDTO updateDTO = new TipUpdateDTO("Dica atualizada", List.of(2L));
-        TipResponseDTO response = new TipResponseDTO(1L, "Dica Operacional", "Dica atualizada", null, 1L, List.of("Nutrição"), 0, 0.0);
+        TipResponseDTO response = new TipResponseDTO(1L, "Dica atualizada", 1L, List.of("Nutrição"), 0, 0.0);
 
         when(tipService.updateTip(eq(1L), any(TipUpdateDTO.class), eq(mockPrincipal))).thenReturn(response);
 
@@ -183,7 +168,6 @@ class TipControllerMockMvcTest {
                         .content(objectMapper.writeValueAsString(updateDTO)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.title").value("Dica Operacional"))
                 .andExpect(jsonPath("$.tip").value("Dica atualizada"));
     }
 

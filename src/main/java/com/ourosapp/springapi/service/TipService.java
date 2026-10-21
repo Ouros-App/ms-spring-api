@@ -77,13 +77,7 @@ public class TipService {
                 ? categories.get(0).getId().intValue()
                 : null;
 
-        Integer generatedTipIdInt = tipRepository.callCreateTip(
-                request.title(),
-                request.tip(),
-                request.fotoUrl(),
-                farmIdInt,
-                primaryCategoryId
-        );
+        Integer generatedTipIdInt = tipRepository.callCreateTip(request.tip(), farmIdInt, primaryCategoryId);
         Long generatedTipId = generatedTipIdInt != null ? generatedTipIdInt.longValue() : null;
 
         // Se o payload informar múltiplas categorias, vincula as demais na tabela associativa
@@ -106,13 +100,11 @@ public class TipService {
 
         Tip savedTip = Tip.builder()
                 .id(generatedTipId)
-                .title(request.title())
                 .tip(request.tip())
-                .fotoUrl(request.fotoUrl())
                 .build();
 
         // Notifica produtores rurais da fazenda sobre a nova dica técnica cadastrada
-        notifyFarmOwnersAboutNewTip(farm, generatedTipId, request.title(), request.tip());
+        notifyFarmOwnersAboutNewTip(farm, generatedTipId, request.tip());
 
         return TipResponseDTO.fromEntity(savedTip, farm.getId(), categoryNames, 0, 0.0);
     }
@@ -227,16 +219,8 @@ public class TipService {
             return enrichTips(List.of(tip)).get(0);
         }
 
-        if (request.title() != null && !request.title().isBlank()) {
-            tip.setTitle(request.title());
-        }
-
         if (request.tip() != null && !request.tip().isBlank()) {
             tip.setTip(request.tip());
-        }
-
-        if (request.fotoUrl() != null) {
-            tip.setFotoUrl(request.fotoUrl().isBlank() ? null : request.fotoUrl());
         }
 
         if (request.categoryIds() != null) {
@@ -469,7 +453,7 @@ public class TipService {
                 ));
     }
 
-    private void notifyFarmOwnersAboutNewTip(Farm farm, Long tipId, String tipTitle, String tipContent) {
+    private void notifyFarmOwnersAboutNewTip(Farm farm, Long tipId, String tipContent) {
         if (farm == null || farm.getId() == null || tipId == null) {
             return;
         }
@@ -489,9 +473,6 @@ public class TipService {
             payloadMap.put("type", "TIP_CREATED");
             payloadMap.put("tip_id", String.valueOf(tipId));
             payloadMap.put("farm_id", String.valueOf(farm.getId()));
-            if (tipTitle != null && !tipTitle.isBlank()) {
-                payloadMap.put("tip_title", tipTitle);
-            }
             String jsonPayload = toJson(payloadMap);
 
             for (FarmOwner owner : owners) {
