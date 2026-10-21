@@ -154,6 +154,15 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ProblemDetail handleConstraintViolationException(jakarta.validation.ConstraintViolationException ex) {
+        log.warn("[Constraint Violation] Violação de restrição: {}", ex.getMessage());
+        return buildProblemDetail(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage()
+        );
+    }
+
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ProblemDetail handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException ex) {
         log.warn("[Type Mismatch] Valor inválido '{}' para o parâmetro: {}", ex.getValue(), ex.getName());

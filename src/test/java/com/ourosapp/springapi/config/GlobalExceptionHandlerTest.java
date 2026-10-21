@@ -192,4 +192,20 @@ class GlobalExceptionHandlerTest {
         assertTrue(typeMismatch.getDetail().contains("farm_id"));
         assertTrue(noResourceFound.getDetail().contains("tips"));
     }
+
+    @Test
+    @DisplayName("Deve tratar ConstraintViolationException e retornar ProblemDetail com status 400 Bad Request")
+    void testHandleConstraintViolationException() {
+        jakarta.validation.ConstraintViolationException exception =
+                new jakarta.validation.ConstraintViolationException("O score simulado deve ser positivo", java.util.Collections.emptySet());
+
+        ProblemDetail result = exceptionHandler.handleConstraintViolationException(exception);
+
+        assertNotNull(result);
+        assertEquals(HttpStatus.BAD_REQUEST.value(), result.getStatus());
+        assertEquals("Bad Request", result.getTitle());
+        assertTrue(result.getDetail().contains("O score simulado deve ser positivo"));
+        assertNotNull(result.getProperties());
+        assertTrue(result.getProperties().containsKey("timestamp"));
+    }
 }

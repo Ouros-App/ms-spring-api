@@ -250,4 +250,97 @@ class FarmRankingControllerMockMvcTest {
                 .andExpect(jsonPath("$.time.days").doesNotExist())
                 .andExpect(jsonPath("$.next_reset_at").value("2026-10-25T00:00:00-03:00"));
     }
+
+    @Test
+    @DisplayName("Deve retornar 200 OK com simulação de ranking calculada com sucesso")
+    void deveSimularRankingDaFazendaComSucesso() throws Exception {
+        UserPrincipal principal = createMockUser("COMPANY_EMPLOYEE");
+        com.ourosapp.springapi.dto.farm.FarmRankingSimulationResponseDTO simulationResponse =
+                new com.ourosapp.springapi.dto.farm.FarmRankingSimulationResponseDTO(
+                        1L, "Granja São Judas Tadeu", 7.85, 12L, "BRONZE",
+                        6.07, 4L, "OURO", 8L, 25L, 16.0
+                );
+
+        when(farmRankingService.simulateFarmRanking(eq(1L), eq(6.07), any(UserPrincipal.class)))
+                .thenReturn(simulationResponse);
+
+        mockMvc.perform(get("/farms/1/ranking/simulate")
+                        .with(user(principal))
+                        .param("score", "6.07")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.farm_id").value(1))
+                .andExpect(jsonPath("$.farm_name").value("Granja São Judas Tadeu"))
+                .andExpect(jsonPath("$.current_score").value(7.85))
+                .andExpect(jsonPath("$.current_position").value(12))
+                .andExpect(jsonPath("$.current_league").value("BRONZE"))
+                .andExpect(jsonPath("$.simulated_score").value(6.07))
+                .andExpect(jsonPath("$.simulated_position").value(4))
+                .andExpect(jsonPath("$.simulated_league").value("OURO"))
+                .andExpect(jsonPath("$.positions_gained").value(8))
+                .andExpect(jsonPath("$.total_farms").value(25))
+                .andExpect(jsonPath("$.simulated_percentile_pct").value(16.0));
+    }
+
+    @Test
+    @DisplayName("Deve retornar 400 Bad Request quando score simulado for negativo ou zero")
+    void deveRetornar400QuandoScoreSimuladoInvalido() throws Exception {
+        UserPrincipal principal = createMockUser("COMPANY_EMPLOYEE");
+
+        mockMvc.perform(get("/farms/1/ranking/simulate")
+                        .with(user(principal))
+                        .param("score", "-1.5")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Deve retornar 400 Bad Request quando score simulado for omitido")
+    void deveRetornar400QuandoScoreSimuladoAusente() throws Exception {
+        UserPrincipal principal = createMockUser("COMPANY_EMPLOYEE");
+
+        mockMvc.perform(get("/farms/1/ranking/simulate")
+                        .with(user(principal))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Deve retornar 401 Unauthorized quando não autenticado")
+    void deveRetornar401QuandoNaoAutenticadoEmSimulacao() throws Exception {
+        mockMvc.perform(get("/farms/1/ranking/simulate")
+                        .param("score", "6.07")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Deve retornar 403 Forbidden quando usuário não tiver permissão na fazenda")
+    void deveRetornar403QuandoAcessoNegadoEmSimulacao() throws Exception {
+        UserPrincipal principal = createMockUser("FARM_OWNER");
+
+        when(farmRankingService.simulateFarmRanking(eq(1L), eq(6.07), any(UserPrincipal.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado a esta fazenda"));
+
+        mockMvc.perform(get("/farms/1/ranking/simulate")
+                        .with(user(principal))
+                        .param("score", "6.07")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Deve retornar 404 Not Found quando fazenda não existir para simulação")
+    void deveRetornar404QuandoFazendaNaoEncontradaEmSimulacao() throws Exception {
+        UserPrincipal principal = createMockUser("ADM");
+
+        when(farmRankingService.simulateFarmRanking(eq(999L), eq(6.07), any(UserPrincipal.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Fazenda não encontrada"));
+
+        mockMvc.perform(get("/farms/999/ranking/simulate")
+                        .with(user(principal))
+                        .param("score", "6.07")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+    }
 }

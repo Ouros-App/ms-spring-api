@@ -3,6 +3,7 @@ package com.ourosapp.springapi.service;
 import com.ourosapp.springapi.dto.farm.FarmPodiumItemDTO;
 import com.ourosapp.springapi.dto.farm.FarmPodiumRankingResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRankingResponseDTO;
+import com.ourosapp.springapi.dto.farm.FarmRankingSimulationResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmScoreUpdateDTO;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Farm;
@@ -1134,5 +1135,190 @@ class FarmRankingServiceTest {
         assertEquals(10L, response.farmId());
         assertEquals(0.0, response.score());
         assertEquals(1L, response.rankPosition());
+    }
+
+    @Test
+    @DisplayName("Deve simular ganho de posições no ranking com sucesso")
+    void deveSimularRankingComGanhoDePosicoesComSucesso() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(
+                CompanyEmployee.builder().id(2L).idEnterprise(1L).build()
+        ));
+
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+
+        String zsetKey = "ranking:enterprise:1:zset";
+        when(zSetOperations.zCard(zsetKey)).thenReturn(25L);
+        when(zSetOperations.score(zsetKey, "10")).thenReturn(7.85);
+        when(zSetOperations.rank(zsetKey, "10")).thenReturn(11L); // posição 12
+
+        Map<Object, Object> details = new HashMap<>();
+        details.put("medal", "BRONZE");
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(details);
+
+        // 3 concorrentes com score menor que 6.07
+        when(zSetOperations.count(eq(zsetKey), eq(Double.NEGATIVE_INFINITY), anyDouble())).thenReturn(3L);
+
+        FarmRankingSimulationResponseDTO result = farmRankingService.simulateFarmRanking(10L, 6.07, employeePrincipal);
+
+        assertNotNull(result);
+        assertEquals(10L, result.farmId());
+        assertEquals("Granja Ouro Fino", result.farmName());
+        assertEquals(7.85, result.currentScore());
+        assertEquals(12L, result.currentPosition());
+        assertEquals("BRONZE", result.currentLeague());
+        assertEquals(6.07, result.simulatedScore());
+        assertEquals(4L, result.simulatedPosition());
+        assertEquals("PRATA", result.simulatedLeague());
+        assertEquals(8L, result.positionsGained());
+        assertEquals(25L, result.totalFarms());
+        assertEquals(16.0, result.simulatedPercentilePct());
+    }
+
+    @Test
+    @DisplayName("Deve simular ranking corretamente quando score piora e ajustar contagem própria")
+    void deveSimularRankingQuandoScorePiora() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+
+        String zsetKey = "ranking:enterprise:1:zset";
+        when(zSetOperations.zCard(zsetKey)).thenReturn(10L);
+        when(zSetOperations.score(zsetKey, "10")).thenReturn(4.0);
+        when(zSetOperations.rank(zsetKey, "10")).thenReturn(0L); // 1º lugar
+
+        Map<Object, Object> details = new HashMap<>();
+        details.put("medal", "OURO");
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(details);
+
+        // Retorna 4 fazendas no intervalo (incluindo a própria fazenda que tinha score 4.0 < 8.0)
+        when(zSetOperations.count(eq(zsetKey), eq(Double.NEGATIVE_INFINITY), anyDouble())).thenReturn(4L);
+
+        FarmRankingSimulationResponseDTO result = farmRankingService.simulateFarmRanking(10L, 8.0, admPrincipal);
+
+        assertNotNull(result);
+        assertEquals(10L, result.farmId());
+        assertEquals(1L, result.currentPosition());
+        assertEquals(4.0, result.currentScore());
+        assertEquals("OURO", result.currentLeague());
+        // countFarmsBetter = 4 - 1 = 3 -> posição simulada = 4
+        assertEquals(4L, result.simulatedPosition());
+        assertEquals(0L, result.positionsGained());
+        assertEquals(10L, result.totalFarms());
+        assertEquals(40.0, result.simulatedPercentilePct());
+        assertEquals("BRONZE", result.simulatedLeague());
+    }
+
+    @Test
+    @DisplayName("Deve disparar recálculo quando ZSet estiver vazio ao simular ranking")
+    void deveSimularRankingDisparandoRecalculoQuandoZSetVazio() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+
+        String zsetKey = "ranking:enterprise:1:zset";
+        when(zSetOperations.zCard(zsetKey)).thenReturn(0L).thenReturn(1L);
+
+        FarmRankingProjection proj = mock(FarmRankingProjection.class);
+        when(proj.getFarmId()).thenReturn(10L);
+        when(proj.getFarmName()).thenReturn("Granja Ouro Fino");
+        when(proj.getIdEnterprise()).thenReturn(1L);
+        when(proj.getCgi()).thenReturn(5.0);
+        when(proj.getRankPosition()).thenReturn(1L);
+        when(proj.getMedal()).thenReturn("OURO");
+        when(farmRepository.calculateFarmRankings(1L)).thenReturn(List.of(proj));
+
+        when(zSetOperations.score(zsetKey, "10")).thenReturn(5.0);
+        when(zSetOperations.rank(zsetKey, "10")).thenReturn(0L);
+        when(zSetOperations.count(eq(zsetKey), eq(Double.NEGATIVE_INFINITY), anyDouble())).thenReturn(0L);
+
+        FarmRankingSimulationResponseDTO result = farmRankingService.simulateFarmRanking(10L, 4.5, admPrincipal);
+
+        assertNotNull(result);
+        assertEquals(1L, result.simulatedPosition());
+        assertEquals("OURO", result.simulatedLeague());
+        verify(farmRepository).calculateFarmRankings(1L);
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção quando score simulado for nulo ou menor igual a zero")
+    void deveLancarExcecaoQuandoScoreSimuladoInvalido() {
+        ResponseStatusException exNull = assertThrows(ResponseStatusException.class,
+                () -> farmRankingService.simulateFarmRanking(10L, null, admPrincipal));
+        assertEquals(HttpStatus.BAD_REQUEST, exNull.getStatusCode());
+
+        ResponseStatusException exZero = assertThrows(ResponseStatusException.class,
+                () -> farmRankingService.simulateFarmRanking(10L, 0.0, admPrincipal));
+        assertEquals(HttpStatus.BAD_REQUEST, exZero.getStatusCode());
+
+        ResponseStatusException exNeg = assertThrows(ResponseStatusException.class,
+                () -> farmRankingService.simulateFarmRanking(10L, -2.5, admPrincipal));
+        assertEquals(HttpStatus.BAD_REQUEST, exNeg.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção quando usuário não for autenticado na simulação")
+    void deveLancarExcecaoQuandoNaoAutenticadoNaSimulacao() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmRankingService.simulateFarmRanking(10L, 5.0, null));
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+
+        UserPrincipal invalid = new UserPrincipal(null, "email@teste.com", "Nome", "ADM", List.of());
+        ResponseStatusException ex2 = assertThrows(ResponseStatusException.class,
+                () -> farmRankingService.simulateFarmRanking(10L, 5.0, invalid));
+        assertEquals(HttpStatus.UNAUTHORIZED, ex2.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando usuário não possuir permissão para simular fazenda")
+    void deveLancarExcecaoQuandoUsuarioSemAcessoAFazendaNaSimulacao() {
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        // Funcionário pertence à empresa 99, mas fazenda pertence à empresa 1
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(
+                CompanyEmployee.builder().id(2L).idEnterprise(99L).build()
+        ));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmRankingService.simulateFarmRanking(10L, 5.0, employeePrincipal));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+
+        // Produtor rural é dono da fazenda 99, mas tentando simular fazenda 10
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(
+                FarmOwner.builder().id(3L).idFarm(99L).build()
+        ));
+
+        ResponseStatusException exOwner = assertThrows(ResponseStatusException.class,
+                () -> farmRankingService.simulateFarmRanking(10L, 5.0, ownerPrincipal));
+        assertEquals(HttpStatus.FORBIDDEN, exOwner.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando fazenda não for encontrada na simulação")
+    void deveLancarExcecaoQuandoFazendaNaoEncontradaNaSimulacao() {
+        when(farmRepository.findById(999L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmRankingService.simulateFarmRanking(999L, 5.0, admPrincipal));
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve testar mapeamento estático de divisões e ligas por percentil")
+    void deveTestarCalculoDeLigasPorPercentil() {
+        assertEquals("FERRO", FarmRankingService.calculateLeague(1, 0));
+        assertEquals("FERRO", FarmRankingService.calculateLeague(1, -5));
+        assertEquals("OURO", FarmRankingService.calculateLeague(1, 100));
+        assertEquals("OURO", FarmRankingService.calculateLeague(15, 100));
+        assertEquals("PRATA", FarmRankingService.calculateLeague(16, 100));
+        assertEquals("PRATA", FarmRankingService.calculateLeague(35, 100));
+        assertEquals("BRONZE", FarmRankingService.calculateLeague(36, 100));
+        assertEquals("BRONZE", FarmRankingService.calculateLeague(65, 100));
+        assertEquals("COBRE", FarmRankingService.calculateLeague(66, 100));
+        assertEquals("COBRE", FarmRankingService.calculateLeague(85, 100));
+        assertEquals("FERRO", FarmRankingService.calculateLeague(86, 100));
+        assertEquals("FERRO", FarmRankingService.calculateLeague(100, 100));
     }
 }
