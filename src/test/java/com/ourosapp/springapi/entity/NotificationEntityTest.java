@@ -20,6 +20,7 @@ class NotificationEntityTest {
 
         Notification notification = Notification.builder()
                 .id(1L)
+                .eventId("evt-12345")
                 .userId(10L)
                 .userRole("FARM_OWNER")
                 .title("Título Teste")
@@ -33,6 +34,7 @@ class NotificationEntityTest {
                 .build();
 
         assertEquals(1L, notification.getId());
+        assertEquals("evt-12345", notification.getEventId());
         assertEquals(10L, notification.getUserId());
         assertEquals("FARM_OWNER", notification.getUserRole());
         assertEquals("Título Teste", notification.getTitle());
@@ -47,6 +49,7 @@ class NotificationEntityTest {
 
         Notification defaultNotification = new Notification();
         defaultNotification.setId(2L);
+        defaultNotification.setEventId("evt-67890");
         defaultNotification.setUserId(20L);
         defaultNotification.setUserRole("ADM");
         defaultNotification.setTitle("Novo Título");
@@ -59,6 +62,7 @@ class NotificationEntityTest {
         defaultNotification.setReadAt(null);
 
         assertEquals(2L, defaultNotification.getId());
+        assertEquals("evt-67890", defaultNotification.getEventId());
         assertEquals(20L, defaultNotification.getUserId());
         assertEquals("ADM", defaultNotification.getUserRole());
         assertFalse(defaultNotification.isRead());
