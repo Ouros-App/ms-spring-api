@@ -10,7 +10,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Repositório Spring Data JPA para operações de persistência e consulta da entidade {@link Notification}.
@@ -69,4 +71,21 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @Modifying
     @Query("UPDATE Notification n SET n.isRead = true, n.readAt = :readAt WHERE n.userId = :userId AND n.userRole = :userRole AND n.isRead = false")
     int markAllAsReadByUserIdAndUserRole(@Param("userId") Long userId, @Param("userRole") String userRole, @Param("readAt") LocalDateTime readAt);
+
+    /**
+     * Verifica se já existe uma notificação cadastrada com o eventId informado.
+     *
+     * @param eventId identificador único do evento externo
+     * @return true se existir, false caso contrário
+     */
+    boolean existsByEventId(String eventId);
+
+    /**
+     * Busca os event_ids já cadastrados dentre uma coleção fornecida.
+     *
+     * @param eventIds coleção de identificadores de evento a verificar
+     * @return conjunto contendo os event_ids já existentes no banco de dados
+     */
+    @Query("SELECT n.eventId FROM Notification n WHERE n.eventId IN :eventIds")
+    Set<String> findExistingEventIds(@Param("eventIds") Collection<String> eventIds);
 }
