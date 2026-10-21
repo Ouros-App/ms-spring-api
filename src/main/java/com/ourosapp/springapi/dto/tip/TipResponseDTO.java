@@ -11,7 +11,9 @@ import java.util.List;
  * DTO de resposta contendo os dados de uma Dica Técnica e métricas agregadas de avaliações.
  *
  * @param id            Identificador único da dica
+ * @param title         Título da dica técnica operacional
  * @param tip           Texto descritivo da dica técnica
+ * @param fotoUrl       URL do banner ou foto ilustrativa da dica
  * @param idFarm        Identificador da fazenda vinculada
  * @param categories    Lista de nomes das categorias vinculadas
  * @param totalReviews  Total de avaliações recebidas pela dica
@@ -23,8 +25,16 @@ public record TipResponseDTO(
         @Schema(description = "Identificador único da dica", example = "1")
         Long id,
 
+        @Schema(description = "Título da dica técnica operacional", example = "Manejo de Ambiência no Primeiro Dia")
+        String title,
+
         @Schema(description = "Texto descritivo da dica técnica", example = "Manter a ventilação mínima no galpão.")
         String tip,
+
+        @Schema(description = "URL do banner ou foto ilustrativa da dica", example = "https://ouros.com/fotos/dica-ventilacao.jpg")
+        @JsonProperty("foto_url")
+        @JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
+        String fotoUrl,
 
         @Schema(description = "Identificador da fazenda vinculada", example = "1")
         @JsonProperty("id_farm")
@@ -45,6 +55,13 @@ public record TipResponseDTO(
         double averageRating
 ) {
     /**
+     * Construtor de sobrecarga retrocompatível para instanciações sem título e foto explícitos.
+     */
+    public TipResponseDTO(Long id, String tip, Long idFarm, List<String> categories, long totalReviews, double averageRating) {
+        this(id, "Dica Operacional", tip, null, idFarm, categories, totalReviews, averageRating);
+    }
+
+    /**
      * Constrói um {@link TipResponseDTO} a partir da entidade {@link Tip}, fazenda vinculada e dados agregados.
      *
      * @param entity        entidade JPA da dica
@@ -60,7 +77,9 @@ public record TipResponseDTO(
         }
         return new TipResponseDTO(
                 entity.getId(),
+                entity.getTitle() != null ? entity.getTitle() : "Dica Operacional",
                 entity.getTip(),
+                entity.getFotoUrl(),
                 idFarm,
                 categories != null ? categories : List.of(),
                 totalReviews,
