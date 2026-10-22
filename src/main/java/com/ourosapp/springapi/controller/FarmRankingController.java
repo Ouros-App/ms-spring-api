@@ -2,6 +2,9 @@ package com.ourosapp.springapi.controller;
 
 import com.ourosapp.springapi.dto.farm.FarmPodiumRankingResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRankingResponseDTO;
+import com.ourosapp.springapi.dto.farm.FarmRankingSimulationResponseDTO;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 import com.ourosapp.springapi.dto.farm.FarmScoreUpdateDTO;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.FarmRankingService;
@@ -29,6 +32,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Ranking de Granjas (NoSQL Redis)", description = "Endpoints para consulta e manutenção do ranking de fazendas e granjas")
 @SecurityRequirement(name = "BearerAuth")
+@Validated
 public class FarmRankingController {
 
     private final FarmRankingService farmRankingService;
@@ -103,6 +107,33 @@ public class FarmRankingController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         return ResponseEntity.ok(farmRankingService.getFarmPodiumRanking(id, principal));
+    }
+
+    /**
+     * Simula em tempo real o ganho de posições e a nova divisão/liga de uma granja com base em um score hipotético.
+     *
+     * @param id        identificador da fazenda
+     * @param score     score CGI hipotético a ser simulado
+     * @param principal dados do usuário logado
+     * @return DTO com o resultado detalhado da simulação de ranking
+     */
+    @Operation(summary = "Simular ganho de posições no ranking", description = "Calcula a posição e a divisão que a fazenda alcançaria no ranking da sua integradora com um score hipotético.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Simulação calculada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Score informado inválido"),
+            @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para consultar esta fazenda"),
+            @ApiResponse(responseCode = "404", description = "Fazenda não encontrada")
+    })
+    @GetMapping("/{id}/ranking/simulate")
+    public ResponseEntity<FarmRankingSimulationResponseDTO> simulateFarmRanking(
+            @Parameter(description = "Identificador único da fazenda", example = "1")
+            @PathVariable Long id,
+            @Parameter(description = "Score CGI hipotético a ser simulado", example = "6.07")
+            @RequestParam(name = "score") @Positive(message = "O score simulado deve ser positivo") Double score,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(farmRankingService.simulateFarmRanking(id, score, principal));
     }
 
     /**

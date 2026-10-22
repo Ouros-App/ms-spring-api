@@ -8,6 +8,7 @@ import static com.ourosapp.springapi.constants.RoleConstants.FARM_OWNER;
 import com.ourosapp.springapi.dto.farm.FarmPodiumItemDTO;
 import com.ourosapp.springapi.dto.farm.FarmPodiumRankingResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRankingResponseDTO;
+import com.ourosapp.springapi.dto.farm.FarmRankingSimulationResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmScoreUpdateDTO;
 import com.ourosapp.springapi.dto.farm.RankingCountdownDTO;
 import com.ourosapp.springapi.dto.farm.RankingTimeDTO;
@@ -320,6 +321,93 @@ public class FarmRankingService {
     }
 
     /**
+     * Simula em tempo real o ganho de posições e a nova divisão/liga de uma granja com base em um score hipotético.
+     *
+     * @param farmId         identificador da fazenda
+     * @param simulatedScore score CGI hipotético a ser simulado
+     * @param principal      dados do usuário autenticado
+     * @return DTO contendo o resultado da simulação comparando cenário atual e simulado
+     */
+    @Transactional(readOnly = true)
+    public FarmRankingSimulationResponseDTO simulateFarmRanking(Long farmId, Double simulatedScore, UserPrincipal principal) {
+        ensureAuthenticated(principal);
+        if (simulatedScore == null || simulatedScore <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O score simulado deve ser positivo");
+        }
+
+        Farm farm = findFarmByIdOrThrow(farmId);
+        validateFarmAccessPermission(farm, principal);
+
+        String zsetKey = String.format(KEY_ENTERPRISE_ZSET, farm.getIdEnterprise());
+        Long totalFarms = redisTemplate.opsForZSet().zCard(zsetKey);
+
+        if (totalFarms == null || totalFarms == 0) {
+            recalculateAndCacheEnterpriseRanking(farm.getIdEnterprise());
+            totalFarms = redisTemplate.opsForZSet().zCard(zsetKey);
+        }
+
+        Double currentScore = redisTemplate.opsForZSet().score(zsetKey, farmId.toString());
+        Long zeroBasedRank = redisTemplate.opsForZSet().rank(zsetKey, farmId.toString());
+
+        if (zeroBasedRank == null) {
+            recalculateAndCacheEnterpriseRanking(farm.getIdEnterprise());
+            totalFarms = redisTemplate.opsForZSet().zCard(zsetKey);
+            zeroBasedRank = redisTemplate.opsForZSet().rank(zsetKey, farmId.toString());
+            currentScore = redisTemplate.opsForZSet().score(zsetKey, farmId.toString());
+        }
+
+        long safeTotalFarms = (totalFarms != null && totalFarms > 0) ? totalFarms : 1L;
+        long currentPosition = (zeroBasedRank != null) ? (zeroBasedRank + 1) : safeTotalFarms;
+        double currentScoreVal = (currentScore != null) ? currentScore : 0.0;
+
+        String detailsKey = String.format(KEY_FARM_DETAILS, farmId);
+        Map<Object, Object> entries = redisTemplate.opsForHash().entries(detailsKey);
+        String currentLeague = null;
+        if (entries != null && entries.get("medal") != null) {
+            currentLeague = entries.get("medal").toString();
+        }
+        if (currentLeague == null || currentLeague.isBlank()) {
+            currentLeague = calculateLeague(currentPosition, safeTotalFarms);
+        }
+
+        // Calcula quantos concorrentes na integradora têm pontuação estritamente melhor (menor) que a pontuação simulada
+        long countFarmsBetter = 0L;
+        Long rawCount = redisTemplate.opsForZSet().count(zsetKey, Double.NEGATIVE_INFINITY, simulatedScore - 0.000001);
+        if (rawCount != null) {
+            countFarmsBetter = rawCount;
+        }
+
+        // Se a pontuação real da própria fazenda era menor que o score simulado, ela foi contabilizada no rawCount.
+        // Removemos a si mesma da contagem de competidores à frente.
+        if (currentScore != null && currentScore < (simulatedScore - 0.000001)) {
+            countFarmsBetter = Math.max(0L, countFarmsBetter - 1);
+        }
+
+        long simulatedPosition = countFarmsBetter + 1;
+        simulatedPosition = Math.min(simulatedPosition, safeTotalFarms);
+
+        String simulatedLeague = calculateLeague(simulatedPosition, safeTotalFarms);
+        double simulatedPercentilePct = (safeTotalFarms <= 1) ? 0.0 : ((double) simulatedPosition * 100.0) / safeTotalFarms;
+        simulatedPercentilePct = Math.round(simulatedPercentilePct * 100.0) / 100.0;
+
+        long positionsGained = Math.max(0L, currentPosition - simulatedPosition);
+
+        return new FarmRankingSimulationResponseDTO(
+                farmId,
+                farm.getName(),
+                currentScoreVal,
+                currentPosition,
+                currentLeague,
+                simulatedScore,
+                simulatedPosition,
+                simulatedLeague,
+                positionsGained,
+                safeTotalFarms,
+                simulatedPercentilePct
+        );
+    }
+
+    /**
      * Atualiza a pontuação de uma fazenda específica no Redis NoSQL.
      *
      * @param farmId    identificador da fazenda
@@ -417,6 +505,34 @@ public class FarmRankingService {
         Long finalRankPos = (rankPos != null) ? rankPos : (entries != null ? parseLong(entries.get("rank_position")) : null);
 
         return new FarmPodiumItemDTO(farmId, name, region, score, finalRankPos != null ? finalRankPos : 1L, relation);
+    }
+
+    /**
+     * Mapeia a posição ordinal e o total de fazendas para a medalha/divisão correspondente conforme as regras de negócio.
+     *
+     * @param rankPosition posição ordinal no ranking (1-based)
+     * @param totalFarms   total de fazendas ranqueadas
+     * @return nome da divisão (OURO, PRATA, BRONZE, COBRE, FERRO)
+     */
+    public static String calculateLeague(long rankPosition, long totalFarms) {
+        if (totalFarms <= 0) {
+            return "FERRO";
+        }
+        if (rankPosition <= 1) {
+            return "OURO";
+        }
+        double percentilePct = (rankPosition * 100.0) / totalFarms;
+        if (percentilePct <= 15.0) {
+            return "OURO";
+        } else if (percentilePct <= 35.0) {
+            return "PRATA";
+        } else if (percentilePct <= 65.0) {
+            return "BRONZE";
+        } else if (percentilePct <= 85.0) {
+            return "COBRE";
+        } else {
+            return "FERRO";
+        }
     }
 
     private Double parseDouble(Object val) {
