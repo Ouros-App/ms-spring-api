@@ -24,7 +24,7 @@ public interface EnergyRegistryRepository extends JpaRepository<EnergyRegistry, 
      * Busca todos os registros de energia vinculados a uma lista de IDs de fazendas.
      *
      * @param idFarms Lista de IDs de fazendas
-     * @return Lista de registros de energia encontrados ordenados por data decrescente
+     * @return Lista de registros de energia encontrados
      */
     List<EnergyRegistry> findByIdFarmIn(List<Long> idFarms);
 }
