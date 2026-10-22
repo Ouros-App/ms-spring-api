@@ -79,18 +79,4 @@ public record FarmRankingSimulationResponseDTO(
         @JsonAlias("simulatedPercentilePct")
         Double simulatedPercentilePct
 ) {
-    public FarmRankingSimulationResponseDTO {
-        if (farmName != null) {
-            farmName = farmName.trim();
-        }
-        if (currentLeague != null) {
-            currentLeague = currentLeague.trim().toUpperCase();
-        }
-        if (simulatedLeague != null) {
-            simulatedLeague = simulatedLeague.trim().toUpperCase();
-        }
-        if (positionsGained == null || positionsGained < 0) {
-            positionsGained = 0L;
-        }
-    }
 }

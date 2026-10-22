@@ -9,17 +9,17 @@ import static org.junit.jupiter.api.Assertions.*;
 class FarmRankingSimulationResponseDTOTest {
 
     @Test
-    @DisplayName("Deve instanciar DTO com valores corretos e sanitizar strings")
+    @DisplayName("Deve instanciar DTO com valores corretos")
     void deveInstanciarDTOComSucesso() {
         FarmRankingSimulationResponseDTO dto = new FarmRankingSimulationResponseDTO(
                 1L,
-                "  Granja São Judas Tadeu  ",
+                "Granja São Judas Tadeu",
                 7.85,
                 12L,
-                "  bronze  ",
+                "BRONZE",
                 6.07,
                 4L,
-                "  ouro  ",
+                "OURO",
                 8L,
                 25L,
                 16.0
@@ -36,22 +36,5 @@ class FarmRankingSimulationResponseDTOTest {
         assertEquals(8L, dto.positionsGained());
         assertEquals(25L, dto.totalFarms());
         assertEquals(16.0, dto.simulatedPercentilePct());
-    }
-
-    @Test
-    @DisplayName("Deve ajustar positionsGained para zero se for nulo ou negativo")
-    void deveAjustarPositionsGainedQuandoInvalido() {
-        FarmRankingSimulationResponseDTO dtoNull = new FarmRankingSimulationResponseDTO(
-                1L, null, 7.85, 12L, null, 6.07, 15L, null, null, 25L, 60.0
-        );
-        assertEquals(0L, dtoNull.positionsGained());
-        assertNull(dtoNull.farmName());
-        assertNull(dtoNull.currentLeague());
-        assertNull(dtoNull.simulatedLeague());
-
-        FarmRankingSimulationResponseDTO dtoNegative = new FarmRankingSimulationResponseDTO(
-                1L, "Granja", 7.85, 12L, "BRONZE", 8.50, 15L, "BRONZE", -3L, 25L, 60.0
-        );
-        assertEquals(0L, dtoNegative.positionsGained());
     }
 }
