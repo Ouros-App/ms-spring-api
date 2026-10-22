@@ -125,6 +125,32 @@ class LotControllerMockMvcTest {
     }
 
     @Test
+    @DisplayName("POST /lots - Deve cadastrar lote com sucesso quando delivery_date for omitida")
+    void testCreateLotWithoutDeliveryDateSuccess() throws Exception {
+        String payloadWithoutDeliveryDate = """
+                {
+                    "received_chickens": 50000,
+                    "id_farm": 2
+                }
+                """;
+        LotResponseDTO response = new LotResponseDTO(
+                10L, 50000, 0, null,
+                0, 0.0, 1L, 2L
+        );
+
+        when(lotService.createLot(any(LotRequestDTO.class), eq(mockPrincipal))).thenReturn(response);
+
+        mockMvc.perform(post("/lots")
+                        .with(user(mockPrincipal))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payloadWithoutDeliveryDate))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(10L))
+                .andExpect(jsonPath("$.received_chickens").value(50000))
+                .andExpect(jsonPath("$.delivery_date").doesNotExist());
+    }
+
+    @Test
     @DisplayName("POST /lots - Deve retornar 400 Bad Request quando campos obrigatórios estiverem ausentes ou inválidos")
     void testCreateLotInvalidPayload() throws Exception {
         String invalidPayload = """

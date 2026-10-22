@@ -128,7 +128,7 @@ public class WaterRegistryService {
                     "Acesso negado aos registros de água de outra fazenda"
             );
         }
-        return waterRegistryRepository.findAllByIdFarm(owner.getIdFarm())
+        return waterRegistryRepository.findAllByIdFarmOrderByRegistrationDateDesc(owner.getIdFarm())
                 .stream()
                 .map(WaterRegistryResponseDTO::fromEntity)
                 .toList();
@@ -144,7 +144,7 @@ public class WaterRegistryService {
                         "Acesso negado aos registros de água de fazenda vinculada a outra empresa"
                 );
             }
-            return waterRegistryRepository.findAllByIdFarm(farmId)
+            return waterRegistryRepository.findAllByIdFarmOrderByRegistrationDateDesc(farmId)
                     .stream()
                     .map(WaterRegistryResponseDTO::fromEntity)
                     .toList();
@@ -163,7 +163,7 @@ public class WaterRegistryService {
     private List<WaterRegistryResponseDTO> getWaterRegistriesForAdm(Long farmId) {
         if (farmId != null) {
             findFarmByIdOrThrow(farmId);
-            return waterRegistryRepository.findAllByIdFarm(farmId)
+            return waterRegistryRepository.findAllByIdFarmOrderByRegistrationDateDesc(farmId)
                     .stream()
                     .map(WaterRegistryResponseDTO::fromEntity)
                     .toList();

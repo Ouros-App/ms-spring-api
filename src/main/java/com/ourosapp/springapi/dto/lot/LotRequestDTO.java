@@ -16,7 +16,7 @@ import java.time.LocalDate;
  *
  * @param receivedChickens  Quantidade de aves recebidas/alojadas
  * @param deliveredChickens Quantidade de aves entregues (opcional na inicialização)
- * @param deliveryDate      Data de entrega para abate ou finalização do ciclo
+ * @param deliveryDate      Data de entrega para abate ou finalização do ciclo (opcional no início do ciclo)
  * @param losts             Total de perdas / mortalidade (opcional, padrão 0)
  * @param cost              Custo operacional total (opcional, padrão 0.0)
  * @param idEnterprise      Identificador da empresa integradora vinculada
@@ -38,10 +38,9 @@ public record LotRequestDTO(
         @Min(value = 0, message = "A quantidade de aves entregues não pode ser negativa")
         Integer deliveredChickens,
 
-        @Schema(description = "Data de entrega para abate ou finalização do ciclo", example = "2026-10-15")
+        @Schema(description = "Data de entrega para abate ou finalização do ciclo (opcional no início)", example = "2026-10-15")
         @JsonProperty("delivery_date")
         @JsonAlias("deliveryDate")
-        @NotNull(message = "A data de entrega é obrigatória")
         LocalDate deliveryDate,
 
         @Schema(description = "Total de perdas ou mortalidade acumulada", example = "1500")

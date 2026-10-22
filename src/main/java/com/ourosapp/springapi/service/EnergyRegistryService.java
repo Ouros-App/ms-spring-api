@@ -96,7 +96,7 @@ public class EnergyRegistryService {
         if (farmIdFilter != null) {
             Farm farm = findFarmByIdOrThrow(farmIdFilter);
             validateFarmAccessPermission(farm, principal, "visualizar registros de energia desta fazenda");
-            return energyRegistryRepository.findByIdFarm(farm.getId())
+            return energyRegistryRepository.findByIdFarmOrderByRegistrationDateDesc(farm.getId())
                     .stream()
                     .map(EnergyRegistryResponseDTO::fromEntity)
                     .toList();
@@ -126,7 +126,7 @@ public class EnergyRegistryService {
             if (owner.getIdFarm() == null) {
                 return List.of();
             }
-            return energyRegistryRepository.findByIdFarm(owner.getIdFarm())
+            return energyRegistryRepository.findByIdFarmOrderByRegistrationDateDesc(owner.getIdFarm())
                     .stream()
                     .map(EnergyRegistryResponseDTO::fromEntity)
                     .toList();

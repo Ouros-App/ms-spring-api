@@ -29,7 +29,7 @@ public class Lot {
     @Column(name = "delivered_chickens", nullable = false)
     private Integer deliveredChickens;
 
-    @Column(name = "delivery_date", nullable = false)
+    @Column(name = "delivery_date")
     private LocalDate deliveryDate;
 
     @Column(name = "losts", nullable = false)

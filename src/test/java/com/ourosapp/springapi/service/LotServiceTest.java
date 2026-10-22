@@ -264,20 +264,71 @@ class LotServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 403 quando produtor rural tentar criar lote")
-    void deveLancar403QuandoProdutorRuralTentarCriarLote() {
+    @DisplayName("Deve cadastrar lote com sucesso quando produtor rural cadastrar para sua própria fazenda")
+    void deveCadastrarLoteComSucessoFarmOwnerParaSuaPropriaFazenda() {
         LotRequestDTO request = new LotRequestDTO(
-                50000, null, LocalDate.of(2026, 10, 15),
-                null, null, 1L, 10L
+                50000, null, null,
+                null, null, null, 10L
         );
         Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
 
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(lotRepository.save(any(Lot.class))).thenAnswer(invocation -> {
+            Lot arg = invocation.getArgument(0);
+            arg.setId(105L);
+            return arg;
+        });
+
+        LotResponseDTO response = lotService.createLot(request, ownerPrincipal);
+
+        assertNotNull(response);
+        assertEquals(105L, response.id());
+        assertEquals(1L, response.idEnterprise());
+        assertEquals(10L, response.idFarm());
+        assertNull(response.deliveryDate());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando produtor rural tentar criar lote para outra fazenda")
+    void deveLancar403QuandoProdutorRuralTentarCriarLoteParaOutraFazenda() {
+        LotRequestDTO request = new LotRequestDTO(
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, 1L, 20L
+        );
+        Farm farm = Farm.builder().id(20L).idEnterprise(1L).build();
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+
+        when(farmRepository.findById(20L)).thenReturn(Optional.of(farm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 lotService.createLot(request, ownerPrincipal));
 
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("outra fazenda"));
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando produtor rural tentar vincular lote a outra empresa")
+    void deveLancar403QuandoProdutorRuralTentarVincularLoteAOutraEmpresa() {
+        LotRequestDTO request = new LotRequestDTO(
+                50000, null, LocalDate.of(2026, 10, 15),
+                null, null, 2L, 10L
+        );
+        Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.createLot(request, ownerPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("outra empresa integradora"));
     }
 
     @Test
@@ -676,12 +727,33 @@ class LotServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 403 quando FARM_OWNER tentar atualizar lote")
-    void deveLancar403QuandoProdutorAtualizarLote() {
+    @DisplayName("Deve atualizar lote com sucesso quando usuário for produtor rural da mesma fazenda")
+    void deveAtualizarLoteComSucessoProdutorRuralSuaFazenda() {
         Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
-        LotUpdateDTO updateDTO = new LotUpdateDTO(null, 950, null, null, null);
+        LotUpdateDTO updateDTO = new LotUpdateDTO(null, 950, null, 50, 1200.0);
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
 
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(lotRepository.save(any(Lot.class))).thenAnswer(i -> i.getArgument(0));
+
+        LotResponseDTO response = lotService.updateLot(1L, updateDTO, ownerPrincipal);
+
+        assertNotNull(response);
+        assertEquals(950, response.deliveredChickens());
+        assertEquals(50, response.losts());
+        assertEquals(1200.0, response.cost());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando FARM_OWNER tentar atualizar lote de outra fazenda")
+    void deveLancar403QuandoProdutorAtualizarLoteDeOutraFazenda() {
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(20L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
+        LotUpdateDTO updateDTO = new LotUpdateDTO(null, 950, null, null, null);
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+
+        when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 lotService.updateLot(1L, updateDTO, ownerPrincipal));
@@ -720,10 +792,27 @@ class LotServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar 403 quando FARM_OWNER tentar remover lote")
-    void deveLancar403QuandoProdutorTentarRemoverLote() {
+    @DisplayName("Deve remover lote com sucesso quando produtor rural for da mesma fazenda")
+    void deveRemoverLoteComSucessoProdutorRuralSuaFazenda() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
         Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(10L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
+
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+
+        assertDoesNotThrow(() -> lotService.deleteLot(1L, ownerPrincipal));
+
+        verify(lotRepository, times(1)).delete(lot);
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 quando FARM_OWNER tentar remover lote de outra fazenda")
+    void deveLancar403QuandoProdutorTentarRemoverLoteDeOutraFazenda() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        Lot lot = Lot.builder().id(1L).idEnterprise(1L).idFarm(20L).receivedChickens(1000).deliveredChickens(900).deliveryDate(LocalDate.now()).losts(0).cost(0.0).build();
+
+        when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 lotService.deleteLot(1L, ownerPrincipal));
