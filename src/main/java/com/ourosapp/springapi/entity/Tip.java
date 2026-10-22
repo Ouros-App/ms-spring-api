@@ -31,6 +31,13 @@ public class Tip {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "title", length = 150, nullable = false)
+    @Builder.Default
+    private String title = "Dica Operacional";
+
     @Column(name = "tip", columnDefinition = "TEXT", nullable = false)
     private String tip;
+
+    @Column(name = "foto_url", columnDefinition = "TEXT")
+    private String fotoUrl;
 }

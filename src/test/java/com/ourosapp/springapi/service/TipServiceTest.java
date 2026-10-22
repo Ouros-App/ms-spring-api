@@ -143,7 +143,9 @@ class TipServiceTest {
 
         sampleTip = Tip.builder()
                 .id(100L)
+                .title("Dica de Ambiência")
                 .tip("Manter os bicos dos nebulizadores limpos")
+                .fotoUrl("https://ouros.com/fotos/dica100.jpg")
                 .build();
 
         sampleCategory = Category.builder()
@@ -159,7 +161,7 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.callCreateTip("Manter ventilação mínima", 10, 5)).thenReturn(100);
+        when(tipRepository.callCreateTip("Dica Operacional", "Manter ventilação mínima", null, 10, 5)).thenReturn(100);
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
 
@@ -168,7 +170,7 @@ class TipServiceTest {
         assertEquals("Manter ventilação mínima", response.tip());
         assertEquals(10L, response.idFarm());
         assertEquals(List.of("Ambiência"), response.categories());
-        verify(tipRepository).callCreateTip("Manter ventilação mínima", 10, 5);
+        verify(tipRepository).callCreateTip("Dica Operacional", "Manter ventilação mínima", null, 10, 5);
     }
 
     @Test
@@ -185,7 +187,7 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.callCreateTip("Ajustar a vazão dos bebedouros", 10, 5)).thenReturn(101);
+        when(tipRepository.callCreateTip("Dica Operacional", "Ajustar a vazão dos bebedouros", null, 10, 5)).thenReturn(101);
         when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of(sampleFarmOwner));
         when(deviceTokenRepository.findAllByUserIdAndUserRole(3L, RoleConstants.FARM_OWNER))
                 .thenReturn(List.of(token));
@@ -218,14 +220,14 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.callCreateTip("Ajustar a vazão", 10, 5)).thenReturn(102);
+        when(tipRepository.callCreateTip("Dica Operacional", "Ajustar a vazão", null, 10, 5)).thenReturn(102);
         when(farmOwnerRepository.findAllByIdFarm(10L)).thenThrow(new RuntimeException("Falha temporária de banco"));
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
 
         assertNotNull(response);
         assertEquals(102L, response.id());
-        verify(tipRepository).callCreateTip("Ajustar a vazão", 10, 5);
+        verify(tipRepository).callCreateTip("Dica Operacional", "Ajustar a vazão", null, 10, 5);
     }
 
     @Test
@@ -235,7 +237,7 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.callCreateTip("Dica sem donos", 10, 5)).thenReturn(103);
+        when(tipRepository.callCreateTip("Dica Operacional", "Dica sem donos", null, 10, 5)).thenReturn(103);
         when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of());
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
@@ -256,7 +258,7 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farmSemNome));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.callCreateTip("Dica fazenda sem nome", 10, 5)).thenReturn(104);
+        when(tipRepository.callCreateTip("Dica Operacional", "Dica fazenda sem nome", null, 10, 5)).thenReturn(104);
         when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of(ownerSemId, ownerValido));
         when(deviceTokenRepository.findAllByUserIdAndUserRole(3L, RoleConstants.FARM_OWNER)).thenReturn(List.of());
 
@@ -288,7 +290,7 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.callCreateTip("Dica com tokens", 10, 5)).thenReturn(105);
+        when(tipRepository.callCreateTip("Dica Operacional", "Dica com tokens", null, 10, 5)).thenReturn(105);
         when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of(sampleFarmOwner));
         when(deviceTokenRepository.findAllByUserIdAndUserRole(3L, RoleConstants.FARM_OWNER))
                 .thenReturn(List.of(tokenValido, tokenNulo));
@@ -312,14 +314,14 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(sampleEmployee));
-        when(tipRepository.callCreateTip("Manter ventilação mínima", 10, null)).thenReturn(100);
+        when(tipRepository.callCreateTip("Dica Operacional", "Manter ventilação mínima", null, 10, null)).thenReturn(100);
 
         TipResponseDTO response = tipService.createTip(request, employeePrincipal);
 
         assertNotNull(response);
         assertEquals(100L, response.id());
         assertEquals(10L, response.idFarm());
-        verify(tipRepository).callCreateTip("Manter ventilação mínima", 10, null);
+        verify(tipRepository).callCreateTip("Dica Operacional", "Manter ventilação mínima", null, 10, null);
     }
 
     @Test
@@ -391,7 +393,7 @@ class TipServiceTest {
         TipRequestDTO request = new TipRequestDTO("Dica", 10L, null);
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
-        when(tipRepository.callCreateTip(any(), any(), any()))
+        when(tipRepository.callCreateTip(any(), any(), any(), any(), any()))
                 .thenThrow(new DataIntegrityViolationException("duplicate"));
 
         assertThrows(DataIntegrityViolationException.class, () ->
@@ -914,7 +916,7 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L, 6L))).thenReturn(List.of(sampleCategory, secondCategory));
-        when(tipRepository.callCreateTip("Dica existente", 10, 5)).thenReturn(100);
+        when(tipRepository.callCreateTip("Dica Operacional", "Dica existente", null, 10, 5)).thenReturn(100);
         when(tipCategoryRepository.existsByIdTipAndIdCategory(100L, 6L)).thenReturn(true);
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
@@ -931,7 +933,7 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L, 6L))).thenReturn(List.of(sampleCategory, secondCategory));
-        when(tipRepository.callCreateTip("Nova dica multi", 10, 5)).thenReturn(101);
+        when(tipRepository.callCreateTip("Dica Operacional", "Nova dica multi", null, 10, 5)).thenReturn(101);
         when(tipCategoryRepository.existsByIdTipAndIdCategory(101L, 6L)).thenReturn(false);
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
@@ -947,7 +949,7 @@ class TipServiceTest {
         TipRequestDTO request = new TipRequestDTO("Dica sem id gerado", 10L, List.of());
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
-        when(tipRepository.callCreateTip("Dica sem id gerado", 10, null)).thenReturn(null);
+        when(tipRepository.callCreateTip("Dica Operacional", "Dica sem id gerado", null, 10, null)).thenReturn(null);
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
 
@@ -963,7 +965,7 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(99L))).thenReturn(List.of(categoryWithNullId));
-        when(tipRepository.callCreateTip("Dica cat sem id", 10, null)).thenReturn(102);
+        when(tipRepository.callCreateTip("Dica Operacional", "Dica cat sem id", null, 10, null)).thenReturn(102);
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
 
@@ -1032,7 +1034,7 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.callCreateTip("Manter ventilação mínima", 10, 5)).thenReturn(100);
+        when(tipRepository.callCreateTip("Dica Operacional", "Manter ventilação mínima", null, 10, 5)).thenReturn(100);
 
         TipResponseDTO response = assertDoesNotThrow(() -> tipService.createTipViaProcedure(request, adminPrincipal));
 
@@ -1050,7 +1052,7 @@ class TipServiceTest {
         );
 
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
-        verify(tipRepository, never()).callCreateTip(any(), any(), any());
+        verify(tipRepository, never()).callCreateTip(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -1060,10 +1062,91 @@ class TipServiceTest {
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         doThrow(new DataIntegrityViolationException("FK error"))
-                .when(tipRepository).callCreateTip(any(), any(), any());
+                .when(tipRepository).callCreateTip(any(), any(), any(), any(), any());
 
         assertThrows(DataIntegrityViolationException.class, () ->
                 tipService.createTipViaProcedure(request, adminPrincipal)
         );
+    }
+
+    @Test
+    @DisplayName("createTip - Deve cadastrar dica técnica com título e foto_url personalizados")
+    void deveCadastrarDicaComTituloEFotoPersonalizados() {
+        TipRequestDTO request = new TipRequestDTO(
+                "Controle de Temperatura de Pintainhos",
+                "Manter temperatura a 32°C nos primeiros dias",
+                "https://ouros.com/fotos/pintainhos.jpg",
+                10L,
+                List.of(5L)
+        );
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
+        when(tipRepository.callCreateTip(
+                "Controle de Temperatura de Pintainhos",
+                "Manter temperatura a 32°C nos primeiros dias",
+                "https://ouros.com/fotos/pintainhos.jpg",
+                10,
+                5
+        )).thenReturn(200);
+
+        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(200L, response.id());
+        assertEquals("Controle de Temperatura de Pintainhos", response.title());
+        assertEquals("Manter temperatura a 32°C nos primeiros dias", response.tip());
+        assertEquals("https://ouros.com/fotos/pintainhos.jpg", response.fotoUrl());
+        assertEquals(10L, response.idFarm());
+        assertEquals(List.of("Ambiência"), response.categories());
+    }
+
+    @Test
+    @DisplayName("updateTip - Deve atualizar título e foto_url da dica técnica")
+    void deveAtualizarTituloEFotoUrlComSucesso() {
+        Tip existingTip = Tip.builder()
+                .id(100L)
+                .title("Título Antigo")
+                .tip("Texto Antigo")
+                .fotoUrl("https://ouros.com/fotos/antiga.jpg")
+                .build();
+
+        TipUpdateDTO request = new TipUpdateDTO(
+                "Título Novo",
+                "Texto Novo",
+                "https://ouros.com/fotos/nova.jpg",
+                null
+        );
+
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(existingTip));
+        when(tipRepository.save(existingTip)).thenReturn(existingTip);
+
+        TipResponseDTO updated = tipService.updateTip(100L, request, adminPrincipal);
+
+        assertNotNull(updated);
+        assertEquals("Título Novo", existingTip.getTitle());
+        assertEquals("Texto Novo", existingTip.getTip());
+        assertEquals("https://ouros.com/fotos/nova.jpg", existingTip.getFotoUrl());
+    }
+
+    @Test
+    @DisplayName("updateTip - Deve remover foto_url ao informar string em branco")
+    void deveRemoverFotoUrlAoInformarStringEmBrancoNoUpdate() {
+        Tip existingTip = Tip.builder()
+                .id(100L)
+                .title("Título Atual")
+                .tip("Texto Atual")
+                .fotoUrl("https://ouros.com/fotos/atual.jpg")
+                .build();
+
+        TipUpdateDTO request = new TipUpdateDTO(null, null, "   ", null);
+
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(existingTip));
+        when(tipRepository.save(existingTip)).thenReturn(existingTip);
+
+        TipResponseDTO updated = tipService.updateTip(100L, request, adminPrincipal);
+
+        assertNotNull(updated);
+        assertNull(existingTip.getFotoUrl());
     }
 }
