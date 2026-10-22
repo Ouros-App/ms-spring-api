@@ -334,14 +334,14 @@ class WaterRegistryServiceTest {
     @DisplayName("Deve listar registros de água filtrados por fazenda como ADM")
     void testGetWaterRegistriesForAdmFiltered() {
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
-        when(waterRegistryRepository.findAllByIdFarm(1L)).thenReturn(List.of(sampleRegistry));
+        when(waterRegistryRepository.findAllByIdFarmOrderByRegistrationDateDesc(1L)).thenReturn(List.of(sampleRegistry));
 
         List<WaterRegistryResponseDTO> result = waterRegistryService.getWaterRegistriesForUser(1L, adminPrincipal);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         verify(farmRepository).findById(1L);
-        verify(waterRegistryRepository).findAllByIdFarm(1L);
+        verify(waterRegistryRepository).findAllByIdFarmOrderByRegistrationDateDesc(1L);
     }
 
     @Test
@@ -379,13 +379,13 @@ class WaterRegistryServiceTest {
         CompanyEmployee employee = CompanyEmployee.builder().id(10L).idEnterprise(20L).build();
         when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(employee));
         when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
-        when(waterRegistryRepository.findAllByIdFarm(1L)).thenReturn(List.of(sampleRegistry));
+        when(waterRegistryRepository.findAllByIdFarmOrderByRegistrationDateDesc(1L)).thenReturn(List.of(sampleRegistry));
 
         List<WaterRegistryResponseDTO> result = waterRegistryService.getWaterRegistriesForUser(1L, employeePrincipal);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(waterRegistryRepository).findAllByIdFarm(1L);
+        verify(waterRegistryRepository).findAllByIdFarmOrderByRegistrationDateDesc(1L);
     }
 
     @Test
@@ -407,13 +407,13 @@ class WaterRegistryServiceTest {
     void testGetWaterRegistriesForFarmOwnerSuccess() {
         FarmOwner owner = FarmOwner.builder().id(20L).idFarm(1L).build();
         when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(owner));
-        when(waterRegistryRepository.findAllByIdFarm(1L)).thenReturn(List.of(sampleRegistry));
+        when(waterRegistryRepository.findAllByIdFarmOrderByRegistrationDateDesc(1L)).thenReturn(List.of(sampleRegistry));
 
         List<WaterRegistryResponseDTO> result = waterRegistryService.getWaterRegistriesForUser(null, farmOwnerPrincipal);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(waterRegistryRepository).findAllByIdFarm(1L);
+        verify(waterRegistryRepository).findAllByIdFarmOrderByRegistrationDateDesc(1L);
     }
 
     @Test

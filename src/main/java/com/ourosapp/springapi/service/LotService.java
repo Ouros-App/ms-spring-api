@@ -133,10 +133,20 @@ public class LotService {
         }
 
         if (RoleConstants.FARM_OWNER.equals(role)) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Produtor rural não possui permissão para cadastrar lotes"
-            );
+            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
+            if (owner.getIdFarm() == null || !Objects.equals(farm.getId(), owner.getIdFarm())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Produtor rural não possui permissão para cadastrar lotes em outra fazenda"
+                );
+            }
+            if (requestedEnterpriseId != null && !Objects.equals(requestedEnterpriseId, farm.getIdEnterprise())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Produtor rural não possui permissão para vincular o lote a outra empresa integradora"
+                );
+            }
+            return farm.getIdEnterprise();
         }
 
         throw new ResponseStatusException(
@@ -412,10 +422,14 @@ public class LotService {
         }
 
         if (RoleConstants.FARM_OWNER.equals(role)) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Produtor rural não possui permissão para " + action + " lotes"
-            );
+            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
+            if (owner.getIdFarm() == null || !Objects.equals(lot.getIdFarm(), owner.getIdFarm())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Acesso negado para " + action + " este lote"
+                );
+            }
+            return;
         }
 
         throw new ResponseStatusException(

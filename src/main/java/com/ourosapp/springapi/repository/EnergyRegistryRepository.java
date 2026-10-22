@@ -13,18 +13,18 @@ import java.util.List;
 public interface EnergyRegistryRepository extends JpaRepository<EnergyRegistry, Long> {
 
     /**
-     * Busca todos os registros de energia vinculados a uma fazenda específica.
+     * Busca todos os registros de energia vinculados a uma fazenda específica em ordem cronológica decrescente.
      *
      * @param idFarm ID da fazenda
-     * @return Lista de registros de energia encontrados
+     * @return Lista de registros de energia encontrados ordenados por data decrescente
      */
-    List<EnergyRegistry> findByIdFarm(Long idFarm);
+    List<EnergyRegistry> findByIdFarmOrderByRegistrationDateDesc(Long idFarm);
 
     /**
      * Busca todos os registros de energia vinculados a uma lista de IDs de fazendas.
      *
      * @param idFarms Lista de IDs de fazendas
-     * @return Lista de registros de energia encontrados
+     * @return Lista de registros de energia encontrados ordenados por data decrescente
      */
     List<EnergyRegistry> findByIdFarmIn(List<Long> idFarms);
 }

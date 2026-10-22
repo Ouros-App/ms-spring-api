@@ -16,12 +16,12 @@ import java.util.List;
 public interface WaterRegistryRepository extends JpaRepository<WaterRegistry, Long> {
 
     /**
-     * Busca todos os registros de medição de água vinculados a uma fazenda específica.
+     * Busca todos os registros de medição de água vinculados a uma fazenda específica em ordem cronológica decrescente.
      *
      * @param idFarm identificador único da fazenda
-     * @return lista de registros de medição de água da fazenda
+     * @return lista de registros de medição de água da fazenda ordenados por data decrescente
      */
-    List<WaterRegistry> findAllByIdFarm(Long idFarm);
+    List<WaterRegistry> findAllByIdFarmOrderByRegistrationDateDesc(Long idFarm);
 
     /**
      * Busca todos os registros de medição de água vinculados a uma lista de IDs de fazendas.

@@ -228,7 +228,7 @@ class EnergyRegistryServiceTest {
     void deveListarRegistrosParaProdutorRural() {
         FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
         when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
-        when(energyRegistryRepository.findByIdFarm(10L)).thenReturn(List.of(energyRegistry));
+        when(energyRegistryRepository.findByIdFarmOrderByRegistrationDateDesc(10L)).thenReturn(List.of(energyRegistry));
 
         List<EnergyRegistryResponseDTO> list = energyRegistryService.getEnergyRegistriesForUser(null, ownerPrincipal);
 
@@ -240,7 +240,7 @@ class EnergyRegistryServiceTest {
     @DisplayName("Deve filtrar registros por fazenda específica quando farmIdFilter for informado")
     void deveFiltrarRegistrosPorFazendaEspecifica() {
         when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
-        when(energyRegistryRepository.findByIdFarm(10L)).thenReturn(List.of(energyRegistry));
+        when(energyRegistryRepository.findByIdFarmOrderByRegistrationDateDesc(10L)).thenReturn(List.of(energyRegistry));
 
         List<EnergyRegistryResponseDTO> list = energyRegistryService.getEnergyRegistriesForUser(10L, admPrincipal);
 

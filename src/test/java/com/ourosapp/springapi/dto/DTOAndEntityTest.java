@@ -1684,7 +1684,7 @@ class DTOAndEntityTest {
         assertFalse(validator.validate(invalidChickens).isEmpty());
         assertFalse(invalidChickens.isDeliveredChickensValid());
 
-        // Valores nulos nos campos opcionais (incluindo id_enterprise que é opcional)
+        // Valores nulos nos campos opcionais (incluindo deliveryDate e id_enterprise que são opcionais)
         LotRequestDTO nullOptionals = new LotRequestDTO(
                 1000, null, LocalDate.of(2026, 10, 15),
                 null, null, null, 2L
@@ -1693,6 +1693,16 @@ class DTOAndEntityTest {
         assertTrue(nullOptionals.isDeliveredChickensValid());
         assertNull(nullOptionals.idEnterprise());
         assertEquals(2L, nullOptionals.idFarm());
+
+        LotRequestDTO nullAllOptionals = new LotRequestDTO(
+                1000, null, null,
+                null, null, null, 2L
+        );
+        assertTrue(validator.validate(nullAllOptionals).isEmpty());
+        assertTrue(nullAllOptionals.isDeliveredChickensValid());
+        assertNull(nullAllOptionals.deliveryDate());
+        assertNull(nullAllOptionals.idEnterprise());
+        assertEquals(2L, nullAllOptionals.idFarm());
 
         // Desserialização snake_case
         String snakeJson = """
