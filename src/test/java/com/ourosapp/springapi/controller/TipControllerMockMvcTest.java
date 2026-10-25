@@ -95,11 +95,58 @@ class TipControllerMockMvcTest {
                 .andExpect(jsonPath("$.id").value(10L))
                 .andExpect(jsonPath("$.title").value("Manejo de Ambiência"))
                 .andExpect(jsonPath("$.tip").value("Manter ventilação mínima no galpão."))
+                .andExpect(jsonPath("$.image_url").value("https://ouros.com/fotos/dica1.jpg"))
                 .andExpect(jsonPath("$.foto_url").value("https://ouros.com/fotos/dica1.jpg"))
                 .andExpect(jsonPath("$.id_farm").value(1L))
                 .andExpect(jsonPath("$.categories.length()").value(2))
                 .andExpect(jsonPath("$.total_reviews").value(0))
                 .andExpect(jsonPath("$.average_rating").value(0.0));
+    }
+
+    @Test
+    @DisplayName("POST /tips - Deve cadastrar dica com imagem Cloudinary em WebP e Markdown denso")
+    void deveCadastrarDicaComMarkdownEImageUrlCloudinary() throws Exception {
+        String cloudinaryUrl = "https://res.cloudinary.com/mpyey2bi/image/upload/v1729606821/ouros/tips/img01.webp";
+        String markdownTip = """
+                * **Meta Diária:** Ajustar vazão do nipple para 60-80 ml/min.
+                * **Inspeção:**
+                  1. Checar pressão nos reguladores.
+                  2. Limpar pontas de linha.
+                """;
+
+        TipRequestDTO request = new TipRequestDTO(
+                "Regulagem Diária e Ajuste de Altura das Linhas de Nipple",
+                markdownTip,
+                cloudinaryUrl,
+                null,
+                1L,
+                List.of(1L)
+        );
+        TipResponseDTO response = new TipResponseDTO(
+                15L,
+                "Regulagem Diária e Ajuste de Altura das Linhas de Nipple",
+                markdownTip,
+                cloudinaryUrl,
+                cloudinaryUrl,
+                1L,
+                List.of("Manejo Hídrico"),
+                0,
+                0.0
+        );
+
+        when(tipService.createTip(any(TipRequestDTO.class), eq(mockPrincipal))).thenReturn(response);
+
+        mockMvc.perform(post("/tips")
+                        .with(user(mockPrincipal))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", org.hamcrest.Matchers.containsString("/tips/15")))
+                .andExpect(jsonPath("$.id").value(15L))
+                .andExpect(jsonPath("$.title").value("Regulagem Diária e Ajuste de Altura das Linhas de Nipple"))
+                .andExpect(jsonPath("$.tip").value(markdownTip))
+                .andExpect(jsonPath("$.image_url").value(cloudinaryUrl))
+                .andExpect(jsonPath("$.foto_url").value(cloudinaryUrl));
     }
 
     @Test
@@ -115,7 +162,7 @@ class TipControllerMockMvcTest {
     }
 
     @Test
-    @DisplayName("GET /tips - Deve listar dicas e retornar 200 OK")
+    @DisplayName("GET /tips - Deve listar dicas e retornar 200 OK com image_url e foto_url")
     void deveListarDicasComSucesso() throws Exception {
         List<TipResponseDTO> responses = List.of(
                 new TipResponseDTO(1L, "Título 1", "Dica 1", "https://ouros.com/1.jpg", 1L, List.of("Ambiência"), 2, 4.5),
@@ -130,6 +177,7 @@ class TipControllerMockMvcTest {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].title").value("Título 1"))
                 .andExpect(jsonPath("$[0].tip").value("Dica 1"))
+                .andExpect(jsonPath("$[0].image_url").value("https://ouros.com/1.jpg"))
                 .andExpect(jsonPath("$[0].foto_url").value("https://ouros.com/1.jpg"))
                 .andExpect(jsonPath("$[0].total_reviews").value(2))
                 .andExpect(jsonPath("$[0].average_rating").value(4.5));
@@ -154,7 +202,7 @@ class TipControllerMockMvcTest {
     }
 
     @Test
-    @DisplayName("GET /tips/{id} - Deve retornar detalhes de uma dica específica")
+    @DisplayName("GET /tips/{id} - Deve retornar detalhes de uma dica específica com image_url e foto_url")
     void deveBuscarDicaPorIdComSucesso() throws Exception {
         TipResponseDTO response = new TipResponseDTO(1L, "Dica Especial", "Dica detalhada", "https://ouros.com/banner.jpg", 1L, List.of("Biosseguridade"), 1, 4.0);
 
@@ -166,6 +214,7 @@ class TipControllerMockMvcTest {
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.title").value("Dica Especial"))
                 .andExpect(jsonPath("$.tip").value("Dica detalhada"))
+                .andExpect(jsonPath("$.image_url").value("https://ouros.com/banner.jpg"))
                 .andExpect(jsonPath("$.foto_url").value("https://ouros.com/banner.jpg"));
     }
 

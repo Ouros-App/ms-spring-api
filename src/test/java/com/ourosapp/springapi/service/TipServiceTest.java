@@ -1137,6 +1137,7 @@ class TipServiceTest {
                 .title("Título Atual")
                 .tip("Texto Atual")
                 .fotoUrl("https://ouros.com/fotos/atual.jpg")
+                .imageUrl("https://ouros.com/fotos/atual.jpg")
                 .build();
 
         TipUpdateDTO request = new TipUpdateDTO(null, null, "   ", null);
@@ -1148,5 +1149,75 @@ class TipServiceTest {
 
         assertNotNull(updated);
         assertNull(existingTip.getFotoUrl());
+        assertNull(existingTip.getImageUrl());
+    }
+
+    @Test
+    @DisplayName("createTip - Deve cadastrar dica técnica com imagem Cloudinary em WebP e Markdown denso")
+    void deveCadastrarDicaComMarkdownEImageUrlCloudinary() {
+        String cloudinaryUrl = "https://res.cloudinary.com/mpyey2bi/image/upload/v1729606821/ouros/tips/img01.webp";
+        String markdownTip = """
+                # Manejo de Nipple
+                * **Meta Diária:** Vazão entre 60 e 80 ml/min por bico.
+                * **Inspeção:**
+                  1. Checar pressão nos reguladores de coluna.
+                  2. Purgar pontas para eliminar biofilme bacteriano.
+                """;
+        String longTitle = "Regulagem Diária e Ajuste de Altura das Linhas de Nipple nos Galpões de Corte";
+
+        TipRequestDTO request = new TipRequestDTO(
+                longTitle,
+                markdownTip,
+                cloudinaryUrl,
+                null,
+                10L,
+                List.of(5L)
+        );
+
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
+        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
+        when(tipRepository.callCreateTip(longTitle, markdownTip.trim(), cloudinaryUrl, 10, 5)).thenReturn(101);
+
+        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(101L, response.id());
+        assertEquals(longTitle, response.title());
+        assertEquals(markdownTip.trim(), response.tip());
+        assertEquals(cloudinaryUrl, response.imageUrl());
+        assertEquals(cloudinaryUrl, response.fotoUrl());
+        verify(tipRepository).callCreateTip(longTitle, markdownTip.trim(), cloudinaryUrl, 10, 5);
+    }
+
+    @Test
+    @DisplayName("updateTip - Deve atualizar com imagem Cloudinary e sincronizar ambas as colunas")
+    void deveAtualizarComImageUrlCloudinaryESincronizarColunas() {
+        String cloudinaryUrl = "https://res.cloudinary.com/mpyey2bi/image/upload/v1729606821/ouros/tips/img02.webp";
+        Tip existingTip = Tip.builder()
+                .id(100L)
+                .title("Título Antigo")
+                .tip("Texto Antigo")
+                .fotoUrl("https://ouros.com/fotos/antiga.jpg")
+                .imageUrl("https://ouros.com/fotos/antiga.jpg")
+                .build();
+
+        TipUpdateDTO request = new TipUpdateDTO(
+                "Título com 200 Caracteres Atualizado",
+                "Texto em **Markdown** atualizado",
+                cloudinaryUrl,
+                null,
+                null
+        );
+
+        when(tipRepository.findById(100L)).thenReturn(Optional.of(existingTip));
+        when(tipRepository.save(existingTip)).thenReturn(existingTip);
+
+        TipResponseDTO updated = tipService.updateTip(100L, request, adminPrincipal);
+
+        assertNotNull(updated);
+        assertEquals("Título com 200 Caracteres Atualizado", existingTip.getTitle());
+        assertEquals("Texto em **Markdown** atualizado", existingTip.getTip());
+        assertEquals(cloudinaryUrl, existingTip.getImageUrl());
+        assertEquals(cloudinaryUrl, existingTip.getFotoUrl());
     }
 }

@@ -5,6 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,13 +33,26 @@ public class Tip {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "title", length = 150, nullable = false)
+    @Column(name = "title", length = 200, nullable = false)
     @Builder.Default
     private String title = "Dica Operacional";
 
     @Column(name = "tip", columnDefinition = "TEXT", nullable = false)
     private String tip;
 
+    @Column(name = "image_url", columnDefinition = "TEXT")
+    private String imageUrl;
+
     @Column(name = "foto_url", columnDefinition = "TEXT")
     private String fotoUrl;
+
+    @PrePersist
+    @PreUpdate
+    public void syncImageUrls() {
+        if (this.imageUrl != null && this.fotoUrl == null) {
+            this.fotoUrl = this.imageUrl;
+        } else if (this.fotoUrl != null && this.imageUrl == null) {
+            this.imageUrl = this.fotoUrl;
+        }
+    }
 }

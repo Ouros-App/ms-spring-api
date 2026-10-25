@@ -77,10 +77,12 @@ public class TipService {
                 ? categories.get(0).getId().intValue()
                 : null;
 
+        String effectiveImage = request.imageUrl() != null ? request.imageUrl() : request.fotoUrl();
+
         Integer generatedTipIdInt = tipRepository.callCreateTip(
                 request.title(),
                 request.tip(),
-                request.fotoUrl(),
+                effectiveImage,
                 farmIdInt,
                 primaryCategoryId
         );
@@ -108,7 +110,8 @@ public class TipService {
                 .id(generatedTipId)
                 .title(request.title())
                 .tip(request.tip())
-                .fotoUrl(request.fotoUrl())
+                .imageUrl(effectiveImage)
+                .fotoUrl(effectiveImage)
                 .build();
 
         // Notifica produtores rurais da fazenda sobre a nova dica técnica cadastrada
@@ -235,8 +238,11 @@ public class TipService {
             tip.setTip(request.tip());
         }
 
-        if (request.fotoUrl() != null) {
-            tip.setFotoUrl(request.fotoUrl().isBlank() ? null : request.fotoUrl());
+        String effectiveImage = request.imageUrl() != null ? request.imageUrl() : request.fotoUrl();
+        if (effectiveImage != null) {
+            String cleanUrl = effectiveImage.isBlank() ? null : effectiveImage;
+            tip.setImageUrl(cleanUrl);
+            tip.setFotoUrl(cleanUrl);
         }
 
         if (request.categoryIds() != null) {
