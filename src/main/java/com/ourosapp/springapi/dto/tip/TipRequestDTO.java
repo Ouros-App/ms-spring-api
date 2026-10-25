@@ -33,13 +33,13 @@ public record TipRequestDTO(
 
         @Schema(description = "URL da imagem no Cloudinary", example = "https://res.cloudinary.com/mpyey2bi/image/upload/v1729606821/ouros/tips/img01.webp")
         @JsonProperty("image_url")
-        @JsonAlias({"imageUrl", "foto_url", "fotoUrl"})
+        @JsonAlias({"imageUrl"})
         @Size(max = 2048, message = "A URL da imagem deve ter no máximo 2048 caracteres")
         String imageUrl,
 
         @Schema(description = "URL legada da imagem para retrocompatibilidade", example = "https://res.cloudinary.com/mpyey2bi/image/upload/v1729606821/ouros/tips/img01.webp")
         @JsonProperty("foto_url")
-        @JsonAlias({"fotoUrl", "image_url", "imageUrl"})
+        @JsonAlias({"fotoUrl"})
         @Size(max = 2048, message = "A URL da foto deve ter no máximo 2048 caracteres")
         String fotoUrl,
 
