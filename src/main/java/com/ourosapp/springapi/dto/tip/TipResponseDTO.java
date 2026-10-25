@@ -13,7 +13,8 @@ import java.util.List;
  * @param id            Identificador único da dica
  * @param title         Título da dica técnica operacional
  * @param tip           Texto descritivo da dica técnica
- * @param fotoUrl       URL do banner ou foto ilustrativa da dica
+ * @param imageUrl      URL da imagem da dica no Cloudinary
+ * @param fotoUrl       URL legada da imagem para retrocompatibilidade
  * @param idFarm        Identificador da fazenda vinculada
  * @param categories    Lista de nomes das categorias vinculadas
  * @param totalReviews  Total de avaliações recebidas pela dica
@@ -31,9 +32,14 @@ public record TipResponseDTO(
         @Schema(description = "Texto descritivo da dica técnica", example = "Manter a ventilação mínima no galpão.")
         String tip,
 
-        @Schema(description = "URL do banner ou foto ilustrativa da dica", example = "https://ouros.com/fotos/dica-ventilacao.jpg")
+        @Schema(description = "URL da imagem no Cloudinary", example = "https://res.cloudinary.com/mpyey2bi/image/upload/v1729606821/ouros/tips/img01.webp")
+        @JsonProperty("image_url")
+        @JsonAlias({"imageUrl"})
+        String imageUrl,
+
+        @Schema(description = "URL legada da imagem para retrocompatibilidade", example = "https://res.cloudinary.com/mpyey2bi/image/upload/v1729606821/ouros/tips/img01.webp")
         @JsonProperty("foto_url")
-        @JsonAlias({"fotoUrl", "photoUrl", "photo_url"})
+        @JsonAlias({"fotoUrl"})
         String fotoUrl,
 
         @Schema(description = "Identificador da fazenda vinculada", example = "1")
@@ -58,7 +64,14 @@ public record TipResponseDTO(
      * Construtor de sobrecarga retrocompatível para instanciações sem título e foto explícitos.
      */
     public TipResponseDTO(Long id, String tip, Long idFarm, List<String> categories, long totalReviews, double averageRating) {
-        this(id, "Dica Operacional", tip, null, idFarm, categories, totalReviews, averageRating);
+        this(id, "Dica Operacional", tip, null, null, idFarm, categories, totalReviews, averageRating);
+    }
+
+    /**
+     * Construtor de sobrecarga para chamadas que forneçam apenas uma URL de imagem/foto.
+     */
+    public TipResponseDTO(Long id, String title, String tip, String fotoUrl, Long idFarm, List<String> categories, long totalReviews, double averageRating) {
+        this(id, title, tip, fotoUrl, fotoUrl, idFarm, categories, totalReviews, averageRating);
     }
 
     /**
@@ -75,11 +88,13 @@ public record TipResponseDTO(
         if (entity == null) {
             return null;
         }
+        String effectiveImage = entity.getImageUrl() != null ? entity.getImageUrl() : entity.getFotoUrl();
         return new TipResponseDTO(
                 entity.getId(),
                 entity.getTitle() != null ? entity.getTitle() : "Dica Operacional",
                 entity.getTip(),
-                entity.getFotoUrl(),
+                effectiveImage,
+                effectiveImage,
                 idFarm,
                 categories != null ? categories : List.of(),
                 totalReviews,
