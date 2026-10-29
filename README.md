@@ -16,14 +16,10 @@ Projeto inicial de uma API REST com Spring Boot e Gradle.
 
 ## Status e escopo
 
-A implementação atual é mínima e contém:
-
-- endpoint `GET /` com uma mensagem de disponibilidade;
-- endpoint `GET /health` que retorna `{"status":"ok"}`;
-- configuração inicial de JPA e PostgreSQL;
-- dependências de validação, segurança e JWT declaradas para evolução do projeto.
-
-Não há, no código atual, recursos de domínio, operações CRUD ou autenticação JWT implementados. A configuração automática padrão do Spring Security está desativada em `SpringApiApplication`.
+A API Spring Boot implementa recursos de domínio autenticados por JWT, incluindo
+fazendas e registros de medição. `POST /measurement-imports` cadastra em uma única
+transação lotes históricos de água e energia já revisados pelo produtor; a
+interpretação dos arquivos acontece no AI Server.
 
 ## Pré-requisitos
 
@@ -92,6 +88,37 @@ Respostas esperadas:
 {"message":"Spring REST API com Gradle pronta para evoluir."}
 {"status":"ok"}
 ```
+
+### Importação de histórico de medições
+
+Após o produtor revisar e confirmar a prévia gerada no chat, a aplicação envia os
+registros válidos para `POST /measurement-imports` com o JWT do produtor. O endpoint
+cadastra água e energia em uma única transação, deriva a fazenda do usuário
+autenticado e aceita até 500 registros no lote.
+
+O consumo de energia aceita até 15 dígitos inteiros e duas casas decimais;
+valores com maior precisão são rejeitados.
+
+```json
+{
+  "water_registries": [
+    {
+      "registration_date": "2026-03-01",
+      "start_hydrometer": "120.5",
+      "end_hydrometer": "135.8"
+    }
+  ],
+  "energy_registries": [
+    {
+      "registration_date": "2026-03-01",
+      "energy_consumption": "300.00"
+    }
+  ]
+}
+```
+
+O endpoint não interpreta arquivos nem confirma prévias: recebe apenas os dados
+já revisados. Retorna `201 Created` com os registros efetivamente cadastrados.
 
 ## Testes e qualidade
 

@@ -3,6 +3,7 @@ package com.ourosapp.springapi.dto.energyregistry;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 
@@ -13,7 +14,7 @@ import java.time.LocalDate;
  * DTO de requisição para atualização parcial de um Registro de Consumo de Energia Elétrica (PATCH /energy-registries/{id}).
  *
  * @param registrationDate Nova data da leitura/registro do consumo de energia (opcional)
- * @param energyConsumption Novo valor do consumo de energia (opcional, deve ser maior que zero)
+ * @param energyConsumption Novo valor do consumo de energia (opcional, até 15 dígitos inteiros e duas casas decimais)
  */
 @Schema(description = "Dados para atualização parcial do registro de consumo de energia elétrica")
 public record EnergyRegistryUpdateDTO(
@@ -24,10 +25,11 @@ public record EnergyRegistryUpdateDTO(
         @PastOrPresent(message = "A data de registro não pode ser uma data futura")
         LocalDate registrationDate,
 
-        @Schema(description = "Consumo de energia registrado (deve ser maior que zero)", example = "480.00")
+        @Schema(description = "Consumo de energia registrado (maior que zero, até 15 dígitos inteiros e 2 casas decimais)", example = "480.00")
         @JsonProperty("energy_consumption")
         @JsonAlias("energyConsumption")
         @Positive(message = "O consumo de energia deve ser maior que zero")
+        @Digits(integer = 15, fraction = 2, message = "O consumo de energia deve ter no máximo 15 dígitos inteiros e duas casas decimais")
         BigDecimal energyConsumption
 ) {
     /**

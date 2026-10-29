@@ -80,6 +80,32 @@ class EnergyRegistryDTOTest {
         assertEquals(3, violations.size());
     }
 
+    @Test
+    @DisplayName("Deve rejeitar consumo de energia com mais de duas casas decimais")
+    void rejectsEnergyConsumptionWithMoreThanTwoDecimalPlaces() {
+        EnergyRegistryRequestDTO createDto = new EnergyRegistryRequestDTO(
+                LocalDate.now(),
+                new BigDecimal("7.125"),
+                1L
+        );
+        EnergyRegistryUpdateDTO updateDto = new EnergyRegistryUpdateDTO(null, new BigDecimal("7.125"));
+
+        Set<ConstraintViolation<EnergyRegistryRequestDTO>> createViolations = validator.validate(createDto);
+        Set<ConstraintViolation<EnergyRegistryUpdateDTO>> updateViolations = validator.validate(updateDto);
+
+        assertEquals(1, createViolations.size());
+        assertEquals(1, updateViolations.size());
+        assertEquals(
+                "O consumo de energia deve ter no máximo 15 dígitos inteiros e duas casas decimais",
+                createViolations.iterator().next().getMessage()
+        );
+        assertEquals(
+                "O consumo de energia deve ter no máximo 15 dígitos inteiros e duas casas decimais",
+                updateViolations.iterator().next().getMessage()
+        );
+    }
+
+
     /** Verifica a violação produzida por uma data futura no DTO de criação. */
     @Test
     @DisplayName("Deve detectar erro de validação quando registrationDate for data futura no EnergyRegistryRequestDTO")
