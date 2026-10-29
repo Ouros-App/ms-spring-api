@@ -68,6 +68,12 @@ public record FarmSimulationUpdateDTO(
         @JsonAlias({"targetEnergyKwh", "gastoAlvoEnergia"})
         Double targetEnergyKwh
 ) {
+    public FarmSimulationUpdateDTO {
+        if (idLot != null) {
+            idLot = idLot.trim();
+        }
+    }
+
     /**
      * Verifica se ao menos um campo foi informado para atualização parcial.
      */

@@ -106,6 +106,7 @@ class FarmSimulationControllerMockMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
+                .andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/farms/simulations/100")))
                 .andExpect(jsonPath("$.id").value(100))
                 .andExpect(jsonPath("$.target_cgi").value(9500.0));
     }
