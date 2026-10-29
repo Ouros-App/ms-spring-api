@@ -127,7 +127,7 @@ public class EnterpriseService {
     }
 
     /**
-     * Retorna a lista de todas as empresas integradoras cadastradas no sistema se for ADM.
+     * Retorna a lista de todas as empresas integradoras cadastradas no sistema ordenadas por nome se for ADM.
      * Se for funcionário, retorna apenas a sua empresa.
      */
     @Transactional(readOnly = true)
@@ -136,7 +136,7 @@ public class EnterpriseService {
 
         String role = principal.getRole();
         if (ADM.equals(role)) {
-            return enterpriseRepository.findAll()
+            return enterpriseRepository.findAllByOrderByNameAsc()
                     .stream()
                     .map(EnterpriseResponseDTO::fromEntity)
                     .toList();
