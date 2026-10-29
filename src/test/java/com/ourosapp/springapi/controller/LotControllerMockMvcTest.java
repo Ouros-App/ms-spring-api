@@ -5,6 +5,7 @@ import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.lot.LotRequestDTO;
 import com.ourosapp.springapi.dto.lot.LotResponseDTO;
 import com.ourosapp.springapi.dto.lot.LotUpdateDTO;
+import com.ourosapp.springapi.dto.lot.ProductionRegistryResponseDTO;
 import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.LotService;
@@ -395,5 +396,47 @@ class LotControllerMockMvcTest {
         mockMvc.perform(delete("/lots/1")
                         .with(user(mockPrincipal)))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("GET /lots/production-summaries - Deve retornar lista consolidada de resumos de produção com 200 OK")
+    void testGetProductionSummariesSuccess() throws Exception {
+        ProductionRegistryResponseDTO summary = new ProductionRegistryResponseDTO(
+                10L,
+                "L-10",
+                LocalDate.of(2026, 8, 1),
+                7000.0,
+                6000.0,
+                6500,
+                500,
+                6000,
+                2L,
+                "Granja São Judas"
+        );
+
+        when(lotService.getProductionSummaries(eq(2L), eq(1L), eq(mockPrincipal))).thenReturn(List.of(summary));
+
+        mockMvc.perform(get("/lots/production-summaries")
+                        .param("id_farm", "2")
+                        .param("id_enterprise", "1")
+                        .with(user(mockPrincipal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(10L))
+                .andExpect(jsonPath("$[0].id_lote").value("L-10"))
+                .andExpect(jsonPath("$[0].data_emissao").value("2026-08-01"))
+                .andExpect(jsonPath("$[0].hidrometro").value(7000.0))
+                .andExpect(jsonPath("$[0].custo").value(6000.0))
+                .andExpect(jsonPath("$[0].entraram").value(6500))
+                .andExpect(jsonPath("$[0].sairam").value(500))
+                .andExpect(jsonPath("$[0].galinhas_atuais").value(6000))
+                .andExpect(jsonPath("$[0].id_farm").value(2L))
+                .andExpect(jsonPath("$[0].farm_name").value("Granja São Judas"));
+    }
+
+    @Test
+    @DisplayName("GET /lots/production-summaries - Deve retornar 401 Unauthorized quando não autenticado")
+    void testGetProductionSummariesUnauthorized() throws Exception {
+        mockMvc.perform(get("/lots/production-summaries"))
+                .andExpect(status().isUnauthorized());
     }
 }
