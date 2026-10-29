@@ -84,8 +84,10 @@ public class FarmSimulationController {
             @Valid @RequestBody FarmSimulationRequestDTO dto,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(farmSimulationService.createSimulation(dto, principal));
+        FarmSimulationResponseDTO response = farmSimulationService.createSimulation(dto, principal);
+        java.net.URI location = org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}").buildAndExpand(response.id()).toUri();
+        return ResponseEntity.created(location).body(response);
     }
 
     /**

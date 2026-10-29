@@ -78,4 +78,9 @@ public record FarmSimulationRequestDTO(
         @JsonAlias({"targetEnergyKwh", "gastoAlvoEnergia"})
         Double targetEnergyKwh
 ) {
+    public FarmSimulationRequestDTO {
+        if (idLot != null) {
+            idLot = idLot.trim();
+        }
+    }
 }
