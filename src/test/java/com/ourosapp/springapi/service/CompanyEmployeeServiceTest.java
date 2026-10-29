@@ -794,4 +794,53 @@ class CompanyEmployeeServiceTest {
         assertEquals(1L, response.id());
         verify(companyEmployeeRepository).save(any(CompanyEmployee.class));
     }
+@Test
+    @DisplayName("Deve lancar ResponseStatusException 409 quando adm tentar atualizar email para um ja existente")
+    void testUpdateAdmOwnProfile_EmailConflict() {
+        CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO("Novo Nome", "existente@ouros.com", "11988887777", "NovaSenha@123", "https://photo.jpg");
+        Adm currentAdm = Adm.builder().id(1L).email("adm@empresa.com.br").name("Admin").build();
+        Adm otherAdm = Adm.builder().id(2L).email("existente@ouros.com").name("Outro Admin").build();
+
+        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.empty());
+        when(admRepository.findById(1L)).thenReturn(Optional.of(currentAdm));
+        when(admRepository.findByEmailIgnoreCase("existente@ouros.com")).thenReturn(Optional.of(otherAdm));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> companyEmployeeService.updateCompanyEmployee(1L, updateRequest, adminPrincipal));
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lancar ResponseStatusException 404 quando adm nao for encontrado no repositorio")
+    void testUpdateAdmOwnProfile_NotFound() {
+        CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO("Novo Nome", null, null, null, null);
+
+        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.empty());
+        when(admRepository.findById(1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> companyEmployeeService.updateCompanyEmployee(1L, updateRequest, adminPrincipal));
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve buscar adm por email quando nao encontrado por ID em getLoggedInEmployee")
+    void testGetLoggedInEmployee_AdmLookupByEmailFallback() {
+        UserPrincipal adminWithFallback = new UserPrincipal(
+                999L,
+                "adm@empresa.com.br",
+                null,
+                "ADM",
+                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+        Adm adm = Adm.builder().id(99L).email("adm@empresa.com.br").name("Admin Por Email").photoUrl("https://photo.jpg").build();
+        when(admRepository.findById(999L)).thenReturn(Optional.empty());
+        when(admRepository.findByEmailIgnoreCase("adm@empresa.com.br")).thenReturn(Optional.of(adm));
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.getLoggedInEmployee(adminWithFallback);
+
+        assertNotNull(response);
+        assertEquals("Admin Por Email", response.name());
+        assertEquals("https://photo.jpg", response.photoUrl());
+    }
 }
