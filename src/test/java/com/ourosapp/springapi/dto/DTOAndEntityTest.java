@@ -65,15 +65,36 @@ class DTOAndEntityTest {
         adm.setId(1L);
         adm.setEmail("adm@ouros.com");
         adm.setPassword("pass");
+        adm.setName("Administrador");
+        adm.setPhotoUrl("https://storage.ourosapp.com/profiles/adm.jpg");
 
         assertEquals(1L, adm.getId());
         assertEquals("adm@ouros.com", adm.getEmail());
         assertEquals("pass", adm.getPassword());
+        assertEquals("Administrador", adm.getName());
+        assertEquals("https://storage.ourosapp.com/profiles/adm.jpg", adm.getPhotoUrl());
 
-        Adm built = Adm.builder().id(2L).email("adm2@ouros.com").password("pass2").build();
+        Adm built = Adm.builder()
+                .id(2L)
+                .email("adm2@ouros.com")
+                .password("pass2")
+                .name("Admin Dois")
+                .photoUrl("https://storage.ourosapp.com/profiles/adm2.jpg")
+                .build();
         assertEquals(2L, built.getId());
+        assertEquals("Admin Dois", built.getName());
+        assertEquals("https://storage.ourosapp.com/profiles/adm2.jpg", built.getPhotoUrl());
         assertTrue(built.toString().contains("adm2@ouros.com"));
         assertFalse(built.toString().contains("pass2"));
+
+        Adm legacyConstructorAdm = new Adm(3L, "adm3@ouros.com", "pass3");
+        assertEquals(3L, legacyConstructorAdm.getId());
+        assertEquals("adm3@ouros.com", legacyConstructorAdm.getEmail());
+        assertEquals("pass3", legacyConstructorAdm.getPassword());
+
+        Adm allArgsAdm = new Adm(4L, "adm4@ouros.com", "pass4", "Admin Quatro", "https://storage.ourosapp.com/profiles/adm4.jpg");
+        assertEquals("Admin Quatro", allArgsAdm.getName());
+        assertEquals("https://storage.ourosapp.com/profiles/adm4.jpg", allArgsAdm.getPhotoUrl());
     }
 
     /**
@@ -98,6 +119,9 @@ class DTOAndEntityTest {
         assertEquals("pass", emp.getPassword());
         assertEquals(10L, emp.getIdEnterprise());
 
+        emp.setPhotoUrl("https://storage.ourosapp.com/profiles/emp.jpg");
+        assertEquals("https://storage.ourosapp.com/profiles/emp.jpg", emp.getPhotoUrl());
+
         CompanyEmployee built = CompanyEmployee.builder()
                 .id(2L)
                 .name("Maria")
@@ -106,10 +130,25 @@ class DTOAndEntityTest {
                 .telephone("11888888888")
                 .password("pass2")
                 .idEnterprise(20L)
+                .photoUrl("https://storage.ourosapp.com/profiles/maria.jpg")
                 .build();
         assertEquals("Maria", built.getName());
+        assertEquals("https://storage.ourosapp.com/profiles/maria.jpg", built.getPhotoUrl());
         assertTrue(built.toString().contains("Maria"));
         assertFalse(built.toString().contains("pass2"));
+
+        CompanyEmployee legacyConstructorEmp = new CompanyEmployee(
+                3L, "Carlos", "12345678909", "carlos@empresa.com", "11987654321", "pass3", 10L
+        );
+        assertEquals(3L, legacyConstructorEmp.getId());
+        assertEquals("Carlos", legacyConstructorEmp.getName());
+        assertEquals(10L, legacyConstructorEmp.getIdEnterprise());
+
+        CompanyEmployee allArgsEmp = new CompanyEmployee(
+                4L, "Ana", "98765432109", "ana@empresa.com", "11912345678", "pass4", 20L, "https://storage.ourosapp.com/profiles/ana.jpg"
+        );
+        assertEquals("Ana", allArgsEmp.getName());
+        assertEquals("https://storage.ourosapp.com/profiles/ana.jpg", allArgsEmp.getPhotoUrl());
 
         // Suporte a password nula conforme PR #45
         CompanyEmployee nullPasswordEmp = CompanyEmployee.builder()
