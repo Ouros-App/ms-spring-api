@@ -94,7 +94,10 @@ Respostas esperadas:
 Após o produtor revisar e confirmar a prévia gerada no chat, a aplicação envia os
 registros válidos para `POST /measurement-imports` com o JWT do produtor. O endpoint
 cadastra água e energia em uma única transação, deriva a fazenda do usuário
-autenticado e aceita até 500 registros no lote:
+autenticado e aceita até 500 registros no lote.
+
+O consumo de energia aceita até 15 dígitos inteiros e duas casas decimais;
+valores com maior precisão são rejeitados.
 
 ```json
 {
@@ -108,7 +111,7 @@ autenticado e aceita até 500 registros no lote:
   "energy_registries": [
     {
       "registration_date": "2026-03-01",
-      "energy_consumption": "300.0"
+      "energy_consumption": "300.00"
     }
   ]
 }

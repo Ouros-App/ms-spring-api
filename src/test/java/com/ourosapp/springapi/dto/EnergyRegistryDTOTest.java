@@ -79,9 +79,10 @@ class EnergyRegistryDTOTest {
 
         assertEquals(3, violations.size());
     }
+
     @Test
     @DisplayName("Deve rejeitar consumo de energia com mais de duas casas decimais")
-    void deveRejeitarConsumoComMaisDeDuasCasasDecimais() {
+    void rejectsEnergyConsumptionWithMoreThanTwoDecimalPlaces() {
         EnergyRegistryRequestDTO createDto = new EnergyRegistryRequestDTO(
                 LocalDate.now(),
                 new BigDecimal("7.125"),
@@ -89,8 +90,19 @@ class EnergyRegistryDTOTest {
         );
         EnergyRegistryUpdateDTO updateDto = new EnergyRegistryUpdateDTO(null, new BigDecimal("7.125"));
 
-        assertEquals(1, validator.validate(createDto).size());
-        assertEquals(1, validator.validate(updateDto).size());
+        Set<ConstraintViolation<EnergyRegistryRequestDTO>> createViolations = validator.validate(createDto);
+        Set<ConstraintViolation<EnergyRegistryUpdateDTO>> updateViolations = validator.validate(updateDto);
+
+        assertEquals(1, createViolations.size());
+        assertEquals(1, updateViolations.size());
+        assertEquals(
+                "O consumo de energia deve ter no máximo 15 dígitos inteiros e duas casas decimais",
+                createViolations.iterator().next().getMessage()
+        );
+        assertEquals(
+                "O consumo de energia deve ter no máximo 15 dígitos inteiros e duas casas decimais",
+                updateViolations.iterator().next().getMessage()
+        );
     }
 
 

@@ -14,7 +14,7 @@ import java.time.LocalDate;
  * DTO de requisição para atualização parcial de um Registro de Consumo de Energia Elétrica (PATCH /energy-registries/{id}).
  *
  * @param registrationDate Nova data da leitura/registro do consumo de energia (opcional)
- * @param energyConsumption Novo valor do consumo de energia (opcional, até duas casas decimais)
+ * @param energyConsumption Novo valor do consumo de energia (opcional, até 15 dígitos inteiros e duas casas decimais)
  */
 @Schema(description = "Dados para atualização parcial do registro de consumo de energia elétrica")
 public record EnergyRegistryUpdateDTO(
@@ -25,11 +25,11 @@ public record EnergyRegistryUpdateDTO(
         @PastOrPresent(message = "A data de registro não pode ser uma data futura")
         LocalDate registrationDate,
 
-        @Schema(description = "Consumo de energia registrado (maior que zero, até 2 casas decimais)", example = "480.00")
+        @Schema(description = "Consumo de energia registrado (maior que zero, até 15 dígitos inteiros e 2 casas decimais)", example = "480.00")
         @JsonProperty("energy_consumption")
         @JsonAlias("energyConsumption")
         @Positive(message = "O consumo de energia deve ser maior que zero")
-        @Digits(integer = 15, fraction = 2, message = "O consumo de energia deve ter no máximo duas casas decimais")
+        @Digits(integer = 15, fraction = 2, message = "O consumo de energia deve ter no máximo 15 dígitos inteiros e duas casas decimais")
         BigDecimal energyConsumption
 ) {
     /**

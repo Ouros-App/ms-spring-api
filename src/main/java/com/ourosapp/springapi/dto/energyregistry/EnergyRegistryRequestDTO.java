@@ -15,7 +15,7 @@ import java.time.LocalDate;
  * DTO de requisição para cadastro de Registro de Consumo de Energia (POST /energy-registries).
  *
  * @param registrationDate Data da leitura/registro do consumo de energia
- * @param energyConsumption Valor do consumo de energia (maior que zero, até duas casas decimais)
+ * @param energyConsumption Valor do consumo de energia (maior que zero, até 15 dígitos inteiros e duas casas decimais)
  * @param idFarm            Identificador único da fazenda vinculada
  */
 @Schema(description = "Dados para registro de consumo de energia elétrica")
@@ -28,12 +28,12 @@ public record EnergyRegistryRequestDTO(
         @PastOrPresent(message = "A data de registro não pode ser uma data futura")
         LocalDate registrationDate,
 
-        @Schema(description = "Consumo de energia registrado (maior que zero, até 2 casas decimais)", example = "450.75")
+        @Schema(description = "Consumo de energia registrado (maior que zero, até 15 dígitos inteiros e 2 casas decimais)", example = "450.75")
         @JsonProperty("energy_consumption")
         @JsonAlias("energyConsumption")
         @NotNull(message = "O consumo de energia é obrigatório")
         @Positive(message = "O consumo de energia deve ser maior que zero")
-        @Digits(integer = 15, fraction = 2, message = "O consumo de energia deve ter no máximo duas casas decimais")
+        @Digits(integer = 15, fraction = 2, message = "O consumo de energia deve ter no máximo 15 dígitos inteiros e duas casas decimais")
         BigDecimal energyConsumption,
 
         @Schema(description = "Identificador único da fazenda vinculada (obrigatório para administradores e funcionários; opcional para produtor rural)", example = "1")
