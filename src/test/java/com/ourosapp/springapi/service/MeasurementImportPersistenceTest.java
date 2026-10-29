@@ -72,7 +72,7 @@ class MeasurementImportPersistenceTest {
         UserPrincipal owner = createOwner();
         MeasurementImportRequestDTO request = new MeasurementImportRequestDTO(
                 List.of(water(LocalDate.of(2025, 3, 1), "10.0", "12.5")),
-                List.of(energy(LocalDate.of(2025, 3, 1), "7.5")));
+                List.of(energy(LocalDate.of(2025, 3, 1), "7.12")));
 
         mockMvc.perform(post("/measurement-imports")
                         .with(user(owner))
@@ -86,7 +86,30 @@ class MeasurementImportPersistenceTest {
 
         assertEquals(1, waterRegistryRepository.findAllByIdFarmOrderByRegistrationDateDesc(farmId).size());
         assertEquals(1, energyRegistryRepository.findByIdFarmOrderByRegistrationDateDesc(farmId).size());
+        BigDecimal storedEnergy = energyRegistryRepository
+                .findByIdFarmOrderByRegistrationDateDesc(farmId)
+                .get(0)
+                .getEnergyConsumption();
+        assertEquals(0, storedEnergy.compareTo(new BigDecimal("7.12")));
     }
+
+    @Test
+    void rejectsEnergyValueThatWouldBeRoundedByTheDatabase() throws Exception {
+        UserPrincipal owner = createOwner();
+        MeasurementImportRequestDTO request = new MeasurementImportRequestDTO(
+                List.of(water(LocalDate.of(2025, 3, 1), "10.0", "12.5")),
+                List.of(energy(LocalDate.of(2025, 3, 1), "7.125")));
+
+        mockMvc.perform(post("/measurement-imports")
+                        .with(user(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        assertTrue(waterRegistryRepository.findAllByIdFarmOrderByRegistrationDateDesc(farmId).isEmpty());
+        assertTrue(energyRegistryRepository.findByIdFarmOrderByRegistrationDateDesc(farmId).isEmpty());
+    }
+
 
     @Test
     void rollsBackEarlierRowsWhenALaterRowInTheBatchIsInvalid() {

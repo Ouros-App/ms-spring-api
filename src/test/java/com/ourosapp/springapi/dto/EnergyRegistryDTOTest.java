@@ -79,6 +79,20 @@ class EnergyRegistryDTOTest {
 
         assertEquals(3, violations.size());
     }
+    @Test
+    @DisplayName("Deve rejeitar consumo de energia com mais de duas casas decimais")
+    void deveRejeitarConsumoComMaisDeDuasCasasDecimais() {
+        EnergyRegistryRequestDTO createDto = new EnergyRegistryRequestDTO(
+                LocalDate.now(),
+                new BigDecimal("7.125"),
+                1L
+        );
+        EnergyRegistryUpdateDTO updateDto = new EnergyRegistryUpdateDTO(null, new BigDecimal("7.125"));
+
+        assertEquals(1, validator.validate(createDto).size());
+        assertEquals(1, validator.validate(updateDto).size());
+    }
+
 
     /** Verifica a violação produzida por uma data futura no DTO de criação. */
     @Test

@@ -3,6 +3,7 @@ package com.ourosapp.springapi.dto.energyregistry;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
@@ -14,7 +15,7 @@ import java.time.LocalDate;
  * DTO de requisição para cadastro de Registro de Consumo de Energia (POST /energy-registries).
  *
  * @param registrationDate Data da leitura/registro do consumo de energia
- * @param energyConsumption Valor do consumo de energia (maior que zero)
+ * @param energyConsumption Valor do consumo de energia (maior que zero, até duas casas decimais)
  * @param idFarm            Identificador único da fazenda vinculada
  */
 @Schema(description = "Dados para registro de consumo de energia elétrica")
@@ -27,11 +28,12 @@ public record EnergyRegistryRequestDTO(
         @PastOrPresent(message = "A data de registro não pode ser uma data futura")
         LocalDate registrationDate,
 
-        @Schema(description = "Consumo de energia registrado (deve ser maior que zero)", example = "450.75")
+        @Schema(description = "Consumo de energia registrado (maior que zero, até 2 casas decimais)", example = "450.75")
         @JsonProperty("energy_consumption")
         @JsonAlias("energyConsumption")
         @NotNull(message = "O consumo de energia é obrigatório")
         @Positive(message = "O consumo de energia deve ser maior que zero")
+        @Digits(integer = 15, fraction = 2, message = "O consumo de energia deve ter no máximo duas casas decimais")
         BigDecimal energyConsumption,
 
         @Schema(description = "Identificador único da fazenda vinculada (obrigatório para administradores e funcionários; opcional para produtor rural)", example = "1")
