@@ -149,12 +149,7 @@ public class CompanyEmployeeService {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         ensureAuthenticated(principal);
 
-        // TODO: Refatorar fluxo para endpoint dedicado PATCH /company-employees/me devido a vulnerabilidade de colisão de IDs.
-        if (ADM.equals(principal.getRole())
-                && Objects.equals(id, principal.getId())
-                && companyEmployeeRepository.findById(id).isEmpty()) {
-            return updateAdmOwnProfile(id, request, principal);
-        }
+        // Removido fluxo de AdmOwnProfile para evitar colisão de IDs.
 
         CompanyEmployee employee = companyEmployeeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -206,53 +201,6 @@ public class CompanyEmployeeService {
                     ex
             );
         }
-    }
-
-    private CompanyEmployeeResponseDTO updateAdmOwnProfile(Long id, CompanyEmployeeUpdateDTO request, UserPrincipal principal) {
-        Adm adm = admRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Funcionário não encontrado para o ID: " + id
-                ));
-
-        if (request.name() != null && !request.name().isBlank()) {
-            adm.setName(request.name());
-        }
-        if (request.email() != null && !request.email().isBlank()) {
-            admRepository.findByEmailIgnoreCase(request.email())
-                    .filter(existing -> !existing.getId().equals(id))
-                    .ifPresent(existing -> {
-                        throw new ResponseStatusException(
-                                HttpStatus.CONFLICT,
-                                "Já existe outro administrador cadastrado com este e-mail"
-                        );
-                    });
-            adm.setEmail(request.email());
-        }
-        if (request.password() != null && !request.password().isBlank()) {
-            adm.setPassword(passwordEncoder.encode(request.password()));
-        }
-        if (request.photoUrl() != null) {
-            adm.setPhotoUrl(request.photoUrl().isBlank() ? null : request.photoUrl());
-        }
-
-        Adm savedAdm = admRepository.save(adm);
-        String name = (savedAdm.getName() != null && !savedAdm.getName().isBlank())
-                ? savedAdm.getName()
-                : "Administrador da Plataforma";
-        String telephone = (request.telephone() != null && !request.telephone().isBlank())
-                ? request.telephone()
-                : "11999999999";
-
-        return new CompanyEmployeeResponseDTO(
-                savedAdm.getId(),
-                name,
-                "00000000000",
-                savedAdm.getEmail() != null ? savedAdm.getEmail() : principal.getEmail(),
-                telephone,
-                null,
-                savedAdm.getPhotoUrl()
-        );
     }
 
     @Transactional

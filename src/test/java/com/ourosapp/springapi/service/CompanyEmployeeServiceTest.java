@@ -447,42 +447,6 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository, times(1)).save(sampleEmployee);
     }
 
-    /**
-     * Testa atualização do próprio perfil de ADM quando não existir funcionário com o mesmo ID.
-     */
-    @Test
-    @DisplayName("Deve permitir ADM atualizar próprio perfil na tabela adms quando não houver funcionário correspondente")
-    void testUpdateAdmOwnProfileSuccess() {
-        Adm adm = Adm.builder()
-                .id(1L)
-                .name("Admin Original")
-                .email("adm@empresa.com.br")
-                .password("old_pass")
-                .build();
-
-        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
-                "Admin Novo Nome",
-                "adm.novo@empresa.com.br",
-                "11988887777",
-                "NovaSenha@123",
-                "https://storage.ourosapp.com/profiles/adm_new.jpg"
-        );
-
-        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.empty());
-        when(admRepository.findById(1L)).thenReturn(Optional.of(adm));
-        when(admRepository.findByEmailIgnoreCase("adm.novo@empresa.com.br")).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("NovaSenha@123")).thenReturn("encoded_adm_pass");
-        when(admRepository.save(any(Adm.class))).thenReturn(adm);
-
-        CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, adminPrincipal);
-
-        assertNotNull(response);
-        assertEquals("Admin Novo Nome", response.name());
-        assertEquals("adm.novo@empresa.com.br", response.email());
-        assertEquals("11988887777", response.telephone());
-        assertEquals("https://storage.ourosapp.com/profiles/adm_new.jpg", response.photoUrl());
-        verify(admRepository).save(adm);
-    }
 
     /**
      * Testa atualização de funcionário mantendo o mesmo e-mail já pertencente a ele próprio.
@@ -793,34 +757,6 @@ class CompanyEmployeeServiceTest {
         assertNotNull(response);
         assertEquals(1L, response.id());
         verify(companyEmployeeRepository).save(any(CompanyEmployee.class));
-    }
-@Test
-    @DisplayName("Deve lancar ResponseStatusException 409 quando adm tentar atualizar email para um ja existente")
-    void testUpdateAdmOwnProfile_EmailConflict() {
-        CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO("Novo Nome", "existente@ouros.com", "11988887777", "NovaSenha@123", "https://photo.jpg");
-        Adm currentAdm = Adm.builder().id(1L).email("adm@empresa.com.br").name("Admin").build();
-        Adm otherAdm = Adm.builder().id(2L).email("existente@ouros.com").name("Outro Admin").build();
-
-        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.empty());
-        when(admRepository.findById(1L)).thenReturn(Optional.of(currentAdm));
-        when(admRepository.findByEmailIgnoreCase("existente@ouros.com")).thenReturn(Optional.of(otherAdm));
-
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> companyEmployeeService.updateCompanyEmployee(1L, updateRequest, adminPrincipal));
-        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
-    }
-
-    @Test
-    @DisplayName("Deve lancar ResponseStatusException 404 quando adm nao for encontrado no repositorio")
-    void testUpdateAdmOwnProfile_NotFound() {
-        CompanyEmployeeUpdateDTO updateRequest = new CompanyEmployeeUpdateDTO("Novo Nome", null, null, null, null);
-
-        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.empty());
-        when(admRepository.findById(1L)).thenReturn(Optional.empty());
-
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> companyEmployeeService.updateCompanyEmployee(1L, updateRequest, adminPrincipal));
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
     }
 
     @Test
