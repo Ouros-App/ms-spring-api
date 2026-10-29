@@ -26,4 +26,16 @@ public class Adm {
     @ToString.Exclude
     @Column(name = "password", nullable = false)
     private String password;
+
+    @Column(name = "name", length = 100)
+    private String name;
+
+    @Column(name = "photo_url", length = 500)
+    private String photoUrl;
+
+    public Adm(Long id, String email, String password) {
+        this.id = id;
+        this.email = email;
+        this.password = password;
+    }
 }

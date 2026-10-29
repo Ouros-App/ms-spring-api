@@ -8,11 +8,13 @@ import static com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeRequestDTO;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeResponseDTO;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeUpdateDTO;
+import com.ourosapp.springapi.entity.Adm;
 import com.ourosapp.springapi.entity.CompanyEmployee;
+import com.ourosapp.springapi.repository.AdmRepository;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,12 +28,35 @@ import java.util.Objects;
  * Serviço responsável pela lógica de negócios e persistência de dados de Funcionários da Empresa Integradora.
  */
 @Service
-@RequiredArgsConstructor
 public class CompanyEmployeeService {
 
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final EnterpriseRepository enterpriseRepository;
     private final PasswordEncoder passwordEncoder;
+    private AdmRepository admRepository;
+
+    public CompanyEmployeeService(
+            CompanyEmployeeRepository companyEmployeeRepository,
+            EnterpriseRepository enterpriseRepository,
+            PasswordEncoder passwordEncoder
+    ) {
+        this.companyEmployeeRepository = companyEmployeeRepository;
+        this.enterpriseRepository = enterpriseRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Autowired
+    public CompanyEmployeeService(
+            CompanyEmployeeRepository companyEmployeeRepository,
+            EnterpriseRepository enterpriseRepository,
+            PasswordEncoder passwordEncoder,
+            AdmRepository admRepository
+    ) {
+        this.companyEmployeeRepository = companyEmployeeRepository;
+        this.enterpriseRepository = enterpriseRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.admRepository = admRepository;
+    }
 
     @Transactional
     public CompanyEmployeeResponseDTO createCompanyEmployee(CompanyEmployeeRequestDTO request, UserPrincipal principal) {
@@ -102,6 +127,31 @@ public class CompanyEmployeeService {
     @Transactional(readOnly = true)
     public CompanyEmployeeResponseDTO getLoggedInEmployee(UserPrincipal principal) {
         ensureAuthenticated(principal);
+        if (ADM.equals(principal.getRole())) {
+            Adm adm = null;
+            if (admRepository != null && principal.getId() != null) {
+                adm = admRepository.findById(principal.getId()).orElse(null);
+            }
+            if (adm == null && admRepository != null && principal.getEmail() != null) {
+                adm = admRepository.findByEmailIgnoreCase(principal.getEmail()).orElse(null);
+            }
+            String name = (adm != null && adm.getName() != null && !adm.getName().isBlank())
+                    ? adm.getName()
+                    : "Administrador da Plataforma";
+            String email = (adm != null && adm.getEmail() != null)
+                    ? adm.getEmail()
+                    : principal.getEmail();
+            String photoUrl = adm != null ? adm.getPhotoUrl() : null;
+            return new CompanyEmployeeResponseDTO(
+                    principal.getId(),
+                    name,
+                    "00000000000",
+                    email,
+                    "11999999999",
+                    null,
+                    photoUrl
+            );
+        }
         if (!COMPANY_EMPLOYEE.equals(principal.getRole())) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
@@ -121,6 +171,13 @@ public class CompanyEmployeeService {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         ensureAuthenticated(principal);
 
+        if (ADM.equals(principal.getRole())
+                && Objects.equals(id, principal.getId())
+                && companyEmployeeRepository.findById(id).isEmpty()
+                && admRepository != null) {
+            return updateAdmOwnProfile(id, request, principal);
+        }
+
         CompanyEmployee employee = companyEmployeeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
@@ -131,6 +188,10 @@ public class CompanyEmployeeService {
 
         if (!request.hasUpdates()) {
             return CompanyEmployeeResponseDTO.fromEntity(employee);
+        }
+
+        if (request.name() != null && !request.name().isBlank()) {
+            employee.setName(request.name());
         }
 
         if (request.email() != null && !request.email().isBlank()) {
@@ -153,6 +214,10 @@ public class CompanyEmployeeService {
             employee.setPassword(passwordEncoder.encode(request.password()));
         }
 
+        if (request.photoUrl() != null) {
+            employee.setPhotoUrl(request.photoUrl().isBlank() ? null : request.photoUrl());
+        }
+
         try {
             CompanyEmployee updatedEmployee = companyEmployeeRepository.save(employee);
             return CompanyEmployeeResponseDTO.fromEntity(updatedEmployee);
@@ -163,6 +228,53 @@ public class CompanyEmployeeService {
                     ex
             );
         }
+    }
+
+    private CompanyEmployeeResponseDTO updateAdmOwnProfile(Long id, CompanyEmployeeUpdateDTO request, UserPrincipal principal) {
+        Adm adm = admRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Funcionário não encontrado para o ID: " + id
+                ));
+
+        if (request.name() != null && !request.name().isBlank()) {
+            adm.setName(request.name());
+        }
+        if (request.email() != null && !request.email().isBlank()) {
+            admRepository.findByEmailIgnoreCase(request.email())
+                    .filter(existing -> !existing.getId().equals(id))
+                    .ifPresent(existing -> {
+                        throw new ResponseStatusException(
+                                HttpStatus.CONFLICT,
+                                "Já existe outro administrador cadastrado com este e-mail"
+                        );
+                    });
+            adm.setEmail(request.email());
+        }
+        if (request.password() != null && !request.password().isBlank()) {
+            adm.setPassword(passwordEncoder.encode(request.password()));
+        }
+        if (request.photoUrl() != null) {
+            adm.setPhotoUrl(request.photoUrl().isBlank() ? null : request.photoUrl());
+        }
+
+        Adm savedAdm = admRepository.save(adm);
+        String name = (savedAdm.getName() != null && !savedAdm.getName().isBlank())
+                ? savedAdm.getName()
+                : "Administrador da Plataforma";
+        String telephone = (request.telephone() != null && !request.telephone().isBlank())
+                ? request.telephone()
+                : "11999999999";
+
+        return new CompanyEmployeeResponseDTO(
+                savedAdm.getId(),
+                name,
+                "00000000000",
+                savedAdm.getEmail() != null ? savedAdm.getEmail() : principal.getEmail(),
+                telephone,
+                null,
+                savedAdm.getPhotoUrl()
+        );
     }
 
     @Transactional

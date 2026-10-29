@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.dto.companyemployee;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -15,6 +16,7 @@ import java.util.Objects;
  * @param email          E-mail corporativo do funcionário
  * @param telephone      Telefone de contato
  * @param idEnterprise   Identificador da empresa vinculada (serializado como id_enterprise)
+ * @param photoUrl       URL da foto de perfil do funcionário (serializado como photo_url)
  */
 @Schema(description = "Resposta contendo os dados do Funcionário da Empresa Integradora")
 public record CompanyEmployeeResponseDTO(
@@ -37,8 +39,24 @@ public record CompanyEmployeeResponseDTO(
 
         @Schema(description = "Identificador da empresa integradora vinculada", example = "1")
         @JsonProperty("id_enterprise")
-        Long idEnterprise
+        Long idEnterprise,
+
+        @Schema(description = "URL da foto de perfil do colaborador", example = "https://storage.ourosapp.com/profiles/1.jpg")
+        @JsonProperty("photo_url")
+        @JsonAlias({"photoUrl", "foto_url", "fotoUrl"})
+        String photoUrl
 ) {
+
+    public CompanyEmployeeResponseDTO(
+            Long id,
+            String name,
+            String documentNumber,
+            String email,
+            String telephone,
+            Long idEnterprise
+    ) {
+        this(id, name, documentNumber, email, telephone, idEnterprise, null);
+    }
 
     /**
      * Converte uma entidade {@link CompanyEmployee} em {@link CompanyEmployeeResponseDTO}.
@@ -55,7 +73,8 @@ public record CompanyEmployeeResponseDTO(
                 companyEmployee.getDocumentNumber(),
                 companyEmployee.getEmail(),
                 companyEmployee.getTelephone(),
-                companyEmployee.getIdEnterprise()
+                companyEmployee.getIdEnterprise(),
+                companyEmployee.getPhotoUrl()
         );
     }
 }

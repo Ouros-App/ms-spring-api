@@ -39,4 +39,17 @@ public class CompanyEmployee {
 
     @Column(name = "id_enterprise", nullable = false)
     private Long idEnterprise;
+
+    @Column(name = "photo_url", length = 500)
+    private String photoUrl;
+
+    public CompanyEmployee(Long id, String name, String documentNumber, String email, String telephone, String password, Long idEnterprise) {
+        this.id = id;
+        this.name = name;
+        this.documentNumber = documentNumber;
+        this.email = email;
+        this.telephone = telephone;
+        this.password = password;
+        this.idEnterprise = idEnterprise;
+    }
 }
