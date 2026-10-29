@@ -52,5 +52,11 @@ public interface EnterpriseRepository extends JpaRepository<Enterprise, Long> {
      * @return lista de empresas associadas ao endereço
      */
     List<Enterprise> findAllByIdAddress(Long idAddress);
-}
 
+    /**
+     * Lista todas as empresas cadastradas ordenadas alfabeticamente pelo nome.
+     *
+     * @return lista de empresas ordenada por nome ascendente
+     */
+    List<Enterprise> findAllByOrderByNameAsc();
+}

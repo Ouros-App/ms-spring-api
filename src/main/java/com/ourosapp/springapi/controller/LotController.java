@@ -3,6 +3,7 @@ package com.ourosapp.springapi.controller;
 import com.ourosapp.springapi.dto.lot.LotRequestDTO;
 import com.ourosapp.springapi.dto.lot.LotResponseDTO;
 import com.ourosapp.springapi.dto.lot.LotUpdateDTO;
+import com.ourosapp.springapi.dto.lot.ProductionRegistryResponseDTO;
 import com.ourosapp.springapi.security.UserPrincipal;
 import com.ourosapp.springapi.service.LotService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -88,6 +89,32 @@ public class LotController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         return ResponseEntity.ok(lotService.getLotsForUser(idFarm, idEnterprise, principal));
+    }
+
+    /**
+     * Endpoint agregador (BFF) para listar registros consolidados de produção avícola.
+     *
+     * @param farmId       filtro opcional pelo ID da fazenda
+     * @param enterpriseId filtro opcional pelo ID da empresa integradora
+     * @param principal    dados do usuário autenticado via token JWT
+     * @return resposta HTTP 200 (OK) com a lista de resumos consolidados de produção
+     */
+    @Operation(summary = "Listar registros consolidados de produção", description = "Retorna visão unificada de lotes, água e aves para colaboradores da empresa integradora, produtores e administradores.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de resumos de produção retornada com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
+            @ApiResponse(responseCode = "404", description = "Usuário ou fazenda de filtro não encontrado")
+    })
+    @GetMapping("/production-summaries")
+    public ResponseEntity<List<ProductionRegistryResponseDTO>> getProductionSummaries(
+            @Parameter(description = "Filtro opcional pelo ID da fazenda", example = "1")
+            @RequestParam(name = "id_farm", required = false) Long farmId,
+            @Parameter(description = "Filtro opcional pelo ID da empresa integradora", example = "1")
+            @RequestParam(name = "id_enterprise", required = false) Long enterpriseId,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(lotService.getProductionSummaries(farmId, enterpriseId, principal));
     }
 
     /**

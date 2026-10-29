@@ -3,7 +3,9 @@ package com.ourosapp.springapi.service;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeRequestDTO;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeResponseDTO;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeUpdateDTO;
+import com.ourosapp.springapi.entity.Adm;
 import com.ourosapp.springapi.entity.CompanyEmployee;
+import com.ourosapp.springapi.repository.AdmRepository;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
@@ -11,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -42,7 +43,9 @@ class CompanyEmployeeServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
-    @InjectMocks
+    @Mock
+    private AdmRepository admRepository;
+
     private CompanyEmployeeService companyEmployeeService;
 
     private CompanyEmployee sampleEmployee;
@@ -55,6 +58,13 @@ class CompanyEmployeeServiceTest {
      */
     @BeforeEach
     void setUp() {
+        companyEmployeeService = new CompanyEmployeeService(
+                companyEmployeeRepository,
+                enterpriseRepository,
+                passwordEncoder,
+                admRepository
+        );
+
         sampleEmployee = CompanyEmployee.builder()
                 .id(1L)
                 .name("Carlos Eduardo Pereira")
@@ -63,6 +73,7 @@ class CompanyEmployeeServiceTest {
                 .telephone("11987654321")
                 .password("encoded_password_123")
                 .idEnterprise(10L)
+                .photoUrl("https://storage.ourosapp.com/profiles/1.jpg")
                 .build();
 
         sampleRequest = new CompanyEmployeeRequestDTO(
@@ -112,6 +123,7 @@ class CompanyEmployeeServiceTest {
         assertEquals("carlos.pereira@empresa.com.br", response.email());
         assertEquals("11987654321", response.telephone());
         assertEquals(10L, response.idEnterprise());
+        assertEquals("https://storage.ourosapp.com/profiles/1.jpg", response.photoUrl());
 
         verify(enterpriseRepository, times(1)).existsById(10L);
         verify(companyEmployeeRepository, times(1)).existsByDocumentNumber("12345678909");
@@ -271,7 +283,51 @@ class CompanyEmployeeServiceTest {
         assertEquals(1L, response.id());
         assertEquals("Carlos Eduardo Pereira", response.name());
         assertEquals("carlos.pereira@empresa.com.br", response.email());
+        assertEquals("https://storage.ourosapp.com/profiles/1.jpg", response.photoUrl());
         verify(companyEmployeeRepository, times(1)).findById(1L);
+    }
+
+    /**
+     * Testa retorno com sucesso dos dados do Administrador (ADM) logado.
+     */
+    @Test
+    @DisplayName("Deve retornar DTO seguro de administrador quando perfil logado for ADM")
+    void testGetLoggedInEmployeeAsAdmSuccess() {
+        Adm adm = Adm.builder()
+                .id(1L)
+                .name("Admin Master")
+                .email("adm@empresa.com.br")
+                .photoUrl("https://storage.ourosapp.com/profiles/adm.jpg")
+                .build();
+
+        when(admRepository.findById(1L)).thenReturn(Optional.of(adm));
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.getLoggedInEmployee(adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        assertEquals("Admin Master", response.name());
+        assertEquals("adm@empresa.com.br", response.email());
+        assertEquals("https://storage.ourosapp.com/profiles/adm.jpg", response.photoUrl());
+        assertNull(response.idEnterprise());
+    }
+
+    /**
+     * Testa retorno sintético de ADM quando não houver registro ou nome específico no banco.
+     */
+    @Test
+    @DisplayName("Deve retornar DTO sintético padrão para ADM quando não encontrar registro em adms")
+    void testGetLoggedInEmployeeAsAdmFallbackWhenNotFoundInTable() {
+        when(admRepository.findById(1L)).thenReturn(Optional.empty());
+        when(admRepository.findByEmailIgnoreCase("adm@empresa.com.br")).thenReturn(Optional.empty());
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.getLoggedInEmployee(adminPrincipal);
+
+        assertNotNull(response);
+        assertEquals(1L, response.id());
+        assertEquals("Administrador da Plataforma", response.name());
+        assertEquals("adm@empresa.com.br", response.email());
+        assertNull(response.photoUrl());
     }
 
     /**
@@ -289,22 +345,22 @@ class CompanyEmployeeServiceTest {
     }
 
     /**
-     * Testa lançamento de erro 403 quando o perfil do usuário logado não for COMPANY_EMPLOYEE.
+     * Testa lançamento de erro 403 quando o perfil do usuário logado for FARM_OWNER na rota /me.
      */
     @Test
-    @DisplayName("Deve lançar ResponseStatusException 403 quando o perfil não for COMPANY_EMPLOYEE")
+    @DisplayName("Deve lançar ResponseStatusException 403 quando o perfil não for COMPANY_EMPLOYEE nem ADM")
     void testGetLoggedInEmployeeInvalidRole() {
-        UserPrincipal admPrincipal = new UserPrincipal(
+        UserPrincipal farmOwnerPrincipal = new UserPrincipal(
                 1L,
-                "adm@empresa.com.br",
+                "produtor@fazenda.com.br",
                 null,
-                "ADM",
-                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+                "FARM_OWNER",
+                List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
         );
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
-                () -> companyEmployeeService.getLoggedInEmployee(admPrincipal)
+                () -> companyEmployeeService.getLoggedInEmployee(farmOwnerPrincipal)
         );
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
@@ -337,15 +393,17 @@ class CompanyEmployeeServiceTest {
     }
 
     /**
-     * Testa atualização completa de e-mail, telefone e senha de funcionário com sucesso.
+     * Testa atualização completa de nome, e-mail, telefone, senha e foto de funcionário com sucesso.
      */
     @Test
-    @DisplayName("Deve atualizar e-mail, telefone e senha do funcionário com sucesso")
+    @DisplayName("Deve atualizar nome, e-mail, telefone, senha e foto do funcionário com sucesso")
     void testUpdateCompanyEmployeeFullUpdateSuccess() {
         CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                "Carlos Eduardo Atualizado",
                 "carlos.novo@empresa.com.br",
                 "11999998888",
-                "NovaSenha@123"
+                "NovaSenha@123",
+                "https://storage.ourosapp.com/profiles/novo.jpg"
         );
 
         when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
@@ -356,11 +414,39 @@ class CompanyEmployeeServiceTest {
         CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, adminPrincipal);
 
         assertNotNull(response);
+        assertEquals("Carlos Eduardo Atualizado", sampleEmployee.getName());
         assertEquals("carlos.novo@empresa.com.br", sampleEmployee.getEmail());
         assertEquals("11999998888", sampleEmployee.getTelephone());
         assertEquals("new_encoded_password", sampleEmployee.getPassword());
+        assertEquals("https://storage.ourosapp.com/profiles/novo.jpg", sampleEmployee.getPhotoUrl());
         verify(companyEmployeeRepository, times(1)).save(sampleEmployee);
     }
+
+    /**
+     * Testa limpeza da foto de perfil quando photo_url for enviada em branco.
+     */
+    @Test
+    @DisplayName("Deve limpar foto do funcionário quando photo_url for enviada como string vazia")
+    void testUpdateCompanyEmployeeClearPhotoUrlSuccess() {
+        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                null,
+                null,
+                null,
+                null,
+                ""
+        );
+
+        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
+        when(companyEmployeeRepository.save(any(CompanyEmployee.class))).thenReturn(sampleEmployee);
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, employeePrincipal);
+
+        assertNotNull(response);
+        assertNull(sampleEmployee.getPhotoUrl());
+        assertNull(response.photoUrl());
+        verify(companyEmployeeRepository, times(1)).save(sampleEmployee);
+    }
+
 
     /**
      * Testa atualização de funcionário mantendo o mesmo e-mail já pertencente a ele próprio.
@@ -636,6 +722,7 @@ class CompanyEmployeeServiceTest {
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
         assertTrue(exception.getMessage().contains("Conflito de integridade de dados ao atualizar funcionário"));
     }
+
     @Test
     @DisplayName("Deve rejeitar criação quando principal autenticado não possuir ID")
     void testCreateCompanyEmployeeAuthenticatedPrincipalWithoutIdUnauthorized() {
@@ -672,4 +759,82 @@ class CompanyEmployeeServiceTest {
         verify(companyEmployeeRepository).save(any(CompanyEmployee.class));
     }
 
+    @Test
+    @DisplayName("Deve buscar adm por email quando nao encontrado por ID em getLoggedInEmployee")
+    void testGetLoggedInEmployee_AdmLookupByEmailFallback() {
+        UserPrincipal adminWithFallback = new UserPrincipal(
+                999L,
+                "adm@empresa.com.br",
+                null,
+                "ADM",
+                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+        Adm adm = Adm.builder().id(99L).email("adm@empresa.com.br").name("Admin Por Email").photoUrl("https://photo.jpg").build();
+        when(admRepository.findById(999L)).thenReturn(Optional.empty());
+        when(admRepository.findByEmailIgnoreCase("adm@empresa.com.br")).thenReturn(Optional.of(adm));
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.getLoggedInEmployee(adminWithFallback);
+
+        assertNotNull(response);
+        assertEquals("Admin Por Email", response.name());
+        assertEquals("https://photo.jpg", response.photoUrl());
+    }
+
+    @Test
+    @DisplayName("Deve usar valores padrão para ADM quando não encontrado no repositório")
+    void testGetLoggedInEmployee_AdmNotFound_UsesDefaults() {
+        UserPrincipal adminUnknown = new UserPrincipal(
+                888L,
+                "desconhecido@empresa.com.br",
+                null,
+                "ADM",
+                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+        when(admRepository.findById(888L)).thenReturn(Optional.empty());
+        when(admRepository.findByEmailIgnoreCase("desconhecido@empresa.com.br")).thenReturn(Optional.empty());
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.getLoggedInEmployee(adminUnknown);
+
+        assertNotNull(response);
+        assertEquals("Administrador da Plataforma", response.name());
+        assertEquals("desconhecido@empresa.com.br", response.email());
+        assertNull(response.photoUrl());
+    }
+
+    @Test
+    @DisplayName("Deve usar valores padrão para ADM quando nome for em branco e email da entidade for nulo")
+    void testGetLoggedInEmployee_AdmBlankNameAndNullEmail() {
+        UserPrincipal adminPrincipalWithNulls = new UserPrincipal(
+                777L,
+                "fallback@empresa.com.br",
+                null,
+                "ADM",
+                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+        Adm admWithNulls = Adm.builder().id(777L).name("   ").email(null).photoUrl(null).build();
+        when(admRepository.findById(777L)).thenReturn(Optional.of(admWithNulls));
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.getLoggedInEmployee(adminPrincipalWithNulls);
+
+        assertNotNull(response);
+        assertEquals("Administrador da Plataforma", response.name());
+        assertEquals("fallback@empresa.com.br", response.email());
+        assertNull(response.photoUrl());
+    }
+
+    @Test
+    @DisplayName("Deve atualizar funcionário com novo nome e limpar foto de perfil")
+    void testUpdateCompanyEmployee_NameAndClearPhotoUrl() {
+        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                "Carlos Novo Nome", null, null, null, ""
+        );
+        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
+        when(companyEmployeeRepository.save(any(CompanyEmployee.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, employeePrincipal);
+
+        assertNotNull(response);
+        assertEquals("Carlos Novo Nome", response.name());
+        assertNull(response.photoUrl());
+    }
 }
