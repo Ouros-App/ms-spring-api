@@ -38,6 +38,15 @@ import com.ourosapp.springapi.dto.lot.LotRequestDTO;
 import com.ourosapp.springapi.dto.lot.LotResponseDTO;
 import com.ourosapp.springapi.dto.lot.LotUpdateDTO;
 import com.ourosapp.springapi.entity.Lot;
+import com.ourosapp.springapi.dto.farm.FarmRankingSimulationResponseDTO;
+import com.ourosapp.springapi.dto.farm.FarmSimulationRequestDTO;
+import com.ourosapp.springapi.dto.farm.FarmSimulationResponseDTO;
+import com.ourosapp.springapi.dto.farm.FarmSimulationUpdateDTO;
+import com.ourosapp.springapi.dto.lot.ProductionRegistryResponseDTO;
+import com.ourosapp.springapi.entity.FarmSimulation;
+import com.ourosapp.springapi.repository.projection.ProductionRegistryProjection;
+import java.lang.reflect.Method;
+import java.time.LocalDateTime;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -2275,6 +2284,237 @@ class DTOAndEntityTest {
 
         IndividualGoalUpdateDTO clearDescriptionDto = new IndividualGoalUpdateDTO(null, "", null, null);
         assertTrue(clearDescriptionDto.hasUpdates());
+    }
+
+    /**
+     * Testa entidade {@link FarmSimulation}, seus getters/setters e callbacks de ciclo de vida JPA.
+     */
+    @Test
+    void testFarmSimulationEntityAndCallbacks() throws Exception {
+        FarmSimulation sim = new FarmSimulation();
+        sim.setId(1L);
+        sim.setIdFarm(10L);
+        sim.setIdEnterprise(2L);
+        sim.setIdLot("LT-01");
+        sim.setCurrentCgi(12000.0);
+        sim.setTargetCgi(9500.0);
+        sim.setWaterPrice(0.015);
+        sim.setEnergyPrice(0.85);
+        sim.setPoultryQuantity(25000);
+        sim.setTargetEnergyKwh(3200.0);
+
+        assertEquals(1L, sim.getId());
+        assertEquals(10L, sim.getIdFarm());
+        assertEquals(2L, sim.getIdEnterprise());
+        assertEquals("LT-01", sim.getIdLot());
+        assertEquals(12000.0, sim.getCurrentCgi());
+        assertEquals(9500.0, sim.getTargetCgi());
+        assertEquals(0.015, sim.getWaterPrice());
+        assertEquals(0.85, sim.getEnergyPrice());
+        assertEquals(25000, sim.getPoultryQuantity());
+        assertEquals(3200.0, sim.getTargetEnergyKwh());
+        assertNull(sim.getCreatedAt());
+        assertNull(sim.getUpdatedAt());
+
+        Method onCreate = FarmSimulation.class.getDeclaredMethod("onCreate");
+        onCreate.setAccessible(true);
+        onCreate.invoke(sim);
+        assertNotNull(sim.getCreatedAt());
+        assertNotNull(sim.getUpdatedAt());
+
+        LocalDateTime customCreated = LocalDateTime.of(2025, 1, 1, 10, 0);
+        LocalDateTime customUpdated = LocalDateTime.of(2025, 1, 1, 10, 0);
+        sim.setCreatedAt(customCreated);
+        sim.setUpdatedAt(customUpdated);
+        onCreate.invoke(sim);
+        assertEquals(customCreated, sim.getCreatedAt());
+        assertEquals(customUpdated, sim.getUpdatedAt());
+
+        Method onUpdate = FarmSimulation.class.getDeclaredMethod("onUpdate");
+        onUpdate.setAccessible(true);
+        onUpdate.invoke(sim);
+        assertTrue(sim.getUpdatedAt().isAfter(customUpdated));
+
+        FarmSimulation allArgs = new FarmSimulation(
+                2L, 20L, 3L, "LT-02", 10000.0, 8000.0, 0.02, 0.90, 30000, 3500.0, customCreated, customUpdated
+        );
+        assertEquals(2L, allArgs.getId());
+        assertEquals(20L, allArgs.getIdFarm());
+        assertEquals(3L, allArgs.getIdEnterprise());
+        assertEquals("LT-02", allArgs.getIdLot());
+    }
+
+    /**
+     * Testa comportamento, sanitização e validações de {@link FarmSimulationRequestDTO}.
+     */
+    @Test
+    void testFarmSimulationRequestDTO() throws JsonProcessingException {
+        FarmSimulationRequestDTO dto = new FarmSimulationRequestDTO(
+                1L, "  LT-01  ", 12000.0, 9500.0, 0.015, 0.85, 25000, 3200.0
+        );
+        assertEquals("LT-01", dto.idLot());
+        assertEquals(1L, dto.idFarm());
+        assertEquals(12000.0, dto.currentCgi());
+        assertEquals(9500.0, dto.targetCgi());
+        assertEquals(0.015, dto.waterPrice());
+        assertEquals(0.85, dto.energyPrice());
+        assertEquals(25000, dto.poultryQuantity());
+        assertEquals(3200.0, dto.targetEnergyKwh());
+        assertTrue(validator.validate(dto).isEmpty());
+
+        FarmSimulationRequestDTO nullLot = new FarmSimulationRequestDTO(
+                1L, null, 12000.0, 9500.0, 0.015, 0.85, 25000, 3200.0
+        );
+        assertNull(nullLot.idLot());
+
+        String json = objectMapper.writeValueAsString(dto);
+        assertTrue(json.contains("\"id_farm\":1"));
+        assertTrue(json.contains("\"current_cgi\":12000.0"));
+
+        String camelJson = """
+                {
+                    "idFarm": 1,
+                    "idLot": "LT-CAMEL",
+                    "currentCgi": 11000.0,
+                    "targetCgi": 9000.0,
+                    "waterPrice": 0.02,
+                    "energyPrice": 0.80,
+                    "poultryQuantity": 20000,
+                    "targetEnergyKwh": 3100.0
+                }
+                """;
+        FarmSimulationRequestDTO fromCamel = objectMapper.readValue(camelJson, FarmSimulationRequestDTO.class);
+        assertEquals("LT-CAMEL", fromCamel.idLot());
+        assertEquals(11000.0, fromCamel.currentCgi());
+    }
+
+    /**
+     * Testa comportamento e serialização de {@link FarmSimulationResponseDTO}.
+     */
+    @Test
+    void testFarmSimulationResponseDTO() throws JsonProcessingException {
+        LocalDateTime now = LocalDateTime.now();
+        FarmSimulation entity = new FarmSimulation(
+                1L, 10L, 2L, "LT-01", 12000.0, 9500.0, 0.015, 0.85, 25000, 3200.0, now, now
+        );
+
+        FarmRankingSimulationResponseDTO ranking = new FarmRankingSimulationResponseDTO(
+                10L, "Granja Sol", 12000.0, 5L, "BRONZE", 9500.0, 2L, "OURO", 3L, 10L, 20.0
+        );
+
+        FarmSimulationResponseDTO dtoWithRanking = FarmSimulationResponseDTO.fromEntity(entity, ranking);
+        assertEquals(1L, dtoWithRanking.id());
+        assertEquals(10L, dtoWithRanking.idFarm());
+        assertEquals(2L, dtoWithRanking.idEnterprise());
+        assertEquals("LT-01", dtoWithRanking.idLot());
+        assertEquals(9500.0, dtoWithRanking.targetCgi());
+        assertNotNull(dtoWithRanking.simulatedRanking());
+        assertEquals("OURO", dtoWithRanking.simulatedRanking().simulatedLeague());
+
+        FarmSimulationResponseDTO dtoWithoutRanking = FarmSimulationResponseDTO.fromEntity(entity, null);
+        assertNull(dtoWithoutRanking.simulatedRanking());
+
+        String json = objectMapper.writeValueAsString(dtoWithRanking);
+        assertTrue(json.contains("\"simulated_ranking\":{"));
+        assertTrue(json.contains("\"id_enterprise\":2"));
+    }
+
+    /**
+     * Testa validações e comportamento de {@link FarmSimulationUpdateDTO}.
+     */
+    @Test
+    void testFarmSimulationUpdateDTO() {
+        FarmSimulationUpdateDTO allFields = new FarmSimulationUpdateDTO(
+                1L, "  LT-01  ", 12000.0, 9500.0, 0.015, 0.85, 25000, 3200.0
+        );
+        assertEquals("LT-01", allFields.idLot());
+        assertTrue(allFields.hasUpdates());
+
+        assertFalse(new FarmSimulationUpdateDTO(null, null, null, null, null, null, null, null).hasUpdates());
+        assertFalse(new FarmSimulationUpdateDTO(null, "   ", null, null, null, null, null, null).hasUpdates());
+
+        assertTrue(new FarmSimulationUpdateDTO(1L, null, null, null, null, null, null, null).hasUpdates());
+        assertTrue(new FarmSimulationUpdateDTO(null, "LT-02", null, null, null, null, null, null).hasUpdates());
+        assertTrue(new FarmSimulationUpdateDTO(null, null, 10000.0, null, null, null, null, null).hasUpdates());
+        assertTrue(new FarmSimulationUpdateDTO(null, null, null, 8000.0, null, null, null, null).hasUpdates());
+        assertTrue(new FarmSimulationUpdateDTO(null, null, null, null, 0.02, null, null, null).hasUpdates());
+        assertTrue(new FarmSimulationUpdateDTO(null, null, null, null, null, 0.90, null, null).hasUpdates());
+        assertTrue(new FarmSimulationUpdateDTO(null, null, null, null, null, null, 20000, null).hasUpdates());
+        assertTrue(new FarmSimulationUpdateDTO(null, null, null, null, null, null, null, 3000.0).hasUpdates());
+    }
+
+    /**
+     * Testa mapeamento e resiliência a nulos em {@link ProductionRegistryResponseDTO}.
+     */
+    @Test
+    void testProductionRegistryResponseDTO() throws JsonProcessingException {
+        ProductionRegistryProjection projectionWithValues = new ProductionRegistryProjection() {
+            @Override public Long getId() { return 1L; }
+            @Override public String getIdLote() { return "LT-01"; }
+            @Override public LocalDate getDataEmissao() { return LocalDate.of(2026, 8, 1); }
+            @Override public Double getHidrometro() { return 1500.5; }
+            @Override public Double getCusto() { return 250.0; }
+            @Override public Integer getEntraram() { return 1000; }
+            @Override public Integer getSairam() { return 50; }
+            @Override public Integer getGalinhasAtuais() { return 950; }
+            @Override public Long getIdFarm() { return 10L; }
+            @Override public String getFarmName() { return "Granja Boa Vista"; }
+        };
+
+        ProductionRegistryResponseDTO dto = ProductionRegistryResponseDTO.fromProjection(projectionWithValues);
+        assertEquals(1L, dto.id());
+        assertEquals("LT-01", dto.idLote());
+        assertEquals(1500.5, dto.hidrometro());
+        assertEquals(250.0, dto.custo());
+        assertEquals(1000, dto.entraram());
+        assertEquals(50, dto.sairam());
+        assertEquals(950, dto.galinhasAtuais());
+        assertEquals(10L, dto.idFarm());
+        assertEquals("Granja Boa Vista", dto.farmName());
+
+        ProductionRegistryProjection projectionWithNulls = new ProductionRegistryProjection() {
+            @Override public Long getId() { return 2L; }
+            @Override public String getIdLote() { return "LT-02"; }
+            @Override public LocalDate getDataEmissao() { return null; }
+            @Override public Double getHidrometro() { return null; }
+            @Override public Double getCusto() { return null; }
+            @Override public Integer getEntraram() { return null; }
+            @Override public Integer getSairam() { return null; }
+            @Override public Integer getGalinhasAtuais() { return null; }
+            @Override public Long getIdFarm() { return null; }
+            @Override public String getFarmName() { return null; }
+        };
+
+        ProductionRegistryResponseDTO dtoNulls = ProductionRegistryResponseDTO.fromProjection(projectionWithNulls);
+        assertEquals(0.0, dtoNulls.hidrometro());
+        assertEquals(0.0, dtoNulls.custo());
+        assertEquals(0, dtoNulls.entraram());
+        assertEquals(0, dtoNulls.sairam());
+        assertEquals(0, dtoNulls.galinhasAtuais());
+
+        assertThrows(NullPointerException.class, () -> ProductionRegistryResponseDTO.fromProjection(null));
+
+        String json = objectMapper.writeValueAsString(dto);
+        assertTrue(json.contains("\"farm_name\":\"Granja Boa Vista\""));
+    }
+
+    /**
+     * Testa branches adicionais de {@link CompanyEmployeeUpdateDTO#hasUpdates()}.
+     */
+    @Test
+    void testCompanyEmployeeUpdateDTOBranches() {
+        assertFalse(new CompanyEmployeeUpdateDTO("   ", null, null, null, null).hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO("Novo Nome", null, null, null, null).hasUpdates());
+        assertFalse(new CompanyEmployeeUpdateDTO(null, "   ", null, null, null).hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO(null, "teste@empresa.com", null, null, null).hasUpdates());
+        assertFalse(new CompanyEmployeeUpdateDTO(null, null, "   ", null, null).hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO(null, null, "11988887777", null, null).hasUpdates());
+        assertFalse(new CompanyEmployeeUpdateDTO(null, null, null, "   ", null).hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO(null, null, null, "Senha@123", null).hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO(null, null, null, null, "https://foto.com/1.png").hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO(null, null, null, null, "").hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO("   ", null, null, null, "https://foto.com/1.png").hasUpdates());
+        assertTrue(new CompanyEmployeeUpdateDTO(null, null, null, "   ", "https://foto.com/1.png").hasUpdates());
     }
 }
 

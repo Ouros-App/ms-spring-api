@@ -779,4 +779,62 @@ class CompanyEmployeeServiceTest {
         assertEquals("Admin Por Email", response.name());
         assertEquals("https://photo.jpg", response.photoUrl());
     }
+
+    @Test
+    @DisplayName("Deve usar valores padrão para ADM quando não encontrado no repositório")
+    void testGetLoggedInEmployee_AdmNotFound_UsesDefaults() {
+        UserPrincipal adminUnknown = new UserPrincipal(
+                888L,
+                "desconhecido@empresa.com.br",
+                null,
+                "ADM",
+                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+        when(admRepository.findById(888L)).thenReturn(Optional.empty());
+        when(admRepository.findByEmailIgnoreCase("desconhecido@empresa.com.br")).thenReturn(Optional.empty());
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.getLoggedInEmployee(adminUnknown);
+
+        assertNotNull(response);
+        assertEquals("Administrador da Plataforma", response.name());
+        assertEquals("desconhecido@empresa.com.br", response.email());
+        assertNull(response.photoUrl());
+    }
+
+    @Test
+    @DisplayName("Deve usar valores padrão para ADM quando nome for em branco e email da entidade for nulo")
+    void testGetLoggedInEmployee_AdmBlankNameAndNullEmail() {
+        UserPrincipal adminPrincipalWithNulls = new UserPrincipal(
+                777L,
+                "fallback@empresa.com.br",
+                null,
+                "ADM",
+                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+        Adm admWithNulls = Adm.builder().id(777L).name("   ").email(null).photoUrl(null).build();
+        when(admRepository.findById(777L)).thenReturn(Optional.of(admWithNulls));
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.getLoggedInEmployee(adminPrincipalWithNulls);
+
+        assertNotNull(response);
+        assertEquals("Administrador da Plataforma", response.name());
+        assertEquals("fallback@empresa.com.br", response.email());
+        assertNull(response.photoUrl());
+    }
+
+    @Test
+    @DisplayName("Deve atualizar funcionário com novo nome e limpar foto de perfil")
+    void testUpdateCompanyEmployee_NameAndClearPhotoUrl() {
+        CompanyEmployeeUpdateDTO updateDTO = new CompanyEmployeeUpdateDTO(
+                "Carlos Novo Nome", null, null, null, ""
+        );
+        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
+        when(companyEmployeeRepository.save(any(CompanyEmployee.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CompanyEmployeeResponseDTO response = companyEmployeeService.updateCompanyEmployee(1L, updateDTO, employeePrincipal);
+
+        assertNotNull(response);
+        assertEquals("Carlos Novo Nome", response.name());
+        assertNull(response.photoUrl());
+    }
 }

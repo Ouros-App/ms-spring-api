@@ -988,4 +988,97 @@ class LotServiceTest {
 
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
+
+    @Test
+    @DisplayName("Deve retornar lista vazia quando produtor rural não possui fazenda vinculada")
+    void deveRetornarListaVaziaQuandoProdutorNaoPossuiFazendaVinculada() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(null).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+
+        List<ProductionRegistryResponseDTO> summaries = lotService.getProductionSummaries(null, null, ownerPrincipal);
+
+        assertTrue(summaries.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Deve retornar resumos de produção para FARM_OWNER filtrando por sua empresa com sucesso")
+    void deveRetornarResumosParaProdutorRuralComEmpresaCorrespondente() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(lotRepository.findProductionSummaries(1L, 10L)).thenReturn(List.of(createSampleProjection()));
+
+        List<ProductionRegistryResponseDTO> summaries = lotService.getProductionSummaries(null, 1L, ownerPrincipal);
+
+        assertEquals(1, summaries.size());
+        verify(lotRepository).findProductionSummaries(1L, 10L);
+    }
+
+    @Test
+    @DisplayName("Deve bloquear FARM_OWNER tentando filtrar por empresa diferente da sua fazenda")
+    void deveBloquearProdutorRuralFiltrandoEmpresaDiferente() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getProductionSummaries(null, 99L, ownerPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando fazenda do produtor não for encontrada")
+    void deveLancar404QuandoFazendaDoProdutorNaoEncontrada() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(farmRepository.findById(10L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getProductionSummaries(null, 1L, ownerPrincipal));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 para perfil desconhecido ao obter resumos de produção")
+    void deveLancar403ParaPerfilDesconhecidoAoObterResumosProducao() {
+        UserPrincipal otherPrincipal = new UserPrincipal(99L, "outro@ouros.com", "pass", "OTHER", List.of());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getProductionSummaries(null, null, otherPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve permitir funcionário consultar resumos filtrando por fazenda da mesma empresa")
+    void devePermitirFuncionarioConsultarFazendaDaMesmaEmpresa() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+        Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
+
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(lotRepository.findProductionSummaries(1L, 10L)).thenReturn(List.of(createSampleProjection()));
+
+        List<ProductionRegistryResponseDTO> summaries = lotService.getProductionSummaries(10L, 1L, employeePrincipal);
+
+        assertEquals(1, summaries.size());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando funcionário consulta fazenda inexistente")
+    void deveLancar404QuandoFuncionarioConsultaFazendaInexistente() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(farmRepository.findById(999L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getProductionSummaries(999L, null, employeePrincipal));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
 }

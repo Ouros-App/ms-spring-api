@@ -208,6 +208,21 @@ class FarmSimulationServiceTest {
     }
 
     @Test
+    @DisplayName("Deve bloquear COMPANY_EMPLOYEE ao criar simulação em fazenda de outra integradora")
+    void createSimulation_companyEmployeeOtherEnterpriseFarm_throws403() {
+        Farm otherEnterpriseFarm = Farm.builder().id(2L).idEnterprise(99L).build();
+        FarmSimulationRequestDTO request = new FarmSimulationRequestDTO(
+                2L, "LT-OTHER", 12000.0, 9500.0, 0.015, 0.85, 25000, 3200.0
+        );
+        when(farmRepository.findById(2L)).thenReturn(Optional.of(otherEnterpriseFarm));
+        when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(sampleEmployee));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.createSimulation(request, employeePrincipal));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
     @DisplayName("Deve atualizar simulação existente com sucesso")
     void updateSimulation_success() {
         FarmSimulationUpdateDTO updateDTO = new FarmSimulationUpdateDTO(
@@ -259,5 +274,290 @@ class FarmSimulationServiceTest {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> farmSimulationService.deleteSimulation(100L, employeePrincipal));
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve listar simulações para ADM apenas com filtro de fazenda")
+    void getSimulations_admOnlyFarm_success() {
+        when(farmSimulationRepository.findByIdFarmOrderByIdDesc(1L))
+                .thenReturn(List.of(sampleSimulation));
+        when(farmRankingService.simulateFarmRanking(eq(1L), eq(9500.0), any())).thenReturn(sampleRankingSim);
+
+        List<FarmSimulationResponseDTO> result = farmSimulationService.getSimulations(1L, null, admPrincipal);
+
+        assertEquals(1, result.size());
+        verify(farmSimulationRepository).findByIdFarmOrderByIdDesc(1L);
+    }
+
+    @Test
+    @DisplayName("Deve listar simulações para ADM apenas com filtro de empresa")
+    void getSimulations_admOnlyEnterprise_success() {
+        when(farmSimulationRepository.findByIdEnterpriseOrderByIdDesc(5L))
+                .thenReturn(List.of(sampleSimulation));
+        when(farmRankingService.simulateFarmRanking(eq(1L), eq(9500.0), any())).thenReturn(sampleRankingSim);
+
+        List<FarmSimulationResponseDTO> result = farmSimulationService.getSimulations(null, 5L, admPrincipal);
+
+        assertEquals(1, result.size());
+        verify(farmSimulationRepository).findByIdEnterpriseOrderByIdDesc(5L);
+    }
+
+    @Test
+    @DisplayName("Deve listar todas as simulações para ADM sem filtros")
+    void getSimulations_admNoFilters_success() {
+        when(farmSimulationRepository.findAll()).thenReturn(List.of(sampleSimulation));
+        when(farmRankingService.simulateFarmRanking(eq(1L), eq(9500.0), any())).thenReturn(sampleRankingSim);
+
+        List<FarmSimulationResponseDTO> result = farmSimulationService.getSimulations(null, null, admPrincipal);
+
+        assertEquals(1, result.size());
+        verify(farmSimulationRepository).findAll();
+    }
+
+    @Test
+    @DisplayName("Deve listar simulações para COMPANY_EMPLOYEE filtrando por fazenda da sua empresa")
+    void getSimulations_companyEmployeeWithFarm_success() {
+        when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(sampleEmployee));
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(farmSimulationRepository.findByIdEnterpriseAndIdFarmOrderByIdDesc(5L, 1L))
+                .thenReturn(List.of(sampleSimulation));
+        when(farmRankingService.simulateFarmRanking(eq(1L), eq(9500.0), any())).thenReturn(sampleRankingSim);
+
+        List<FarmSimulationResponseDTO> result = farmSimulationService.getSimulations(1L, null, employeePrincipal);
+
+        assertEquals(1, result.size());
+        verify(farmSimulationRepository).findByIdEnterpriseAndIdFarmOrderByIdDesc(5L, 1L);
+    }
+
+    @Test
+    @DisplayName("Deve bloquear COMPANY_EMPLOYEE ao consultar simulações de fazenda pertencente a outra empresa")
+    void getSimulations_companyEmployeeOtherFarmEnterprise_throws403() {
+        Farm otherEnterpriseFarm = Farm.builder().id(99L).idEnterprise(999L).build();
+        when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(sampleEmployee));
+        when(farmRepository.findById(99L)).thenReturn(Optional.of(otherEnterpriseFarm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.getSimulations(99L, null, employeePrincipal));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear FARM_OWNER ao consultar simulações de fazenda diferente da sua")
+    void getSimulations_farmOwnerOtherFarm_throws403() {
+        when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(sampleOwner));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.getSimulations(99L, null, ownerPrincipal));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 ao consultar simulações com perfil desconhecido")
+    void getSimulations_unknownRole_throws403() {
+        UserPrincipal other = new UserPrincipal(99L, "other@ouros.com", "pass", "OTHER", List.of());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.getSimulations(null, null, other));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve criar simulação com sucesso para ADM")
+    void createSimulation_adm_success() {
+        FarmSimulationRequestDTO request = new FarmSimulationRequestDTO(
+                1L, "LT-ADM", 10000.0, 8000.0, 0.015, 0.85, 20000, 3000.0
+        );
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(farmSimulationRepository.save(any(FarmSimulation.class))).thenReturn(sampleSimulation);
+        when(farmRankingService.simulateFarmRanking(eq(1L), eq(9500.0), any())).thenReturn(sampleRankingSim);
+
+        FarmSimulationResponseDTO created = farmSimulationService.createSimulation(request, admPrincipal);
+
+        assertNotNull(created);
+        verify(farmSimulationRepository).save(any(FarmSimulation.class));
+    }
+
+    @Test
+    @DisplayName("Deve criar simulação com sucesso para FARM_OWNER na sua própria fazenda")
+    void createSimulation_farmOwner_success() {
+        FarmSimulationRequestDTO request = new FarmSimulationRequestDTO(
+                1L, "LT-OWNER", 10000.0, 8000.0, 0.015, 0.85, 20000, 3000.0
+        );
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(sampleOwner));
+        when(farmSimulationRepository.save(any(FarmSimulation.class))).thenReturn(sampleSimulation);
+        when(farmRankingService.simulateFarmRanking(eq(1L), eq(9500.0), any())).thenReturn(sampleRankingSim);
+
+        FarmSimulationResponseDTO created = farmSimulationService.createSimulation(request, ownerPrincipal);
+
+        assertNotNull(created);
+        verify(farmSimulationRepository).save(any(FarmSimulation.class));
+    }
+
+    @Test
+    @DisplayName("Deve bloquear FARM_OWNER ao criar simulação em fazenda que não é a sua")
+    void createSimulation_farmOwnerOtherFarm_throws403() {
+        Farm otherFarm = Farm.builder().id(99L).idEnterprise(5L).build();
+        FarmSimulationRequestDTO request = new FarmSimulationRequestDTO(
+                99L, "LT-OTHER", 10000.0, 8000.0, 0.015, 0.85, 20000, 3000.0
+        );
+        when(farmRepository.findById(99L)).thenReturn(Optional.of(otherFarm));
+        when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(sampleOwner));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.createSimulation(request, ownerPrincipal));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear criação de simulação com perfil desconhecido")
+    void createSimulation_unknownRole_throws403() {
+        UserPrincipal other = new UserPrincipal(99L, "other@ouros.com", "pass", "OTHER", List.of());
+        FarmSimulationRequestDTO request = new FarmSimulationRequestDTO(
+                1L, "LT-01", 10000.0, 8000.0, 0.015, 0.85, 20000, 3000.0
+        );
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.createSimulation(request, other));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve atualizar simulação alterando a fazenda vinculada")
+    void updateSimulation_changeFarm_success() {
+        Farm otherFarmSameEnterprise = Farm.builder().id(2L).idEnterprise(5L).build();
+        FarmSimulationUpdateDTO updateDTO = new FarmSimulationUpdateDTO(
+                2L, null, 11000.0, null, null, null, null, null
+        );
+        when(farmSimulationRepository.findById(100L)).thenReturn(Optional.of(sampleSimulation));
+        when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(sampleEmployee));
+        when(farmRepository.findById(2L)).thenReturn(Optional.of(otherFarmSameEnterprise));
+        when(farmSimulationRepository.save(any(FarmSimulation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        FarmSimulationResponseDTO updated = farmSimulationService.updateSimulation(100L, updateDTO, employeePrincipal);
+
+        assertEquals(2L, updated.idFarm());
+        assertEquals(11000.0, updated.currentCgi());
+    }
+
+    @Test
+    @DisplayName("Deve atualizar campos individuais e tratar ranking simulado com exceção")
+    void updateSimulation_fieldsAndRankingException() {
+        FarmSimulationUpdateDTO updateDTO = new FarmSimulationUpdateDTO(
+                null, null, null, 9000.0, 0.02, 0.95, null, 3500.0
+        );
+        when(farmSimulationRepository.findById(100L)).thenReturn(Optional.of(sampleSimulation));
+        when(companyEmployeeRepository.findById(10L)).thenReturn(Optional.of(sampleEmployee));
+        when(farmSimulationRepository.save(any(FarmSimulation.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(farmRankingService.simulateFarmRanking(anyLong(), anyDouble(), any()))
+                .thenThrow(new RuntimeException("Redis indisponível"));
+
+        FarmSimulationResponseDTO updated = farmSimulationService.updateSimulation(100L, updateDTO, employeePrincipal);
+
+        assertEquals(9000.0, updated.targetCgi());
+        assertEquals(0.02, updated.waterPrice());
+        assertEquals(0.95, updated.energyPrice());
+        assertEquals(3500.0, updated.targetEnergyKwh());
+        assertNull(updated.simulatedRanking());
+    }
+
+    @Test
+    @DisplayName("Deve permitir FARM_OWNER atualizar simulação da sua própria fazenda")
+    void updateSimulation_farmOwner_success() {
+        FarmSimulationUpdateDTO updateDTO = new FarmSimulationUpdateDTO(
+                null, null, null, null, null, null, 30000, null
+        );
+        when(farmSimulationRepository.findById(100L)).thenReturn(Optional.of(sampleSimulation));
+        when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(sampleOwner));
+        when(farmSimulationRepository.save(any(FarmSimulation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        FarmSimulationResponseDTO updated = farmSimulationService.updateSimulation(100L, updateDTO, ownerPrincipal);
+
+        assertEquals(30000, updated.poultryQuantity());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear FARM_OWNER ao atualizar simulação de outra fazenda")
+    void updateSimulation_farmOwnerOtherFarm_throws403() {
+        FarmOwner otherOwner = FarmOwner.builder().id(20L).name("Pedro").idFarm(99L).build();
+        FarmSimulationUpdateDTO updateDTO = new FarmSimulationUpdateDTO(
+                null, null, null, null, null, null, 30000, null
+        );
+        when(farmSimulationRepository.findById(100L)).thenReturn(Optional.of(sampleSimulation));
+        when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(otherOwner));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.updateSimulation(100L, updateDTO, ownerPrincipal));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear atualização de simulação com perfil desconhecido")
+    void updateSimulation_unknownRole_throws403() {
+        UserPrincipal other = new UserPrincipal(99L, "other@ouros.com", "pass", "OTHER", List.of());
+        FarmSimulationUpdateDTO updateDTO = new FarmSimulationUpdateDTO(
+                null, null, null, null, null, null, 30000, null
+        );
+        when(farmSimulationRepository.findById(100L)).thenReturn(Optional.of(sampleSimulation));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.updateSimulation(100L, updateDTO, other));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve permitir ADM excluir simulação com sucesso")
+    void deleteSimulation_adm_success() {
+        when(farmSimulationRepository.findById(100L)).thenReturn(Optional.of(sampleSimulation));
+
+        farmSimulationService.deleteSimulation(100L, admPrincipal);
+
+        verify(farmSimulationRepository).delete(sampleSimulation);
+    }
+
+    @Test
+    @DisplayName("Deve permitir FARM_OWNER excluir simulação da sua própria fazenda")
+    void deleteSimulation_farmOwner_success() {
+        when(farmSimulationRepository.findById(100L)).thenReturn(Optional.of(sampleSimulation));
+        when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(sampleOwner));
+
+        farmSimulationService.deleteSimulation(100L, ownerPrincipal);
+
+        verify(farmSimulationRepository).delete(sampleSimulation);
+    }
+
+    @Test
+    @DisplayName("Deve bloquear FARM_OWNER ao excluir simulação de outra fazenda")
+    void deleteSimulation_farmOwnerOtherFarm_throws403() {
+        FarmOwner otherOwner = FarmOwner.builder().id(20L).name("Pedro").idFarm(99L).build();
+        when(farmSimulationRepository.findById(100L)).thenReturn(Optional.of(sampleSimulation));
+        when(farmOwnerRepository.findById(20L)).thenReturn(Optional.of(otherOwner));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.deleteSimulation(100L, ownerPrincipal));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear exclusão de simulação com perfil desconhecido")
+    void deleteSimulation_unknownRole_throws403() {
+        UserPrincipal other = new UserPrincipal(99L, "other@ouros.com", "pass", "OTHER", List.of());
+        when(farmSimulationRepository.findById(100L)).thenReturn(Optional.of(sampleSimulation));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.deleteSimulation(100L, other));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 401 quando usuário não estiver autenticado")
+    void ensureAuthenticated_throws401() {
+        assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.getSimulations(null, null, null));
+
+        UserPrincipal nullId = new UserPrincipal(null, "email@ouros.com", "pass", "ADM", List.of());
+        assertThrows(ResponseStatusException.class,
+                () -> farmSimulationService.getSimulations(null, null, nullId));
     }
 }
