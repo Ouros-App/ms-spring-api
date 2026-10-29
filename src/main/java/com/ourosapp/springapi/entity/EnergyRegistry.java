@@ -27,7 +27,7 @@ public class EnergyRegistry {
     @Column(name = "registration_date", nullable = false)
     private LocalDate registrationDate;
 
-    @Column(name = "energy_consumption", nullable = false)
+    @Column(name = "energy_consumption", nullable = false, precision = 17, scale = 2)
     private BigDecimal energyConsumption;
 
     @Column(name = "id_farm", nullable = false)
