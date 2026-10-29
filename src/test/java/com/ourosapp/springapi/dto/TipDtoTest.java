@@ -194,6 +194,20 @@ class TipDtoTest {
         assertTrue(jsonNode.hasNonNull("foto_url"), "Deve conter chave 'foto_url' serializada para retrocompatibilidade");
         assertEquals("https://res.cloudinary.com/mpyey2bi/image/upload/v1729606821/ouros/tips/img01.webp", jsonNode.get("image_url").asText());
         assertEquals("https://res.cloudinary.com/mpyey2bi/image/upload/v1729606821/ouros/tips/img01.webp", jsonNode.get("foto_url").asText());
+        assertFalse(jsonNode.has("audience_match"), "Campo omitido quando a dica não foi avaliada por uma audiência");
+    }
+
+    @Test
+    @DisplayName("TipResponseDTO - Deve serializar correspondência com audiência")
+    void deveSerializarCorrespondenciaComAudience() throws Exception {
+        TipResponseDTO response = new TipResponseDTO(
+                121L, "Dica", "Texto", null, 1L, List.of(), 0, 0.0
+        ).withAudienceMatch(true);
+
+        JsonNode jsonNode = objectMapper.readTree(objectMapper.writeValueAsString(response));
+
+        assertTrue(jsonNode.hasNonNull("audience_match"));
+        assertTrue(jsonNode.get("audience_match").asBoolean());
     }
 
     @Test

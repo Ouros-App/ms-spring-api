@@ -21,6 +21,10 @@ fazendas e registros de medição. `POST /measurement-imports` cadastra em uma �
 transação lotes históricos de água e energia já revisados pelo produtor; a
 interpretação dos arquivos acontece no AI Server.
 
+`GET /tips` e `GET /tips/{id}` incluem `audience_match` para produtores: `true`
+quando a dica pertence a uma das audiências do usuário, e `false` caso contrário.
+O campo é omitido para outros perfis ou se o Audience Engine estiver indisponível.
+
 ## Pré-requisitos
 
 - Java 17, conforme a configuração de compilação e o workflow de CI.
@@ -34,7 +38,8 @@ O arquivo `.env.example` documenta:
 - `SERVER_PORT`;
 - `DB_URL`;
 - `DB_USERNAME`;
-- `DB_PASSWORD`.
+- `DB_PASSWORD`;
+- `AUDIENCE_ENGINE_URL` (opcional; padrão `https://ouros-audience.discloud.app`).
 
 A aplicação lê `SERVER_PORT` em `src/main/resources/application.properties` e usa a porta `8080` como padrão.
 

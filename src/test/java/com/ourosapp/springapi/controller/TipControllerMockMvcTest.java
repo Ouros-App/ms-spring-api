@@ -1,12 +1,14 @@
 package com.ourosapp.springapi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ourosapp.springapi.client.AudienceEngineClient;
 import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.tip.TipRequestDTO;
 import com.ourosapp.springapi.dto.tip.TipResponseDTO;
 import com.ourosapp.springapi.dto.tip.TipUpdateDTO;
 import com.ourosapp.springapi.security.KeycloakJwtAuthenticationConverter;
 import com.ourosapp.springapi.security.UserPrincipal;
+import com.ourosapp.springapi.service.TipAudienceEnricher;
 import com.ourosapp.springapi.service.TipService;
 import com.ourosapp.springapi.service.UserDetailsServiceImpl;
 import org.junit.jupiter.api.DisplayName;
@@ -14,13 +16,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -34,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Testes de integração Web via MockMvc para o controlador {@link TipController}.
  */
 @WebMvcTest(TipController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, TipAudienceEnricher.class})
 class TipControllerMockMvcTest {
 
     @Autowired
@@ -45,6 +51,9 @@ class TipControllerMockMvcTest {
 
     @MockitoBean
     private TipService tipService;
+
+    @MockitoBean
+    private AudienceEngineClient audienceEngineClient;
 
     @MockitoBean
     private KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
@@ -180,7 +189,38 @@ class TipControllerMockMvcTest {
                 .andExpect(jsonPath("$[0].image_url").value("https://ouros.com/1.jpg"))
                 .andExpect(jsonPath("$[0].foto_url").value("https://ouros.com/1.jpg"))
                 .andExpect(jsonPath("$[0].total_reviews").value(2))
-                .andExpect(jsonPath("$[0].average_rating").value(4.5));
+                .andExpect(jsonPath("$[0].average_rating").value(4.5))
+                .andExpect(jsonPath("$[0].audience_match").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("GET /tips - Deve indicar as dicas pertencentes às audiências do produtor")
+    void deveIndicarCorrespondenciaDeAudienciaNasDicas() throws Exception {
+        UserPrincipal farmOwner = new UserPrincipal(
+                42L,
+                "produtor@ouros.com",
+                "password123",
+                "FARM_OWNER",
+                List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
+        );
+        List<TipResponseDTO> responses = List.of(
+                new TipResponseDTO(101L, "Dica da audiência", "Texto", null, 1L, List.of("Manejo"), 0, 0.0),
+                new TipResponseDTO(102L, "Outra dica", "Texto", null, 1L, List.of("Manejo"), 0, 0.0)
+        );
+        when(tipService.getTipsForUser(eq(null), eq(farmOwner))).thenReturn(responses);
+        when(audienceEngineClient.getTipIdsForUser(42L, "Bearer test-token")).thenReturn(Set.of(101L));
+        Jwt jwt = Jwt.withTokenValue("test-token").header("alg", "none").claim("sub", "42").build();
+        when(jwtDecoder.decode("test-token")).thenReturn(jwt);
+        when(keycloakJwtAuthenticationConverter.convert(jwt)).thenReturn(
+                new UsernamePasswordAuthenticationToken(farmOwner, "test-token", farmOwner.getAuthorities())
+        );
+
+        mockMvc.perform(get("/tips")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer test-token")
+                        .with(user(farmOwner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].audience_match").value(true))
+                .andExpect(jsonPath("$[1].audience_match").value(false));
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.ourosapp.springapi.dto.tip.TipRequestDTO;
 import com.ourosapp.springapi.dto.tip.TipResponseDTO;
 import com.ourosapp.springapi.dto.tip.TipUpdateDTO;
 import com.ourosapp.springapi.security.UserPrincipal;
+import com.ourosapp.springapi.service.TipAudienceEnricher;
 import com.ourosapp.springapi.service.TipService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +35,7 @@ import java.util.List;
 public class TipController {
 
     private final TipService tipService;
+    private final TipAudienceEnricher tipAudienceEnricher;
 
     /**
      * Endpoint para criar uma nova dica técnica vinculada a uma fazenda.
@@ -68,10 +71,11 @@ public class TipController {
      * Endpoint para listar dicas técnicas acessíveis ao usuário autenticado, com filtro opcional por fazenda.
      *
      * @param farmId    filtro opcional por ID da fazenda
+     * @param authorizationHeader JWT do usuário, encaminhado ao Audience Engine
      * @param principal dados do usuário autenticado via token JWT
      * @return resposta HTTP 200 (OK) com a lista de dicas técnicas
      */
-    @Operation(summary = "Listar dicas técnicas", description = "Lista todas as dicas operacionais acessíveis ao usuário, exibindo média de notas e total de avaliações.")
+    @Operation(summary = "Listar dicas técnicas", description = "Lista as dicas acessíveis ao usuário, com métricas e correspondência com audiências do produtor quando disponível.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista de dicas técnicas retornada com sucesso"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
@@ -82,15 +86,18 @@ public class TipController {
     public ResponseEntity<List<TipResponseDTO>> getTips(
             @Parameter(description = "Identificador único da fazenda para filtro (opcional)", example = "1")
             @RequestParam(name = "farm_id", required = false) Long farmId,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(tipService.getTipsForUser(farmId, principal));
+        List<TipResponseDTO> tips = tipService.getTipsForUser(farmId, principal);
+        return ResponseEntity.ok(tipAudienceEnricher.enrich(tips, principal, authorizationHeader));
     }
 
     /**
      * Endpoint para buscar os detalhes de uma dica técnica específica pelo seu ID.
      *
      * @param id        identificador único da dica
+     * @param authorizationHeader JWT do usuário, encaminhado ao Audience Engine
      * @param principal dados do usuário autenticado via token JWT
      * @return resposta HTTP 200 (OK) com os detalhes da dica
      */
@@ -105,9 +112,13 @@ public class TipController {
     public ResponseEntity<TipResponseDTO> getTipById(
             @Parameter(description = "Identificador único da dica técnica", example = "1")
             @PathVariable Long id,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(tipService.getTipById(id, principal));
+        TipResponseDTO tip = tipService.getTipById(id, principal);
+        return ResponseEntity.ok(tipAudienceEnricher.enrich(
+                List.of(tip), principal, authorizationHeader
+        ).get(0));
     }
 
     /**
