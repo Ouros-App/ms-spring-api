@@ -247,7 +247,7 @@ class EnterpriseServiceTest {
     }
 
     @Test
-    @DisplayName("Deve retornar lista com todas as empresas cadastradas")
+    @DisplayName("Deve retornar lista com todas as empresas cadastradas ordenadas por nome")
     void testGetAllEnterprisesSuccess() {
         Enterprise enterprise2 = Enterprise.builder()
                 .id(2L)
@@ -258,7 +258,7 @@ class EnterpriseServiceTest {
                 .idAddress(20L)
                 .build();
 
-        when(enterpriseRepository.findAll()).thenReturn(List.of(sampleEnterprise, enterprise2));
+        when(enterpriseRepository.findAllByOrderByNameAsc()).thenReturn(List.of(sampleEnterprise, enterprise2));
 
         List<EnterpriseResponseDTO> result = enterpriseService.getAllEnterprises(adminPrincipal);
 
@@ -267,19 +267,19 @@ class EnterpriseServiceTest {
         assertEquals("Agro Ouros S.A.", result.get(0).name());
         assertEquals("Ouros Sul", result.get(1).name());
 
-        verify(enterpriseRepository, times(1)).findAll();
+        verify(enterpriseRepository, times(1)).findAllByOrderByNameAsc();
     }
 
     @Test
     @DisplayName("Deve retornar lista vazia quando não existirem empresas cadastradas")
     void testGetAllEnterprisesEmpty() {
-        when(enterpriseRepository.findAll()).thenReturn(List.of());
+        when(enterpriseRepository.findAllByOrderByNameAsc()).thenReturn(List.of());
 
         List<EnterpriseResponseDTO> result = enterpriseService.getAllEnterprises(adminPrincipal);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(enterpriseRepository, times(1)).findAll();
+        verify(enterpriseRepository, times(1)).findAllByOrderByNameAsc();
     }
 
     @Test
