@@ -14,7 +14,7 @@ import com.ourosapp.springapi.repository.AdmRepository;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,35 +28,13 @@ import java.util.Objects;
  * Serviço responsável pela lógica de negócios e persistência de dados de Funcionários da Empresa Integradora.
  */
 @Service
+@RequiredArgsConstructor
 public class CompanyEmployeeService {
 
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final EnterpriseRepository enterpriseRepository;
     private final PasswordEncoder passwordEncoder;
-    private AdmRepository admRepository;
-
-    public CompanyEmployeeService(
-            CompanyEmployeeRepository companyEmployeeRepository,
-            EnterpriseRepository enterpriseRepository,
-            PasswordEncoder passwordEncoder
-    ) {
-        this.companyEmployeeRepository = companyEmployeeRepository;
-        this.enterpriseRepository = enterpriseRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    @Autowired
-    public CompanyEmployeeService(
-            CompanyEmployeeRepository companyEmployeeRepository,
-            EnterpriseRepository enterpriseRepository,
-            PasswordEncoder passwordEncoder,
-            AdmRepository admRepository
-    ) {
-        this.companyEmployeeRepository = companyEmployeeRepository;
-        this.enterpriseRepository = enterpriseRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.admRepository = admRepository;
-    }
+    private final AdmRepository admRepository;
 
     @Transactional
     public CompanyEmployeeResponseDTO createCompanyEmployee(CompanyEmployeeRequestDTO request, UserPrincipal principal) {
@@ -129,10 +107,10 @@ public class CompanyEmployeeService {
         ensureAuthenticated(principal);
         if (ADM.equals(principal.getRole())) {
             Adm adm = null;
-            if (admRepository != null && principal.getId() != null) {
+            if (principal.getId() != null) {
                 adm = admRepository.findById(principal.getId()).orElse(null);
             }
-            if (adm == null && admRepository != null && principal.getEmail() != null) {
+            if (adm == null && principal.getEmail() != null) {
                 adm = admRepository.findByEmailIgnoreCase(principal.getEmail()).orElse(null);
             }
             String name = (adm != null && adm.getName() != null && !adm.getName().isBlank())
@@ -171,10 +149,10 @@ public class CompanyEmployeeService {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         ensureAuthenticated(principal);
 
+        // TODO: Refatorar fluxo para endpoint dedicado PATCH /company-employees/me devido a vulnerabilidade de colisão de IDs.
         if (ADM.equals(principal.getRole())
                 && Objects.equals(id, principal.getId())
-                && companyEmployeeRepository.findById(id).isEmpty()
-                && admRepository != null) {
+                && companyEmployeeRepository.findById(id).isEmpty()) {
             return updateAdmOwnProfile(id, request, principal);
         }
 
