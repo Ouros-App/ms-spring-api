@@ -23,7 +23,7 @@ interpretação dos arquivos acontece no AI Server.
 
 `GET /tips` e `GET /tips/{id}` incluem `audience_match` para produtores: `true`
 quando a dica pertence a uma das audiências do usuário, e `false` caso contrário.
-O campo é omitido para outros perfis ou se o Audience Engine estiver indisponível.
+O campo é omitido para outros perfis ou quando o Audience Engine falha ou informa snapshot desatualizado.
 
 ## Pré-requisitos
 

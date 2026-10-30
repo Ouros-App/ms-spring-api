@@ -23,6 +23,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.client.RestClientException;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -195,25 +196,15 @@ class TipControllerMockMvcTest {
 
     @Test
     @DisplayName("GET /tips - Deve indicar as dicas pertencentes às audiências do produtor")
-    void deveIndicarCorrespondenciaDeAudienciaNasDicas() throws Exception {
-        UserPrincipal farmOwner = new UserPrincipal(
-                42L,
-                "produtor@ouros.com",
-                "password123",
-                "FARM_OWNER",
-                List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
-        );
+    void shouldReportAudienceMatchForProducerTips() throws Exception {
+        UserPrincipal farmOwner = farmOwner();
         List<TipResponseDTO> responses = List.of(
                 new TipResponseDTO(101L, "Dica da audiência", "Texto", null, 1L, List.of("Manejo"), 0, 0.0),
                 new TipResponseDTO(102L, "Outra dica", "Texto", null, 1L, List.of("Manejo"), 0, 0.0)
         );
         when(tipService.getTipsForUser(eq(null), eq(farmOwner))).thenReturn(responses);
         when(audienceEngineClient.getTipIdsForUser(42L, "Bearer test-token")).thenReturn(Set.of(101L));
-        Jwt jwt = Jwt.withTokenValue("test-token").header("alg", "none").claim("sub", "42").build();
-        when(jwtDecoder.decode("test-token")).thenReturn(jwt);
-        when(keycloakJwtAuthenticationConverter.convert(jwt)).thenReturn(
-                new UsernamePasswordAuthenticationToken(farmOwner, "test-token", farmOwner.getAuthorities())
-        );
+        mockFarmOwnerJwt(farmOwner);
 
         mockMvc.perform(get("/tips")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer test-token")
@@ -259,6 +250,43 @@ class TipControllerMockMvcTest {
     }
 
     @Test
+    @DisplayName("GET /tips/{id} - Inclui correspondência quando a dica pertence à audiência")
+    void shouldIncludeAudienceMatchInTipDetails() throws Exception {
+        UserPrincipal farmOwner = farmOwner();
+        TipResponseDTO tip = new TipResponseDTO(
+                101L, "Dica da audiência", "Texto", null, 1L, List.of("Manejo"), 0, 0.0
+        );
+        when(tipService.getTipById(eq(101L), eq(farmOwner))).thenReturn(tip);
+        when(audienceEngineClient.getTipIdsForUser(42L, "Bearer test-token")).thenReturn(Set.of(101L));
+        mockFarmOwnerJwt(farmOwner);
+
+        mockMvc.perform(get("/tips/101")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer test-token")
+                        .with(user(farmOwner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.audience_match").value(true));
+    }
+
+    @Test
+    @DisplayName("GET /tips/{id} - Omite correspondência quando o Audience Engine falha")
+    void shouldOmitAudienceMatchInTipDetailsWhenAudienceEngineFails() throws Exception {
+        UserPrincipal farmOwner = farmOwner();
+        TipResponseDTO tip = new TipResponseDTO(
+                101L, "Dica da audiência", "Texto", null, 1L, List.of("Manejo"), 0, 0.0
+        );
+        when(tipService.getTipById(eq(101L), eq(farmOwner))).thenReturn(tip);
+        when(audienceEngineClient.getTipIdsForUser(42L, "Bearer test-token"))
+                .thenThrow(new RestClientException("unavailable"));
+        mockFarmOwnerJwt(farmOwner);
+
+        mockMvc.perform(get("/tips/101")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer test-token")
+                        .with(user(farmOwner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.audience_match").doesNotExist());
+    }
+
+    @Test
     @DisplayName("PATCH /tips/{id} - Deve atualizar parcialmente uma dica técnica")
     void deveAtualizarDicaComSucesso() throws Exception {
         TipUpdateDTO updateDTO = new TipUpdateDTO("Dica atualizada", List.of(2L));
@@ -284,5 +312,26 @@ class TipControllerMockMvcTest {
         mockMvc.perform(delete("/tips/1")
                         .with(user(mockPrincipal)))
                 .andExpect(status().isNoContent());
+    }
+
+    private static UserPrincipal farmOwner() {
+        return new UserPrincipal(
+                42L,
+                "produtor@ouros.com",
+                "password123",
+                "FARM_OWNER",
+                List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
+        );
+    }
+
+    private void mockFarmOwnerJwt(UserPrincipal farmOwner) {
+        Jwt jwt = Jwt.withTokenValue("test-token")
+                .header("alg", "none")
+                .claim("sub", String.valueOf(farmOwner.getId()))
+                .build();
+        when(jwtDecoder.decode("test-token")).thenReturn(jwt);
+        when(keycloakJwtAuthenticationConverter.convert(jwt)).thenReturn(
+                new UsernamePasswordAuthenticationToken(farmOwner, "test-token", farmOwner.getAuthorities())
+        );
     }
 }

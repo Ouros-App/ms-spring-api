@@ -10,9 +10,9 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Component
 public class AudienceEngineClient {
@@ -37,6 +37,14 @@ public class AudienceEngineClient {
         this.restClient = restClient;
     }
 
+    /**
+     * Busca os IDs de dicas das audiências às quais o usuário pertence.
+     *
+     * @param userId identificador persistido do usuário
+     * @param authorizationHeader token Bearer do usuário, usado pelo Audience Engine para autorizar a consulta
+     * @return conjunto de IDs de dicas vinculadas às audiências do usuário
+     * @throws RestClientException se a consulta falhar, a resposta violar o contrato ou o snapshot estiver desatualizado
+     */
     public Set<Long> getTipIdsForUser(long userId, String authorizationHeader) {
         UserAudiencesResponse response = restClient.get()
                 .uri("/internal/v1/users/{userId}/audiences", userId)
@@ -47,19 +55,29 @@ public class AudienceEngineClient {
         if (response == null || response.audiences() == null) {
             throw new RestClientException("Resposta inválida do Audience Engine");
         }
+        if (!"CURRENT".equals(response.sourceStatus())) {
+            throw new RestClientException("Audience Engine retornou snapshots desatualizados ou inválidos");
+        }
 
-        return response.audiences().stream()
-                .map(AudienceMembership::tipIds)
-                .peek(tipIds -> {
-                    if (tipIds == null) {
-                        throw new RestClientException("Audience sem tip_ids na resposta");
-                    }
-                })
-                .flatMap(List::stream)
-                .collect(Collectors.toUnmodifiableSet());
+        Set<Long> tipIds = new HashSet<>();
+        for (AudienceMembership audience : response.audiences()) {
+            if (audience == null || audience.tipIds() == null) {
+                throw new RestClientException("Resposta inválida do Audience Engine: audiência sem tip_ids");
+            }
+            for (Long tipId : audience.tipIds()) {
+                if (tipId == null) {
+                    throw new RestClientException("Resposta inválida do Audience Engine: tip_id nulo");
+                }
+                tipIds.add(tipId);
+            }
+        }
+        return Set.copyOf(tipIds);
     }
 
-    private record UserAudiencesResponse(List<AudienceMembership> audiences) {}
+    private record UserAudiencesResponse(
+            @JsonProperty("source_status") String sourceStatus,
+            List<AudienceMembership> audiences
+    ) {}
 
     private record AudienceMembership(@JsonProperty("tip_ids") List<Long> tipIds) {}
 }

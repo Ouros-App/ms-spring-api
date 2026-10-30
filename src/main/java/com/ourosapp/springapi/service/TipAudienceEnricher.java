@@ -21,6 +21,14 @@ public class TipAudienceEnricher {
 
     private final AudienceEngineClient audienceEngineClient;
 
+    /**
+     * Marca cada dica como pertencente ou não a uma audiência do produtor autenticado.
+     *
+     * @param tips dicas retornadas pelo serviço de domínio
+     * @param principal usuário autenticado
+     * @param authorizationHeader token Bearer encaminhado ao Audience Engine
+     * @return dicas enriquecidas, ou originais se o usuário não for produtor ou o Engine falhar
+     */
     public List<TipResponseDTO> enrich(
             List<TipResponseDTO> tips,
             UserPrincipal principal,
@@ -43,7 +51,7 @@ public class TipAudienceEnricher {
                     .toList();
         } catch (RestClientException ex) {
             log.warn(
-                    "Audience Engine indisponível; retornando dicas sem audience_match para user_id={}",
+                    "Audience Engine indisponível ou snapshot desatualizado; retornando dicas sem audience_match para user_id={}",
                     principal.getId(),
                     ex
             );

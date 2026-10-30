@@ -199,7 +199,7 @@ class TipDtoTest {
 
     @Test
     @DisplayName("TipResponseDTO - Deve serializar correspondência com audiência")
-    void deveSerializarCorrespondenciaComAudience() throws Exception {
+    void shouldSerializeAudienceMatch() throws Exception {
         TipResponseDTO response = new TipResponseDTO(
                 121L, "Dica", "Texto", null, 1L, List.of(), 0, 0.0
         ).withAudienceMatch(true);

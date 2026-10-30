@@ -5,11 +5,11 @@ import com.ourosapp.springapi.dto.tip.TipResponseDTO;
 import com.ourosapp.springapi.security.UserPrincipal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.web.client.RestClientException;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.web.client.RestClientException;
 
 import java.util.List;
 import java.util.Set;
@@ -33,7 +33,7 @@ class TipAudienceEnricherTest {
     private TipAudienceEnricher enricher;
 
     @Test
-    void deveMarcarQuaisDicasCorrespondemAsAudienciasDoProdutor() {
+    void shouldMarkWhichTipsMatchProducerAudiences() {
         UserPrincipal owner = new UserPrincipal(
                 7L,
                 "owner@example.com",
@@ -56,7 +56,7 @@ class TipAudienceEnricherTest {
     }
 
     @Test
-    void deveManterDicasSemMatchQuandoProdutorNaoPertenceAAlgumaAudiencia() {
+    void shouldSetFalseWhenProducerHasNoAudienceMatch() {
         UserPrincipal owner = farmOwner();
         when(audienceEngineClient.getTipIdsForUser(7L, "Bearer user-token")).thenReturn(Set.of());
 
@@ -68,7 +68,7 @@ class TipAudienceEnricherTest {
     }
 
     @Test
-    void devePreservarDicasSemAudienceMatchQuandoAudienceEstaIndisponivel() {
+    void shouldOmitAudienceMatchWhenAudienceEngineIsUnavailable() {
         UserPrincipal owner = farmOwner();
         when(audienceEngineClient.getTipIdsForUser(7L, "Bearer user-token"))
                 .thenThrow(new RestClientException("unavailable"));
@@ -81,7 +81,7 @@ class TipAudienceEnricherTest {
     }
 
     @Test
-    void naoConsultaAudienceParaPerfisSemAudienciasDeProdutor() {
+    void shouldSkipAudienceLookupForOtherProfiles() {
         UserPrincipal admin = new UserPrincipal(
                 1L,
                 "admin@example.com",
