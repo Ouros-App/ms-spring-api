@@ -174,4 +174,14 @@ class PagedListingServiceTest {
         assertEquals("água!", blankSort.search()); assertEquals("id", blankSort.sort());
         assertEquals("%água!!%", blankSort.pattern());
     }
+
+    @Test void deveNormalizarOrdenacaoERecusarDirecaoComComandos() {
+        var normalized = new PageQuery(0, 10, "", " TITLE ", " ASC ");
+        assertEquals("title", normalized.sort()); assertEquals("asc", normalized.direction());
+        assertEquals("g.title asc, g.id asc", normalized.orderBy(Map.of("title", "g.title"), "g.id"));
+        for (String direction : List.of("asc; delete from StateGoal", "desc OR 1=1", "asc desc", " ")) {
+            assertEquals(400, assertThrows(ResponseStatusException.class,
+                    () -> new PageQuery(0, 10, "", "id", direction)).getStatusCode().value());
+        }
+    }
 }
