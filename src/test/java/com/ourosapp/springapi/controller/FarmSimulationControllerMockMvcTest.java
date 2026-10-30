@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.controller;
 
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -37,6 +38,9 @@ import java.util.List;
 @Import(SecurityConfig.class)
 @DisplayName("Testes MockMvc do FarmSimulationController")
 class FarmSimulationControllerMockMvcTest {
+    @MockitoBean
+    private com.ourosapp.springapi.service.PagedListingService pagedListingService;
+
 
     @Autowired
     private MockMvc mockMvc;
@@ -135,5 +139,22 @@ class FarmSimulationControllerMockMvcTest {
 
         mockMvc.perform(delete("/farms/simulations/100").with(user(employeePrincipal)))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test void deveRetornarEnvelopePaginado() throws Exception {
+        when(pagedListingService.simulations(any(), any(), any(), any())).thenReturn(com.ourosapp.springapi.dto.common.PageResponseDTO.of(List.of(), 21, 1, 10));
+        mockMvc.perform(get("/farms/simulations/paged").param("page", "1").with(user(employeePrincipal)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.totalElements").value(21)).andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.page").value(1)).andExpect(jsonPath("$.size").value(10));
+    }
+    @Test void deveRejeitarPaginacaoInvalida() throws Exception {
+        for (String size : List.of("0", "101", "abc")) {
+            mockMvc.perform(get("/farms/simulations/paged").param("size", size).with(user(employeePrincipal)))
+                    .andExpect(status().isBadRequest());
+        }
+        mockMvc.perform(get("/farms/simulations/paged").param("page", "-1").with(user(employeePrincipal)))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(pagedListingService);
     }
 }

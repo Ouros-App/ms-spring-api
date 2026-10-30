@@ -1321,4 +1321,96 @@ class FarmRankingServiceTest {
         assertEquals("FERRO", FarmRankingService.calculateLeague(86, 100));
         assertEquals("FERRO", FarmRankingService.calculateLeague(100, 100));
     }
+
+    @Test void devePaginarRankingAlemDeCemSemPerderPosicaoGlobal() {
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(zSetOperations.zCard("ranking:enterprise:1:zset")).thenReturn(250L);
+        when(zSetOperations.range("ranking:enterprise:1:zset", 100, 109)).thenReturn(new LinkedHashSet<>(List.of("101", "102")));
+        when(hashOperations.entries(anyString())).thenReturn(Map.of("farm_name", "Granja", "score", "1.2"));
+        when(zSetOperations.score("ranking:enterprise:1:zset", "101")).thenReturn(1.1);
+        when(zSetOperations.score("ranking:enterprise:1:zset", "102")).thenReturn(1.2);
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "101")).thenReturn(100L);
+        when(zSetOperations.rank("ranking:enterprise:1:zset", "102")).thenReturn(101L);
+        var page = farmRankingService.getRankingsPaged(1L, null,
+                new com.ourosapp.springapi.dto.common.PageQuery(10, 10, "", "score", "asc"), admPrincipal);
+        assertEquals(250, page.totalElements()); assertEquals(25, page.totalPages());
+        assertEquals(101, page.content().get(0).rankPosition()); assertEquals(102, page.content().get(1).rankPosition());
+        assertEquals(1.1, page.content().get(0).score());
+    }
+
+    @Test void deveManterTotalEmPaginaVaziaDoRanking() {
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(zSetOperations.zCard("ranking:enterprise:1:zset")).thenReturn(15L);
+        var page = farmRankingService.getRankingsPaged(1L, null,
+                new com.ourosapp.springapi.dto.common.PageQuery(2, 10, "", "score", "asc"), admPrincipal);
+        assertEquals(15, page.totalElements()); assertTrue(page.content().isEmpty());
+        verify(zSetOperations).range("ranking:enterprise:1:zset", 20, 29);
+    }
+
+    @Test void deveNegarRankingPaginadoAoProdutorEOutraEmpresa() {
+        var page = new com.ourosapp.springapi.dto.common.PageQuery(0, 10, "", "score", "asc");
+        assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
+                () -> farmRankingService.getRankingsPaged(null, null, page, ownerPrincipal)).getStatusCode());
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(CompanyEmployee.builder().idEnterprise(1L).build()));
+        assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
+                () -> farmRankingService.getRankingsPaged(2L, null, page, employeePrincipal)).getStatusCode());
+        verifyNoInteractions(redisTemplate);
+    }
+
+    @Test void deveFiltrarRankingEmBlocosELimparIndiceTemporario() {
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(zSetOperations.zCard("ranking:enterprise:1:zset")).thenReturn(150L);
+        when(zSetOperations.rangeWithScores("ranking:enterprise:1:zset", 0, 99)).thenReturn(Set.of(
+                new org.springframework.data.redis.core.DefaultTypedTuple<>("10", 1.0)));
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(Map.of("farm_name", "Granja Ouro", "region", "Sul", "score", "1.0"));
+        when(zSetOperations.score("ranking:enterprise:1:zset", "10")).thenReturn(1.0);
+        farmRankingService.getRankingsPaged(1L, "Sul",
+                new com.ourosapp.springapi.dto.common.PageQuery(0, 10, "ouro", "score", "asc"), admPrincipal);
+        verify(zSetOperations).add(startsWith("ranking:paged:"), eq("10"), eq(1.0));
+        verify(redisTemplate).delete(anyCollection());
+    }
+
+    @Test void deveCombinarEmpresasNoRankingGlobalAntesDaPaginacao() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(enterpriseRepository.findAll()).thenReturn(List.of(
+                com.ourosapp.springapi.entity.Enterprise.builder().id(1L).build(),
+                com.ourosapp.springapi.entity.Enterprise.builder().id(2L).build()));
+        when(zSetOperations.zCard(anyString())).thenReturn(3L);
+        when(zSetOperations.range(startsWith("ranking:paged:"), eq(1L), eq(1L))).thenReturn(Set.of("20"));
+        when(hashOperations.entries("ranking:farm:20:details")).thenReturn(Map.of("farm_name", "Global", "score", "2"));
+        when(zSetOperations.score(anyString(), eq("20"))).thenReturn(2.0);
+        when(zSetOperations.rank(anyString(), eq("20"))).thenReturn(1L);
+        var page = farmRankingService.getRankingsPaged(null, null,
+                new com.ourosapp.springapi.dto.common.PageQuery(1, 1, "", "score", "asc"), admPrincipal);
+        assertEquals(3, page.totalElements()); assertEquals(2, page.content().get(0).rankPosition());
+        verify(zSetOperations).unionAndStore(eq("ranking:enterprise:1:zset"), eq(List.of("ranking:enterprise:2:zset")), startsWith("ranking:paged:"));
+        verify(redisTemplate).delete(anyCollection());
+    }
+
+    @Test void ordenarPorNomeDevePreservarPosicaoPorScoreNoConjuntoFiltrado() {
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(zSetOperations.zCard(anyString())).thenReturn(2L);
+        when(zSetOperations.rangeWithScores("ranking:enterprise:1:zset", 0, 99)).thenReturn(new LinkedHashSet<>(List.of(
+                new org.springframework.data.redis.core.DefaultTypedTuple<>("10", 1.0),
+                new org.springframework.data.redis.core.DefaultTypedTuple<>("20", 2.0))));
+        when(hashOperations.entries("ranking:farm:10:details")).thenReturn(Map.of("farm_name", "Zebra", "region", "Sul"));
+        when(hashOperations.entries("ranking:farm:20:details")).thenReturn(Map.of("farm_name", "Alfa", "region", "Sul"));
+        when(zSetOperations.score("ranking:enterprise:1:zset", "10")).thenReturn(1.0);
+        when(zSetOperations.score("ranking:enterprise:1:zset", "20")).thenReturn(2.0);
+        when(zSetOperations.range(startsWith("ranking:paged:"), eq(0L), eq(0L))).thenReturn(Set.of("alfa\u000020"));
+        when(zSetOperations.rank(startsWith("ranking:paged:"), eq("20"))).thenReturn(1L);
+        var result = farmRankingService.getRankingsPaged(1L, "Sul",
+                new com.ourosapp.springapi.dto.common.PageQuery(0, 1, "", "farm_name", "asc"), admPrincipal);
+        assertEquals(20L, result.content().get(0).farmId()); assertEquals(2L, result.content().get(0).rankPosition());
+        assertEquals(2.0, result.content().get(0).score()); assertEquals(2L, result.totalElements());
+        verify(redisTemplate).delete(anyCollection());
+    }
 }

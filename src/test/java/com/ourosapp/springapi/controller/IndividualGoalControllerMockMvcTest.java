@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.controller;
 
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -38,6 +39,9 @@ import java.util.List;
 @WebMvcTest(IndividualGoalController.class)
 @Import({SecurityConfig.class, KeycloakJwtAuthenticationConverter.class})
 class IndividualGoalControllerMockMvcTest {
+    @MockitoBean
+    private com.ourosapp.springapi.service.PagedListingService pagedListingService;
+
 
     @Autowired
     private MockMvc mockMvc;
@@ -265,5 +269,22 @@ class IndividualGoalControllerMockMvcTest {
         mockMvc.perform(delete("/individual-goals/10")
                         .with(user(mockPrincipal)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test void deveRetornarEnvelopePaginado() throws Exception {
+        when(pagedListingService.individualGoals(any(), any(), any())).thenReturn(com.ourosapp.springapi.dto.common.PageResponseDTO.of(List.of(), 21, 1, 10));
+        mockMvc.perform(get("/individual-goals/paged").param("page", "1").with(user(mockPrincipal)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.totalElements").value(21)).andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.page").value(1)).andExpect(jsonPath("$.size").value(10));
+    }
+    @Test void deveRejeitarPaginacaoInvalida() throws Exception {
+        for (String size : List.of("0", "101", "abc")) {
+            mockMvc.perform(get("/individual-goals/paged").param("size", size).with(user(mockPrincipal)))
+                    .andExpect(status().isBadRequest());
+        }
+        mockMvc.perform(get("/individual-goals/paged").param("page", "-1").with(user(mockPrincipal)))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(pagedListingService);
     }
 }

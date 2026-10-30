@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.controller;
 
+import static org.mockito.Mockito.verifyNoInteractions;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.config.SecurityConfig;
 import com.ourosapp.springapi.dto.lot.LotRequestDTO;
@@ -39,6 +40,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(LotController.class)
 @Import(SecurityConfig.class)
 class LotControllerMockMvcTest {
+    @MockitoBean
+    private com.ourosapp.springapi.service.PagedListingService pagedListingService;
+
 
     @Autowired
     private MockMvc mockMvc;
@@ -438,5 +442,22 @@ class LotControllerMockMvcTest {
     void testGetProductionSummariesUnauthorized() throws Exception {
         mockMvc.perform(get("/lots/production-summaries"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test void deveRetornarEnvelopePaginado() throws Exception {
+        when(pagedListingService.production(any(), any(), any(), any())).thenReturn(com.ourosapp.springapi.dto.common.PageResponseDTO.of(List.of(), 21, 1, 10));
+        mockMvc.perform(get("/lots/production-summaries/paged").param("page", "1").with(user(mockPrincipal)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.totalElements").value(21)).andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.page").value(1)).andExpect(jsonPath("$.size").value(10));
+    }
+    @Test void deveRejeitarPaginacaoInvalida() throws Exception {
+        for (String size : List.of("0", "101", "abc")) {
+            mockMvc.perform(get("/lots/production-summaries/paged").param("size", size).with(user(mockPrincipal)))
+                    .andExpect(status().isBadRequest());
+        }
+        mockMvc.perform(get("/lots/production-summaries/paged").param("page", "-1").with(user(mockPrincipal)))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(pagedListingService);
     }
 }

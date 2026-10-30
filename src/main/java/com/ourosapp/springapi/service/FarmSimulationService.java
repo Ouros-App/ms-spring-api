@@ -205,7 +205,7 @@ public class FarmSimulationService {
     // Métodos Auxiliares
     // ==========================================
 
-    private FarmSimulationResponseDTO toResponseDTO(FarmSimulation entity, UserPrincipal principal) {
+    FarmSimulationResponseDTO toResponseDTO(FarmSimulation entity, UserPrincipal principal) {
         FarmRankingSimulationResponseDTO simulatedRanking = null;
         try {
             if (entity.getIdFarm() != null && entity.getTargetCgi() != null && entity.getTargetCgi() > 0) {

@@ -1,5 +1,7 @@
 package com.ourosapp.springapi.service;
 
+import com.ourosapp.springapi.dto.common.PageQuery;
+import com.ourosapp.springapi.dto.common.PageResponseDTO;
 import static com.ourosapp.springapi.constants.ErrorMessages.USER_NOT_AUTHENTICATED;
 import static com.ourosapp.springapi.constants.RoleConstants.ADM;
 import static com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE;
@@ -63,6 +65,113 @@ public class FarmRankingService {
     private static final String KEY_ENTERPRISE_ZSET = "ranking:enterprise:%d:zset";
     private static final String KEY_FARM_DETAILS = "ranking:farm:%d:details";
     private static final Duration CACHE_TTL = Duration.ofDays(8);
+
+    /** Consulta intervalos Redis; a posição pertence ao ranking filtrado inteiro. */
+    @Transactional(readOnly = true)
+    public PageResponseDTO<FarmRankingResponseDTO> getRankingsPaged(
+            Long enterpriseId, String region, PageQuery page, UserPrincipal principal) {
+        ensureAuthenticated(principal);
+        if (!ADM.equals(principal.getRole()) && !COMPANY_EMPLOYEE.equals(principal.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Perfil sem permissão para consultar ranking completo");
+        }
+        page.orderBy(Map.of("score", "score", "farm_name", "farm_name"), "farm_id");
+        Long targetEnterprise = resolveTargetEnterpriseId(enterpriseId, principal);
+        if (targetEnterprise == null && !ADM.equals(principal.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Funcionário sem empresa vinculada");
+        }
+        List<String> temporaryKeys = new ArrayList<>();
+        try {
+            String source;
+            if (targetEnterprise != null) {
+                source = String.format(KEY_ENTERPRISE_ZSET, targetEnterprise);
+                Long count = redisTemplate.opsForZSet().zCard(source);
+                if (count == null || count == 0) recalculateAndCacheEnterpriseRanking(targetEnterprise);
+            } else {
+                List<String> keys = enterpriseRepository.findAll().stream()
+                        .map(e -> String.format(KEY_ENTERPRISE_ZSET, e.getId())).toList();
+                if (keys.isEmpty()) return PageResponseDTO.of(List.of(), 0, page.page(), page.size());
+                for (String key : keys) {
+                    Long count = redisTemplate.opsForZSet().zCard(key);
+                    if (count == null || count == 0) {
+                        recalculateAndCacheEnterpriseRanking(Long.valueOf(key.split(":")[2]));
+                    }
+                }
+                source = temporaryRankingKey(temporaryKeys);
+                redisTemplate.opsForZSet().unionAndStore(keys.get(0), keys.subList(1, keys.size()), source);
+                redisTemplate.expire(source, Duration.ofMinutes(5));
+            }
+            // Busca/região e nome exigem um índice efêmero. Processa blocos limitados,
+            // sem truncar o ranking em 100 registros e sem carregar a coleção inteira em Java.
+            String scoreSource = source;
+            String rankSource = source;
+            boolean byName = page.sort().equals("farm_name");
+            if (!page.search().isEmpty() || (region != null && !region.isBlank()) || byName) {
+                String filtered = temporaryRankingKey(temporaryKeys);
+                String filteredScores = byName ? temporaryRankingKey(temporaryKeys) : filtered;
+                rankSource = filteredScores;
+                for (long offset = 0; ; offset += 100) {
+                    var entries = redisTemplate.opsForZSet().rangeWithScores(source, offset, offset + 99);
+                    if (entries == null || entries.isEmpty()) break;
+                    for (var entry : entries) {
+                        if (entry.getValue() == null) continue;
+                        Long farmId = Long.valueOf(entry.getValue());
+                        FarmRankingResponseDTO item = pagedRankingItem(source, farmId);
+                        String name = item.farmName() == null ? "" : item.farmName().toLowerCase(Locale.ROOT);
+                        String itemRegion = item.region() == null ? "" : item.region();
+                        if ((!name.contains(page.search()) && !itemRegion.toLowerCase(Locale.ROOT).contains(page.search()))
+                                || (region != null && !region.isBlank() && !region.trim().equalsIgnoreCase(itemRegion))) continue;
+                        // Nome normalizado + separador NUL + ID mantém unicidade em nomes repetidos.
+                        String member = byName ? name + "\u0000" + farmId : farmId.toString();
+                        redisTemplate.opsForZSet().add(filtered, member, byName ? 0 : (entry.getScore() == null ? 0 : entry.getScore()));
+                        redisTemplate.expire(filtered, Duration.ofMinutes(5));
+                        if (byName) {
+                            redisTemplate.opsForZSet().add(filteredScores, farmId.toString(), entry.getScore() == null ? 0 : entry.getScore());
+                            redisTemplate.expire(filteredScores, Duration.ofMinutes(5));
+                        }
+                    }
+                    if (entries.size() < 100) break;
+                }
+                source = filtered;
+            }
+            Long count = redisTemplate.opsForZSet().zCard(source);
+            long total = count == null ? 0 : count;
+            long offset = page.pageable().getOffset();
+            Set<String> members = page.direction().equals("asc")
+                    ? redisTemplate.opsForZSet().range(source, offset, offset + page.size() - 1L)
+                    : redisTemplate.opsForZSet().reverseRange(source, offset, offset + page.size() - 1L);
+            List<FarmRankingResponseDTO> content = new ArrayList<>();
+            RankingCountdownDTO countdown = calculateRankingCountdown();
+            if (members != null) {
+                for (String member : members) {
+                    Long farmId = Long.valueOf(member.substring(member.lastIndexOf('\u0000') + 1));
+                    FarmRankingResponseDTO item = pagedRankingItem(scoreSource, farmId);
+                    // Busca a posição do conjunto filtrado, independente da página e da ordenação visual.
+                    Long rank = redisTemplate.opsForZSet().rank(rankSource, farmId.toString());
+                    content.add(new FarmRankingResponseDTO(farmId, item.farmName(), item.region(), item.score(),
+                            rank == null ? offset + content.size() + 1 : rank + 1).withCountdown(countdown));
+                }
+            }
+            return PageResponseDTO.of(content, total, page.page(), page.size());
+        } finally {
+            if (!temporaryKeys.isEmpty()) redisTemplate.delete(temporaryKeys);
+        }
+    }
+
+    private String temporaryRankingKey(List<String> keys) {
+        String key = "ranking:paged:" + UUID.randomUUID();
+        keys.add(key);
+        return key;
+    }
+
+    private FarmRankingResponseDTO pagedRankingItem(String key, Long farmId) {
+        var item = mapHashToRankingResponse(farmId, redisTemplate.opsForHash().entries(String.format(KEY_FARM_DETAILS, farmId)));
+        // O score vem do ZSet de origem da empresa, mesmo ao ordenar pelo nome.
+        Farm farm = null;
+        if (item == null) farm = farmRepository.findById(farmId).orElse(null);
+        Double score = redisTemplate.opsForZSet().score(key, farmId.toString());
+        return new FarmRankingResponseDTO(farmId, item != null ? item.farmName() : farm != null ? farm.getName() : "Granja #" + farmId,
+                item != null ? item.region() : farm != null ? farm.getRegion() : null, score == null ? 0 : score, 1L);
+    }
 
     /**
      * Recalcula os indicadores de consumo e ranking das fazendas no PostgreSQL e carrega no Redis (ZSet e Hashes).

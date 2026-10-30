@@ -1,5 +1,8 @@
 package com.ourosapp.springapi.controller;
 
+import com.ourosapp.springapi.dto.common.PageResponseDTO;
+import com.ourosapp.springapi.dto.common.PageQuery;
+import com.ourosapp.springapi.service.PagedListingService;
 import com.ourosapp.springapi.dto.individualgoal.IndividualGoalRequestDTO;
 import com.ourosapp.springapi.dto.individualgoal.IndividualGoalResponseDTO;
 import com.ourosapp.springapi.dto.individualgoal.IndividualGoalUpdateDTO;
@@ -31,8 +34,26 @@ import java.util.List;
 @Tag(name = "Metas Individuais", description = "Endpoints para gerenciamento de metas individuais de produtividade e sustentabilidade nas fazendas")
 @SecurityRequirement(name = "BearerAuth")
 public class IndividualGoalController {
-
+    private final PagedListingService pagedListingService;
     private final IndividualGoalService individualGoalService;
+
+    @Operation(summary = "Listar metas individuais com paginação", description = "ADM acessa todas as empresas; funcionário acessa sua empresa; produtor acessa sua fazenda. Filtros e busca precedem a paginação e contagem; ID desempata a ordenação.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Página e totais filtrados"),
+            @ApiResponse(responseCode = "400", description = "Página, tamanho ou ordenação inválidos"),
+            @ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Escopo não autorizado"),
+            @ApiResponse(responseCode = "404", description = "Usuário ou fazenda não encontrados")})
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponseDTO<IndividualGoalResponseDTO>> getPaged(
+            @RequestParam(name = "farm_id", required = false) Long farmId,
+            @Parameter(description = "Página iniciada em zero", example = "0") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamanho entre 1 e 100", example = "10") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Busca textual sem distinguir maiúsculas") @RequestParam(defaultValue = "") String search,
+            @Parameter(description = "Campo de ordenação: id, title, type, status, target_value; padrão id") @RequestParam(defaultValue = "id") String sort,
+            @Parameter(description = "Direção asc ou desc") @RequestParam(defaultValue = "desc") String direction,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(pagedListingService.individualGoals(farmId, new PageQuery(page, size, search, sort, direction), principal));
+    }
 
     /**
      * Endpoint para criar uma nova meta individual na fazenda.
