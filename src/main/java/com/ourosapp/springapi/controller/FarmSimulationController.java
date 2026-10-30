@@ -1,5 +1,8 @@
 package com.ourosapp.springapi.controller;
 
+import com.ourosapp.springapi.dto.common.PageResponseDTO;
+import com.ourosapp.springapi.dto.common.PageQuery;
+import com.ourosapp.springapi.service.PagedListingService;
 import com.ourosapp.springapi.dto.farm.FarmSimulationRequestDTO;
 import com.ourosapp.springapi.dto.farm.FarmSimulationResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmSimulationUpdateDTO;
@@ -30,8 +33,27 @@ import java.util.List;
 @Tag(name = "Simulações de Fazendas", description = "Endpoints para criação, consulta, atualização e exclusão de cenários de simulação financeira e operacional")
 @SecurityRequirement(name = "BearerAuth")
 public class FarmSimulationController {
-
+    private final PagedListingService pagedListingService;
     private final FarmSimulationService farmSimulationService;
+
+    @Operation(summary = "Listar simulações com paginação", description = "ADM acessa todas as empresas; funcionário acessa sua empresa; produtor acessa sua fazenda. Filtros e busca precedem a paginação e contagem; ID desempata a ordenação.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Página e totais filtrados"),
+            @ApiResponse(responseCode = "400", description = "Página, tamanho ou ordenação inválidos"),
+            @ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Escopo não autorizado"),
+            @ApiResponse(responseCode = "404", description = "Usuário ou fazenda não encontrados")})
+    @GetMapping("/paged")
+    public ResponseEntity<PageResponseDTO<FarmSimulationResponseDTO>> getPaged(
+            @RequestParam(name = "id_farm", required = false) Long farmId,
+            @RequestParam(name = "id_enterprise", required = false) Long enterpriseId,
+            @Parameter(description = "Página iniciada em zero", example = "0") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamanho entre 1 e 100", example = "10") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Busca textual sem distinguir maiúsculas") @RequestParam(defaultValue = "") String search,
+            @Parameter(description = "Campo de ordenação: id, id_lot, current_cgi, target_cgi, water_price, energy_price, poultry_quantity, target_energy_kwh, created_at; padrão id") @RequestParam(defaultValue = "id") String sort,
+            @Parameter(description = "Direção asc ou desc") @RequestParam(defaultValue = "desc") String direction,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(pagedListingService.simulations(farmId, enterpriseId, new PageQuery(page, size, search, sort, direction), principal));
+    }
 
     /**
      * Lista os cenários de simulação acessíveis ao usuário autenticado.

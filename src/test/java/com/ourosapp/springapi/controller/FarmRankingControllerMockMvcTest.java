@@ -343,4 +343,20 @@ class FarmRankingControllerMockMvcTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }
+
+    @Test void deveRetornarRankingPaginadoComPosicaoGlobal() throws Exception {
+        var item = new FarmRankingResponseDTO(101L, "Granja Ouro", "Sul", 1.2, 101L);
+        when(farmRankingService.getRankingsPaged(eq(1L), any(), any(), any())).thenReturn(
+                com.ourosapp.springapi.dto.common.PageResponseDTO.of(List.of(item), 250, 10, 10));
+        mockMvc.perform(get("/farms/rankings/paged").with(user(createMockUser("ADM")))
+                        .param("id_enterprise", "1").param("page", "10"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(250))
+                .andExpect(jsonPath("$.content[0].rank_position").value(101));
+    }
+    @Test void deveRejeitarParametrosInvalidosDoRankingPaginado() throws Exception {
+        mockMvc.perform(get("/farms/rankings/paged").with(user(createMockUser("ADM"))).param("page", "-1"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/farms/rankings/paged").with(user(createMockUser("ADM"))).param("size", "101"))
+                .andExpect(status().isBadRequest());
+    }
 }

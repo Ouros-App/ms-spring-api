@@ -1,5 +1,6 @@
 package com.ourosapp.springapi.controller;
 
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -39,6 +40,9 @@ import java.util.List;
 @WebMvcTest(StateGoalController.class)
 @Import(SecurityConfig.class)
 class StateGoalControllerMockMvcTest {
+    @MockitoBean
+    private com.ourosapp.springapi.service.PagedListingService pagedListingService;
+
 
     @Autowired
     private MockMvc mockMvc;
@@ -264,5 +268,22 @@ class StateGoalControllerMockMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0]").value("Sudeste"))
                 .andExpect(jsonPath("$[1]").value("Sul"));
+    }
+
+    @Test void deveRetornarEnvelopePaginado() throws Exception {
+        when(pagedListingService.stateGoals(any(), any(), any(), any())).thenReturn(com.ourosapp.springapi.dto.stategoal.StateGoalPageResponseDTO.from(com.ourosapp.springapi.dto.common.PageResponseDTO.of(List.of(), 21, 1, 10), java.util.Map.of("Pendente", 21L)));
+        mockMvc.perform(get("/state-goals/paged").param("page", "1").with(user(mockPrincipal)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.totalElements").value(21)).andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.page").value(1)).andExpect(jsonPath("$.size").value(10));
+    }
+    @Test void deveRejeitarPaginacaoInvalida() throws Exception {
+        for (String size : List.of("0", "101", "abc")) {
+            mockMvc.perform(get("/state-goals/paged").param("size", size).with(user(mockPrincipal)))
+                    .andExpect(status().isBadRequest());
+        }
+        mockMvc.perform(get("/state-goals/paged").param("page", "-1").with(user(mockPrincipal)))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(pagedListingService);
     }
 }
