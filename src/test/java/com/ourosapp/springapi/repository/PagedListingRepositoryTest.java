@@ -100,4 +100,66 @@ class PagedListingRepositoryTest {
         assertEquals(10.0, result.getContent().get(0).getHidrometro());
         assertEquals(0, lots.findProductionSummariesPaged(2L, null, "%", pageable).getTotalElements());
     }
+
+    @Test void deveTratarTentativasDeInjecaoComoTextoSemAmpliarEscopo() {
+        Farm own = farm(1, "Sul"), other = farm(2, "Sul");
+        String payload = "' OR 1=1 --";
+        var target = em.persist(IndividualGoal.builder().title("Texto " + payload).description("Descrição")
+                .type("Água").status("Pendente").targetValue(BigDecimal.TEN).idFarm(own.getId()).build());
+        em.persist(IndividualGoal.builder().title("Meta comum").description("Descrição").type("Água")
+                .status("Pendente").targetValue(BigDecimal.TEN).idFarm(own.getId()).build());
+        em.persist(IndividualGoal.builder().title("Texto " + payload).description("Descrição").type("Água")
+                .status("Pendente").targetValue(BigDecimal.TEN).idFarm(other.getId()).build());
+        var scope = new PagedListingRepository.Scope(1L, null);
+        var result = repository.individualGoals(scope, query(0, 10, payload, "id"));
+        assertEquals(1, result.totalElements()); assertEquals(target.getId(), result.content().get(0).getId());
+        var state = goal(own, "Texto " + payload, "Pendente");
+        goal(own, "Meta comum", "CONCLUIDA"); goal(other, "Texto " + payload, "Pendente");
+        var goals = repository.stateGoals(scope, null, query(0, 10, payload, "id"));
+        assertEquals(1, goals.totalElements()); assertEquals(state.getId(), goals.content().get(0).id());
+        assertEquals(Map.of("Pendente", 1L), goals.statusCounts());
+        assertEquals(0, repository.stateGoals(scope, "Sul" + payload, query(0, 10, "", "id")).totalElements());
+        for (String sort : List.of("title desc; delete from StateGoal", "id OR 1=1", "unknown")) {
+            var invalid = query(0, 10, "", sort);
+            assertEquals(400, assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                    () -> repository.individualGoals(scope, invalid)).getStatusCode().value());
+            assertEquals(400, assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                    () -> repository.stateGoals(scope, null, invalid)).getStatusCode().value());
+            assertEquals(400, assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                    () -> repository.simulations(scope, invalid)).getStatusCode().value());
+        }
+        assertEquals(3L, em.getEntityManager().createQuery("select count(g) from StateGoal g", Long.class).getSingleResult());
+    }
+
+    @Test void consultaGlobalDevePreservarMetasSemVinculoEOrdenacaoDescendente() {
+        Farm own = farm(1, "Sul");
+        StateGoal linked = goal(own, "Meta A", "CONCLUIDA");
+        StateGoal unlinked = em.persist(StateGoal.builder().title("Meta Z").description("Descrição").type("Água")
+                .targetValue(BigDecimal.TEN).dateCreation(LocalDate.of(2026, 1, 1)).build());
+        var scope = new PagedListingRepository.Scope(null, null);
+        var request = new PageQuery(0, 10, "", "title", "desc");
+        var result = repository.stateGoals(scope, null, request);
+        assertEquals(2, result.totalElements());
+        assertEquals(List.of(unlinked.getId(), linked.getId()), result.content().stream().map(g -> g.id()).toList());
+        assertEquals(Map.of("CONCLUIDA", 1L, "Pendente", 1L), result.statusCounts());
+        assertEquals(result, repository.stateGoals(scope, "  ", request));
+    }
+
+    @Test void deveBuscarSimulacoesPorTextoLiteralEPaginarSemFiltroDeEmpresa() {
+        Farm own = farm(1, "Sul"), other = farm(2, "Norte");
+        String payload = "' OR 1=1 --";
+        for (Farm f : List.of(own, own, other)) {
+            FarmSimulation s = new FarmSimulation(); s.setIdFarm(f.getId()); s.setIdEnterprise(f.getIdEnterprise());
+            s.setIdLot(payload); s.setCurrentCgi(1.0); s.setTargetCgi(0.8); s.setWaterPrice(2.0);
+            s.setEnergyPrice(3.0); s.setPoultryQuantity(100); s.setTargetEnergyKwh(50.0); em.persist(s);
+        }
+        var request = new PageQuery(0, 1, payload, "current_cgi", "desc");
+        var first = repository.simulations(new PagedListingRepository.Scope(null, own.getId()), request);
+        var next = repository.simulations(new PagedListingRepository.Scope(null, own.getId()),
+                new PageQuery(1, 1, payload, "current_cgi", "desc"));
+        assertEquals(2, first.totalElements()); assertEquals(own.getId(), first.content().get(0).getIdFarm());
+        assertTrue(first.content().get(0).getId() > next.content().get(0).getId());
+        assertEquals(3, repository.simulations(new PagedListingRepository.Scope(null, null),
+                new PageQuery(0, 10, "", "id", "desc")).totalElements());
+    }
 }
