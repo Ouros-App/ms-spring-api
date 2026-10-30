@@ -116,7 +116,7 @@ public class FarmController {
      * @param principal dados do usuário autenticado via token JWT
      * @return resposta HTTP 200 (OK) com a fazenda atualizada
      */
-    @Operation(summary = "Atualizar fazenda parcialmente", description = "Atualiza dados pontuais da fazenda (nome, capacidade de aves, área, local, região).")
+    @Operation(summary = "Atualizar fazenda parcialmente", description = "Atualiza dados pontuais da fazenda. FARM_OWNER pode atualizar somente chickens_now da própria fazenda.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Fazenda atualizada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),

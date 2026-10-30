@@ -210,7 +210,18 @@ public class FarmService {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
 
         Farm farm = findFarmByIdOrThrow(id);
-        validateFarmMutationPermission(farm, principal, "alterar");
+        ensureAuthenticated(principal);
+        if ("FARM_OWNER".equals(principal.getRole())) {
+            if (!request.hasOnlyChickensNow()) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Produtor rural só pode atualizar o saldo de aves");
+            }
+            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
+            if (owner.getIdFarm() == null || !Objects.equals(farm.getId(), owner.getIdFarm())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado para alterar esta fazenda");
+            }
+        } else {
+            validateFarmMutationPermission(farm, principal, "alterar");
+        }
 
         if (!request.hasUpdates()) {
             return FarmResponseDTO.fromEntity(farm);
