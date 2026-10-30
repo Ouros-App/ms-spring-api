@@ -71,6 +71,11 @@ public record FarmUpdateDTO(
         fotoUrl = fotoUrl != null ? fotoUrl.trim() : null;
     }
 
+    public boolean hasOnlyChickensNow() {
+        return chickensNow != null && name == null && areaProperty == null && region == null
+                && poultryCapacity == null && place == null && fotoUrl == null;
+    }
+
     /**
      * Verifica se pelo menos um dos campos opcionais foi informado para atualização.
      *

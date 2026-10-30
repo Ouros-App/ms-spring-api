@@ -374,6 +374,18 @@ class FarmControllerMockMvcTest {
                 .andExpect(jsonPath("$.foto_url").value("https://storage.ourosapp.com/farms/updated.jpg"));
     }
 
+    @Test
+    void deveAceitarSaldoEmSnakeCaseERejeitarValorNegativo() throws Exception {
+        FarmResponseDTO response = new FarmResponseDTO(1L, "Fazenda", BigDecimal.ONE, "Sul", 10000, "Local", 1L, 123, null, 2L);
+        when(farmService.updateFarm(eq(1L), eq(new FarmUpdateDTO(null, null, null, null, null, 123, null)), eq(mockPrincipal))).thenReturn(response);
+        mockMvc.perform(patch("/farms/1").with(user(mockPrincipal)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"chickens_now\":123}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.chickens_now").value(123));
+        mockMvc.perform(patch("/farms/1").with(user(mockPrincipal)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"chickens_now\":-1}"))
+                .andExpect(status().isBadRequest());
+    }
+
     /**
      * Testa PATCH /farms/{id} com dados inválidos esperando 400 Bad Request.
      *
