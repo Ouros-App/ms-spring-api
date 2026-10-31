@@ -33,13 +33,19 @@ public interface StateGoalRepository extends JpaRepository<StateGoal, Long>, Sta
     @Query("SELECT g FROM StateGoal g WHERE g.id IN (SELECT fg.idGoal FROM FarmGoal fg WHERE fg.idFarm IN :idFarms)")
     List<StateGoal> findByIdFarmIn(@Param("idFarms") List<Long> idFarms);
 
-    /**
-     * Calcula a proporção de vínculos concluídos da fazenda, sem funções externas.
-     *
-     * @param farmId identificador único da fazenda
-     * @return percentual de progresso de metas (0 a 100%)
-     */
-    @Query(value = "SELECT COALESCE(100.0 * SUM(CASE WHEN UPPER(status) IN ('CONCLUIDA', 'CONCLUÍDA', 'COMPLETED', 'COMPLETED_SUCCESSFULLY', 'ACHIEVED') THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 0) FROM farm_goals WHERE id_farm = :farmId", nativeQuery = true)
+    /** Replica a regra de funcoes_consumo_metas.sql para metas individuais e estaduais. */
+    @Query(value = """
+            WITH goals AS (
+                SELECT status FROM individual_goals WHERE id_farm = :farmId
+                UNION ALL
+                SELECT status FROM farm_goals WHERE id_farm = :farmId
+            )
+            SELECT COALESCE(ROUND(AVG(CASE status
+                WHEN 'Concluída' THEN 100
+                WHEN 'Em andamento' THEN 50
+                WHEN 'Pendente' THEN 0
+                ELSE 0 END), 2), 0)
+            FROM goals
+            """, nativeQuery = true)
     BigDecimal getGoalsProgress(@Param("farmId") Long farmId);
-
 }

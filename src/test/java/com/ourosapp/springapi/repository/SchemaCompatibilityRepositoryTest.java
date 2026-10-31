@@ -17,13 +17,14 @@ class SchemaCompatibilityRepositoryTest {
     @Autowired RegionGoalRepository regions;
     @Autowired StateGoalRegionRepository regionLinks;
     @Autowired WaterRegistryRepository water;
+    @Autowired IndividualGoalRepository individualGoals;
 
     @Test
     void devePersistirMetaEVinculosSemProcedure() {
         Integer id = goals.callCreateStateGoal("Economizar água", "Meta de teste", "WATER_CONSUMPTION",
-                "COMPLETED", new BigDecimal("10"), LocalDateTime.of(2026, 1, 1, 0, 0), null, 7, "Sudeste");
+                "Concluída", new BigDecimal("10"), LocalDateTime.of(2026, 1, 1, 0, 0), null, 7, "Sudeste");
         assertTrue(goals.findById(id.longValue()).isPresent());
-        assertEquals("COMPLETED", links.findByIdFarmAndIdGoal(7L, id.longValue()).orElseThrow().getStatus());
+        assertEquals("Concluída", links.findByIdFarmAndIdGoal(7L, id.longValue()).orElseThrow().getStatus());
         assertEquals(1, regions.findByIdGoal(id.longValue()).size());
         assertEquals(1, regionLinks.findByIdGoal(id.longValue()).size());
         assertEquals(0, new BigDecimal("100").compareTo(goals.getGoalsProgress(7L)));
@@ -58,5 +59,18 @@ class SchemaCompatibilityRepositoryTest {
             assertEquals("Pendente", links.findByIdFarmAndIdGoal(7L, id.longValue()).orElseThrow().getStatus());
             assertTrue(regions.findByIdGoal(id.longValue()).isEmpty());
         }
+    }
+    @Test
+    void deveCombinarMetasIndividuaisEEstaduaisComProgressoParcial() {
+        goals.callCreateStateGoal("Estadual", null, "WATER_CONSUMPTION", "Em andamento",
+                BigDecimal.ONE, LocalDateTime.of(2026, 1, 1, 0, 0), null, 7, null);
+        individualGoals.saveAndFlush(com.ourosapp.springapi.entity.IndividualGoal.builder()
+                .idFarm(7L).title("Individual").type("WATER_CONSUMPTION").status("Concluída")
+                .targetValue(BigDecimal.ONE).build());
+        assertEquals(0, new BigDecimal("75").compareTo(goals.getGoalsProgress(7L)));
+        individualGoals.saveAndFlush(com.ourosapp.springapi.entity.IndividualGoal.builder()
+                .idFarm(7L).title("Pendente").type("WATER_CONSUMPTION").status("Pendente")
+                .targetValue(BigDecimal.ONE).build());
+        assertEquals(0, new BigDecimal("50").compareTo(goals.getGoalsProgress(7L)));
     }
 }
