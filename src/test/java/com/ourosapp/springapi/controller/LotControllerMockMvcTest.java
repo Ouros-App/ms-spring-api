@@ -482,4 +482,28 @@ class LotControllerMockMvcTest {
         when(lotService.getProductionSummaryById(99L, mockPrincipal)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
         mockMvc.perform(get("/lots/production-summaries/99").with(user(mockPrincipal))).andExpect(status().isNotFound());
     }
+    @Test
+    void deveValidarQuantidadeDeAvesNoCadastroAgregado() throws Exception {
+        var response = new LotResponseDTO(10L, 100, 100, null, 0, 0.0, 1L, 2L);
+        when(lotService.createAggregatedLot(any(), eq(mockPrincipal))).thenReturn(response);
+        mockMvc.perform(post("/lots/aggregated").with(user(mockPrincipal)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"received_chickens\":100,\"delivered_chickens\":100,\"id_farm\":2}"))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/lots/aggregated").with(user(mockPrincipal)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"received_chickens\":100,\"delivered_chickens\":101,\"id_farm\":2}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/lots/aggregated").with(user(mockPrincipal)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"delivered_chickens\":1,\"id_farm\":2}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deveRetornarResumoIndividual() throws Exception {
+        var response = new ProductionRegistryResponseDTO(10L, "L-10", LocalDate.of(2026, 10, 1),
+                12.0, 30.0, 100, 10, 90, 2L, "Fazenda");
+        when(lotService.getProductionSummaryById(10L, mockPrincipal)).thenReturn(response);
+        mockMvc.perform(get("/lots/production-summaries/10").with(user(mockPrincipal)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(10))
+                .andExpect(jsonPath("$.galinhas_atuais").value(90));
+    }
 }

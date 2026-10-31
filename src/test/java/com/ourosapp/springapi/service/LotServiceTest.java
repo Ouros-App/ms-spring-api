@@ -1120,4 +1120,13 @@ class LotServiceTest {
         lotService.createAggregatedLot(request, admPrincipal);
         verifyNoInteractions(waterRegistryService);
     }
+    @Test
+    void deveOmitirMedicaoQuandoLeituraNaoForInformada() {
+        var request = new com.ourosapp.springapi.dto.lot.LotAggregatedRequestDTO(100, 0, null, 1.0, 10L, 1L, null);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(Farm.builder().id(10L).idEnterprise(1L).build()));
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(lotRepository.save(any(Lot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lotService.createAggregatedLot(request, admPrincipal);
+        verifyNoInteractions(waterRegistryService);
+    }
 }
