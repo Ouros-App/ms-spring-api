@@ -289,7 +289,7 @@ public class FarmService {
     }
 
     /**
-     * Retorna o consumo recente de água de uma fazenda calculado via função analítica PostgreSQL.
+     * Retorna o consumo recente de água de uma fazenda calculado diretamente sobre os registros existentes.
      *
      * @param farmId    identificador único da fazenda
      * @param principal dados do usuário logado extraídos do token JWT
@@ -304,11 +304,11 @@ public class FarmService {
     }
 
     /**
-     * Retorna o progresso consolidado de metas de uma fazenda calculado via função analítica PostgreSQL.
+     * Retorna o percentual de vínculos de metas concluídos de uma fazenda calculado diretamente sobre os registros existentes.
      *
      * @param farmId    identificador único da fazenda
      * @param principal dados do usuário logado extraídos do token JWT
-     * @return DTO com o percentual ponderado de progresso de metas
+     * @return DTO com o percentual de vínculos de metas concluídos
      */
     @Transactional(readOnly = true)
     public FarmGoalsProgressResponseDTO getFarmGoalsProgress(Long farmId, UserPrincipal principal) {

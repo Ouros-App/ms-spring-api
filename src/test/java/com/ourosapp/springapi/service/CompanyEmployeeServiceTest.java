@@ -837,4 +837,23 @@ class CompanyEmployeeServiceTest {
         assertEquals("Carlos Novo Nome", response.name());
         assertNull(response.photoUrl());
     }
+    @Test
+    void deveAtualizarApenasAdmMesmoQuandoIdCoincideComFuncionario() {
+        Adm adm = Adm.builder().id(1L).name("Administrador").email("adm@empresa.com.br").build();
+        when(admRepository.findById(1L)).thenReturn(Optional.of(adm));
+        var request = new CompanyEmployeeUpdateDTO("Novo nome", null, null, null, "https://example.com/photo.png");
+        var response = companyEmployeeService.updateLoggedInEmployee(request, adminPrincipal);
+        assertEquals("Novo nome", response.name());
+        verify(admRepository).save(adm);
+        verifyNoInteractions(companyEmployeeRepository);
+    }
+
+    @Test
+    void deveRejeitarSenhaLocalDoAdministrador() {
+        var request = new CompanyEmployeeUpdateDTO(null, null, "NovaSenha@123");
+        var error = assertThrows(ResponseStatusException.class,
+                () -> companyEmployeeService.updateLoggedInEmployee(request, adminPrincipal));
+        assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
+        verify(admRepository, never()).save(any());
+    }
 }

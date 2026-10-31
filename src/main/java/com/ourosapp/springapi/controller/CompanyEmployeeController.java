@@ -73,6 +73,20 @@ public class CompanyEmployeeController {
         return ResponseEntity.ok(companyEmployeeService.getLoggedInEmployee(principal));
     }
 
+    @Operation(summary = "Atualizar o próprio perfil", description = "Atualiza o funcionário ou administrador autenticado sem colisão de IDs entre tabelas.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Perfil atualizado"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"),
+            @ApiResponse(responseCode = "404", description = "Perfil não encontrado")})
+    @PatchMapping("/me")
+    public ResponseEntity<CompanyEmployeeResponseDTO> updateOwnProfile(
+            @RequestBody @Valid CompanyEmployeeUpdateDTO request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(companyEmployeeService.updateLoggedInEmployee(request, principal));
+    }
+
     @Operation(summary = "Buscar funcionário por ID", description = "Retorna as informações de um funcionário específico.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Funcionário retornado com sucesso"),

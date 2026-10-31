@@ -103,8 +103,8 @@ public class StateGoalService {
     }
 
     /**
-     * Cadastra uma nova meta estadual utilizando a stored procedure PostgreSQL 'create_state_goal'.
-     * Substitui a persistência encadeada de 4 entidades por uma execução transacional atômica no banco de dados.
+     * Cadastra uma meta e seus vínculos em uma única transação JPA.
+     * Utiliza as tabelas do esquema existente, sem instalação de rotinas no banco.
      *
      * @param request   dados da meta estadual
      * @param principal dados do usuário autenticado no JWT
@@ -311,7 +311,7 @@ public class StateGoalService {
             }
 
             // Bloquear tentativa do produtor de alterar metas macro globais compartilhadas com outras fazendas
-            if (request.targetValue() != null || request.dateEnd() != null) {
+            if (request.targetValue() != null || request.dateEnd() != null || request.title() != null) {
                 throw new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
                         "Produtores rurais têm permissão apenas para atualizar o status da sua própria fazenda nesta meta estadual"
@@ -344,6 +344,10 @@ public class StateGoalService {
             return StateGoalResponseDTO.fromEntity(goal, currentStatus, region);
         }
 
+        if (request.title() != null) {
+            if (request.title().isBlank()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O título não pode estar em branco");
+            goal.setTitle(request.title());
+        }
         String status = resolveGoalStatus(goal, primaryFarm, principal);
         if (request.status() != null && !request.status().isBlank()) {
             status = request.status();
