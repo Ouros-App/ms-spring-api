@@ -289,17 +289,8 @@ public class StateGoalService {
         return StateGoalResponseDTO.fromEntity(goal, status, region);
     }
 
-    /**
-     * Atualiza parcialmente dados de uma meta estadual existente.
-     */
-    @Transactional
-    public StateGoalResponseDTO updateStateGoal(Long id, StateGoalUpdateDTO request, UserPrincipal principal) {
-        Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
-        ensureAuthenticated(principal);
-
-        StateGoal goal = findStateGoalByIdOrThrow(id);
-        Farm primaryFarm = findPrimaryFarmForGoal(goal.getId());
-
+    private void validateStateGoalUpdatePermission(StateGoal goal, Farm primaryFarm,
+            StateGoalUpdateDTO request, UserPrincipal principal) {
         // Validação diferenciada por perfil RBAC:
         if (FARM_OWNER.equals(principal.getRole())) {
             FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
@@ -331,6 +322,21 @@ public class StateGoalService {
                     "Acesso negado para alterar metas estaduais"
             );
         }
+
+    }
+
+    /**
+     * Atualiza parcialmente dados de uma meta estadual existente.
+     */
+    @Transactional
+    public StateGoalResponseDTO updateStateGoal(Long id, StateGoalUpdateDTO request, UserPrincipal principal) {
+        Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
+        ensureAuthenticated(principal);
+
+        StateGoal goal = findStateGoalByIdOrThrow(id);
+        Farm primaryFarm = findPrimaryFarmForGoal(goal.getId());
+
+        validateStateGoalUpdatePermission(goal, primaryFarm, request, principal);
 
         String region = regionGoalRepository.findByIdGoal(goal.getId())
                 .stream()

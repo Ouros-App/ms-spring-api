@@ -1907,4 +1907,15 @@ class StateGoalServiceTest {
         assertEquals(LocalDate.of(2026, 11, 30), res.dateEnd());
         verify(stateGoalRepository).save(goal);
     }
+    @Test
+    void devePersistirNovoTituloESemPermitirTituloVazio() {
+        when(stateGoalRepository.findById(1L)).thenReturn(Optional.of(goal));
+        when(stateGoalRepository.save(any(StateGoal.class))).thenReturn(goal);
+        var response = stateGoalService.updateStateGoal(1L,
+                new StateGoalUpdateDTO(null, null, null, " Novo título "), admPrincipal);
+        assertEquals("Novo título", response.title());
+        var error = assertThrows(ResponseStatusException.class, () -> stateGoalService.updateStateGoal(1L,
+                new StateGoalUpdateDTO(null, null, null, " "), admPrincipal));
+        assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
+    }
 }

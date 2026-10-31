@@ -856,4 +856,48 @@ class CompanyEmployeeServiceTest {
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
         verify(admRepository, never()).save(any());
     }
+    @Test
+    void devePersistirEmailELimparFotoDoAdministrador() {
+        Adm adm = Adm.builder().id(1L).name("Administrador").email("old@example.com").build();
+        when(admRepository.findById(1L)).thenReturn(Optional.of(adm));
+        when(admRepository.findByEmailIgnoreCase("new@example.com")).thenReturn(Optional.of(adm));
+        var response = companyEmployeeService.updateLoggedInEmployee(
+                new CompanyEmployeeUpdateDTO("", "new@example.com", null, "", ""), adminPrincipal);
+        assertEquals("new@example.com", response.email());
+        assertNull(response.photoUrl());
+        verify(admRepository).save(adm);
+    }
+
+    @Test
+    void deveRejeitarEmailDeOutroAdministrador() {
+        when(admRepository.findById(1L)).thenReturn(Optional.of(Adm.builder().id(1L).build()));
+        when(admRepository.findByEmailIgnoreCase("other@example.com"))
+                .thenReturn(Optional.of(Adm.builder().id(2L).build()));
+        var error = assertThrows(ResponseStatusException.class, () -> companyEmployeeService.updateLoggedInEmployee(
+                new CompanyEmployeeUpdateDTO(null, "other@example.com", null, null, null), adminPrincipal));
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verify(admRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRejeitarPerfilInexistenteENaoAutenticado() {
+        when(admRepository.findById(1L)).thenReturn(Optional.empty());
+        var request = new CompanyEmployeeUpdateDTO(null, null, null);
+        assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
+                () -> companyEmployeeService.updateLoggedInEmployee(request, adminPrincipal)).getStatusCode());
+        assertEquals(HttpStatus.UNAUTHORIZED, assertThrows(ResponseStatusException.class,
+                () -> companyEmployeeService.updateLoggedInEmployee(request, null)).getStatusCode());
+        var owner = new UserPrincipal(1L, "owner@example.com", null, "FARM_OWNER", List.of());
+        assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
+                () -> companyEmployeeService.updateLoggedInEmployee(request, owner)).getStatusCode());
+    }
+
+    @Test
+    void deveDelegarAtualizacaoDoProprioFuncionario() {
+        when(companyEmployeeRepository.findById(1L)).thenReturn(Optional.of(sampleEmployee));
+        var response = companyEmployeeService.updateLoggedInEmployee(
+                new CompanyEmployeeUpdateDTO(null, null, null), employeePrincipal);
+        assertEquals(sampleEmployee.getId(), response.id());
+        verifyNoInteractions(admRepository);
+    }
 }

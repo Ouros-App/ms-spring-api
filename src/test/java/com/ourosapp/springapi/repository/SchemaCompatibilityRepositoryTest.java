@@ -41,4 +41,22 @@ class SchemaCompatibilityRepositoryTest {
         assertEquals(0, new BigDecimal("4").compareTo(water.getLatestWaterConsumption(7L)));
         assertEquals(0, BigDecimal.ZERO.compareTo(water.getLatestWaterConsumption(8L)));
     }
+    @Test
+    void deveCriarMetaGlobalSemVinculosEComDataFinal() {
+        Integer id = goals.callCreateStateGoal("Global", null, "WATER_CONSUMPTION", null,
+                BigDecimal.ONE, LocalDateTime.of(2026, 1, 1, 0, 0), LocalDateTime.of(2026, 2, 1, 0, 0), null, null);
+        assertEquals(LocalDate.of(2026, 2, 1), goals.findById(id.longValue()).orElseThrow().getDateEnd());
+        assertTrue(links.findByIdGoal(id.longValue()).isEmpty());
+        assertTrue(regions.findByIdGoal(id.longValue()).isEmpty());
+    }
+
+    @Test
+    void deveUsarStatusPendenteSemRegiaoParaVinculoDeFazenda() {
+        for (String status : new String[] { null, "", "Pendente" }) {
+            Integer id = goals.callCreateStateGoal("Regional", null, "WATER_CONSUMPTION", status,
+                    BigDecimal.ONE, LocalDateTime.of(2026, 1, 1, 0, 0), null, 7, "");
+            assertEquals("Pendente", links.findByIdFarmAndIdGoal(7L, id.longValue()).orElseThrow().getStatus());
+            assertTrue(regions.findByIdGoal(id.longValue()).isEmpty());
+        }
+    }
 }
