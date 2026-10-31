@@ -3,6 +3,7 @@ package com.ourosapp.springapi.controller;
 import com.ourosapp.springapi.dto.common.PageResponseDTO;
 import com.ourosapp.springapi.dto.common.PageQuery;
 import com.ourosapp.springapi.service.PagedListingService;
+import com.ourosapp.springapi.dto.lot.LotAggregatedRequestDTO;
 import com.ourosapp.springapi.dto.lot.LotRequestDTO;
 import com.ourosapp.springapi.dto.lot.LotResponseDTO;
 import com.ourosapp.springapi.dto.lot.LotUpdateDTO;
@@ -37,6 +38,25 @@ import java.util.List;
 public class LotController {
     private final PagedListingService pagedListingService;
     private final LotService lotService;
+
+    @Operation(summary = "Cadastrar lote com leitura inicial", description = "Cadastra o lote e a leitura inicial do hidrômetro na mesma transação.")
+    @ApiResponses({@ApiResponse(responseCode = "201", description = "Lote criado"), @ApiResponse(responseCode = "400", description = "Dados inválidos"), @ApiResponse(responseCode = "401", description = "Usuário não autenticado"), @ApiResponse(responseCode = "403", description = "Acesso negado"), @ApiResponse(responseCode = "404", description = "Fazenda ou empresa não encontrada"), @ApiResponse(responseCode = "409", description = "Conflito de integridade")})
+    @PostMapping("/aggregated")
+    public ResponseEntity<LotResponseDTO> createAggregated(@RequestBody @Valid LotAggregatedRequestDTO request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        LotResponseDTO response = lotService.createAggregatedLot(request, principal);
+        URI location = ServletUriComponentsBuilder.fromCurrentContextPath().path("/lots/{id}")
+                .buildAndExpand(response.id()).toUri();
+        return ResponseEntity.created(location).body(response);
+    }
+
+    @Operation(summary = "Consultar resumo de produção por lote", description = "Retorna o resumo consolidado de um lote acessível ao usuário.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Resumo encontrado"), @ApiResponse(responseCode = "401", description = "Usuário não autenticado"), @ApiResponse(responseCode = "403", description = "Acesso negado"), @ApiResponse(responseCode = "404", description = "Lote não encontrado")})
+    @GetMapping("/production-summaries/{id}")
+    public ResponseEntity<ProductionRegistryResponseDTO> getProductionSummary(@PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(lotService.getProductionSummaryById(id, principal));
+    }
 
     @Operation(summary = "Listar resumos de produção com paginação", description = "ADM acessa todas as empresas; funcionário acessa sua empresa; produtor acessa sua fazenda. Filtros e busca precedem a paginação e contagem; ID desempata a ordenação.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Página e totais filtrados"),

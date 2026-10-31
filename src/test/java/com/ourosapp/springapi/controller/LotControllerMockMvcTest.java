@@ -460,4 +460,26 @@ class LotControllerMockMvcTest {
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(pagedListingService);
     }
+    @Test
+    void deveCriarLoteAgregado() throws Exception {
+        var response = new LotResponseDTO(10L, 100, 0, null, 0, 0.0, 1L, 2L);
+        when(lotService.createAggregatedLot(any(), eq(mockPrincipal))).thenReturn(response);
+        mockMvc.perform(post("/lots/aggregated").with(user(mockPrincipal)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"received_chickens\":100,\"id_farm\":2,\"hydrometer_reading\":120.5}"))
+                .andExpect(status().isCreated()).andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/lots/10")));
+    }
+
+    @Test
+    void deveRejeitarLeituraNegativa() throws Exception {
+        mockMvc.perform(post("/lots/aggregated").with(user(mockPrincipal)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"received_chickens\":100,\"id_farm\":2,\"hydrometer_reading\":-1}"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(lotService);
+    }
+
+    @Test
+    void deveRetornar404ParaResumoInexistente() throws Exception {
+        when(lotService.getProductionSummaryById(99L, mockPrincipal)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+        mockMvc.perform(get("/lots/production-summaries/99").with(user(mockPrincipal))).andExpect(status().isNotFound());
+    }
 }

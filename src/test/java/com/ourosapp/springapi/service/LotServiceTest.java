@@ -41,6 +41,9 @@ import static org.mockito.Mockito.*;
 class LotServiceTest {
 
     @Mock
+    private WaterRegistryService waterRegistryService;
+
+    @Mock
     private LotRepository lotRepository;
 
     @Mock
@@ -1080,5 +1083,41 @@ class LotServiceTest {
                 lotService.getProductionSummaries(999L, null, employeePrincipal));
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+    @Test
+    void deveCadastrarLoteComLeituraInicial() {
+        var reading = new java.math.BigDecimal("120.5000");
+        var request = new com.ourosapp.springapi.dto.lot.LotAggregatedRequestDTO(100, 0, null, 1.0, 10L, 1L, reading);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(Farm.builder().id(10L).idEnterprise(1L).build()));
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(lotRepository.save(any(Lot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lotService.createAggregatedLot(request, admPrincipal);
+        verify(waterRegistryService).createWaterRegistry(argThat(w -> w.idFarm().equals(10L)
+                && w.startHydrometer().equals(reading) && w.endHydrometer().equals(reading)), eq(admPrincipal));
+    }
+
+    @Test
+    void deveNegarResumoDeLoteDeOutraFazenda() {
+        when(lotRepository.findById(100L)).thenReturn(Optional.of(Lot.builder().id(100L).idFarm(10L).build()));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(FarmOwner.builder().idFarm(20L).build()));
+        var error = assertThrows(ResponseStatusException.class, () -> lotService.getProductionSummaryById(100L, ownerPrincipal));
+        assertEquals(HttpStatus.FORBIDDEN, error.getStatusCode());
+        verify(lotRepository, never()).findProductionSummaryById(any(), any(), any());
+    }
+
+    @Test
+    void deveConsultarResumoDoLoteAutorizado() {
+        when(lotRepository.findById(100L)).thenReturn(Optional.of(Lot.builder().id(100L).idFarm(10L).idEnterprise(1L).build()));
+        when(lotRepository.findProductionSummaryById(100L, 1L, 10L)).thenReturn(Optional.of(createSampleProjection()));
+        assertNotNull(lotService.getProductionSummaryById(100L, admPrincipal));
+    }
+    @Test
+    void deveOmitirMedicaoQuandoLeituraForZero() {
+        var request = new com.ourosapp.springapi.dto.lot.LotAggregatedRequestDTO(100, 0, null, 1.0, 10L, 1L, java.math.BigDecimal.ZERO);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(Farm.builder().id(10L).idEnterprise(1L).build()));
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(lotRepository.save(any(Lot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lotService.createAggregatedLot(request, admPrincipal);
+        verifyNoInteractions(waterRegistryService);
     }
 }
