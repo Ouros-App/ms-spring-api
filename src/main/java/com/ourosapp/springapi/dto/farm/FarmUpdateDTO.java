@@ -16,7 +16,7 @@ import java.math.BigDecimal;
  * @param name            Novo nome da fazenda (opcional)
  * @param areaProperty    Nova área da propriedade (opcional, maior que zero)
  * @param region          Nova região da fazenda (opcional)
- * @param poultryCapacity Nova capacidade de alojamento de aves (opcional, não negativa)
+ * @param poultryCapacity Campo legado sem persistência no esquema atual (opcional, não negativa)
  * @param place           Novo local ou sítio/granja (opcional)
  * @param chickensNow     Nova quantidade atual de aves alojadas na fazenda (opcional, não negativa)
  * @param fotoUrl         Nova URL da foto da fazenda (opcional)
@@ -38,7 +38,7 @@ public record FarmUpdateDTO(
         @Size(min = 1, max = 50, message = "A região deve ter entre 1 e 50 caracteres")
         String region,
 
-        @Schema(description = "Nova capacidade de alojamento de aves", example = "60000")
+        @Schema(description = "Campo legado sem persistência no esquema atual", example = "60000")
         @JsonProperty("poultry_capacity")
         @JsonAlias("poultryCapacity")
         @Min(value = 0, message = "A capacidade de aves não pode ser negativa")

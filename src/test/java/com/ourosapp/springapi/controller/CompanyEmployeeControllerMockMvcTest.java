@@ -462,4 +462,19 @@ class CompanyEmployeeControllerMockMvcTest {
         mockMvc.perform(delete("/company-employees/1"))
                 .andExpect(status().isUnauthorized());
     }
+    @Test
+    void deveAtualizarProprioPerfilPelaRotaMe() throws Exception {
+        when(companyEmployeeService.updateLoggedInEmployee(any(), any())).thenReturn(
+                new CompanyEmployeeResponseDTO(1L, "Novo nome", null, "carlos@empresa.com.br", null, null));
+        mockMvc.perform(patch("/company-employees/me").with(user(defaultPrincipal))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Novo nome\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Novo nome"));
+    }
+
+    @Test
+    void deveExigirAutenticacaoParaAtualizarProprioPerfil() throws Exception {
+        mockMvc.perform(patch("/company-employees/me").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Novo nome\"}"))
+                .andExpect(status().isUnauthorized());
+    }
 }

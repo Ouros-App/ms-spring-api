@@ -123,9 +123,9 @@ public class CompanyEmployeeService {
             return new CompanyEmployeeResponseDTO(
                     principal.getId(),
                     name,
-                    "00000000000",
+                    null,
                     email,
-                    "11999999999",
+                    null,
                     null,
                     photoUrl
             );
@@ -142,6 +142,27 @@ public class CompanyEmployeeService {
                         "Funcionário logado não encontrado para o ID: " + principal.getId()
                 ));
         return CompanyEmployeeResponseDTO.fromEntity(employee);
+    }
+
+    @Transactional
+    public CompanyEmployeeResponseDTO updateLoggedInEmployee(CompanyEmployeeUpdateDTO request, UserPrincipal principal) {
+        ensureAuthenticated(principal);
+        if (!ADM.equals(principal.getRole()) && !COMPANY_EMPLOYEE.equals(principal.getRole()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso restrito a funcionários e administradores");
+        if (request.password() != null && !request.password().isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Altere a senha pelo fluxo de recuperação de senha");
+        if (!ADM.equals(principal.getRole())) return updateCompanyEmployee(principal.getId(), request, principal);
+        Adm adm = admRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Administrador não encontrado"));
+        if (request.name() != null && !request.name().isBlank()) adm.setName(request.name());
+        if (request.email() != null && !request.email().isBlank()) {
+            admRepository.findByEmailIgnoreCase(request.email()).filter(other -> !other.getId().equals(adm.getId()))
+                    .ifPresent(other -> { throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já utilizado por outro administrador"); });
+            adm.setEmail(request.email());
+        }
+        if (request.photoUrl() != null) adm.setPhotoUrl(request.photoUrl().isBlank() ? null : request.photoUrl());
+        admRepository.save(adm);
+        return new CompanyEmployeeResponseDTO(adm.getId(), adm.getName(), null, adm.getEmail(), null, null, adm.getPhotoUrl());
     }
 
     @Transactional
