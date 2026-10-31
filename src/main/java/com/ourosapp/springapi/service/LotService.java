@@ -3,7 +3,9 @@ package com.ourosapp.springapi.service;
 import static com.ourosapp.springapi.constants.ErrorMessages.USER_NOT_AUTHENTICATED;
 
 import com.ourosapp.springapi.constants.RoleConstants;
+import com.ourosapp.springapi.dto.lot.LotAggregatedRequestDTO;
 import com.ourosapp.springapi.dto.lot.LotRequestDTO;
+import com.ourosapp.springapi.dto.waterregistry.WaterRegistryRequestDTO;
 import com.ourosapp.springapi.dto.lot.LotResponseDTO;
 import com.ourosapp.springapi.dto.lot.LotUpdateDTO;
 import com.ourosapp.springapi.dto.lot.ProductionRegistryResponseDTO;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 
@@ -35,6 +38,7 @@ import java.util.Objects;
 public class LotService {
 
     private final LotRepository lotRepository;
+    private final WaterRegistryService waterRegistryService;
     private final EnterpriseRepository enterpriseRepository;
     private final FarmRepository farmRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
@@ -79,6 +83,28 @@ public class LotService {
                     ex
             );
         }
+    }
+
+    @Transactional
+    public LotResponseDTO createAggregatedLot(LotAggregatedRequestDTO request, UserPrincipal principal) {
+        LotRequestDTO lotRequest = new LotRequestDTO(request.receivedChickens(), request.deliveredChickens(),
+                request.deliveryDate(), null, request.cost(), request.idEnterprise(), request.idFarm());
+        LotResponseDTO lot = createLot(lotRequest, principal);
+        if (request.hydrometerReading() != null && request.hydrometerReading().signum() > 0) {
+            waterRegistryService.createWaterRegistry(new WaterRegistryRequestDTO(LocalDate.now(),
+                    request.hydrometerReading(), request.hydrometerReading(), request.idFarm()), principal);
+        }
+        return lot;
+    }
+
+    @Transactional(readOnly = true)
+    public ProductionRegistryResponseDTO getProductionSummaryById(Long id, UserPrincipal principal) {
+        ensureAuthenticated(principal);
+        Lot lot = findLotByIdOrThrow(id);
+        validateLotAccessPermission(lot, principal);
+        return lotRepository.findProductionSummaryById(id, lot.getIdEnterprise(), lot.getIdFarm())
+                .map(ProductionRegistryResponseDTO::fromProjection)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Resumo de produção não encontrado"));
     }
 
     /**
