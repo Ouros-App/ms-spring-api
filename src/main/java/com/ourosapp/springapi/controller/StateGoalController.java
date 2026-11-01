@@ -49,6 +49,7 @@ public class StateGoalController {
     @GetMapping("/paged")
     public ResponseEntity<StateGoalPageResponseDTO> getPaged(
             @RequestParam(name = "farm_id", required = false) Long farmId,
+            @RequestParam(name = "id_enterprise", required = false) Long enterpriseId,
             @RequestParam(name = "region", required = false) String region,
             @Parameter(description = "Página iniciada em zero", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Tamanho entre 1 e 100", example = "10") @RequestParam(defaultValue = "10") int size,
@@ -56,7 +57,11 @@ public class StateGoalController {
             @Parameter(description = "Campo de ordenação: id, title, type, status, target_value, date_creation, date_end, region; padrão id") @RequestParam(defaultValue = "id") String sort,
             @Parameter(description = "Direção asc ou desc") @RequestParam(defaultValue = "desc") String direction,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(pagedListingService.stateGoals(farmId, region, new PageQuery(page, size, search, sort, direction), principal));
+        PageQuery pageQuery = new PageQuery(page, size, search, sort, direction);
+        StateGoalPageResponseDTO response = enterpriseId != null
+                ? pagedListingService.stateGoals(farmId, enterpriseId, region, pageQuery, principal)
+                : pagedListingService.stateGoals(farmId, region, pageQuery, principal);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Cadastrar meta estadual", description = "Cria uma nova meta estadual para a fazenda com base na região.")
@@ -93,6 +98,7 @@ public class StateGoalController {
     public ResponseEntity<List<StateGoalResponseDTO>> getStateGoals(
             @Parameter(description = "ID opcional da fazenda para filtrar as metas", example = "1")
             @RequestParam(name = "farm_id", required = false) Long farmId,
+            @RequestParam(name = "id_enterprise", required = false) Long enterpriseId,
             @Parameter(description = "Região opcional para filtrar as metas", example = "Sudeste")
             @RequestParam(name = "region", required = false) String region,
             @AuthenticationPrincipal UserPrincipal principal
