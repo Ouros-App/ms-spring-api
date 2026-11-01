@@ -62,7 +62,10 @@ public record IndividualGoalRequestDTO(
     public IndividualGoalRequestDTO {
         title = title != null ? title.trim() : null;
         description = description != null ? description.trim() : null;
-        type = type != null ? type.trim() : null;
-        status = status != null ? status.trim() : null;
+        type = (type != null && !type.isBlank()) ? type.trim() : "TASK_COMPLETION";
+        status = (status != null && !status.isBlank()) ? status.trim() : "PENDING";
+        if (targetValue == null) {
+            targetValue = BigDecimal.ONE;
+        }
     }
 }
