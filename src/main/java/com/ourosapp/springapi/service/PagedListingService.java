@@ -52,8 +52,12 @@ public class PagedListingService {
                 result.totalElements(), query.page(), query.size());
     }
 
+    public StateGoalPageResponseDTO stateGoals(Long farmId, Long enterpriseId, String region, PageQuery query, UserPrincipal principal) {
+        return repository.stateGoals(scope(farmId, enterpriseId, principal), region, query);
+    }
+
     public StateGoalPageResponseDTO stateGoals(Long farmId, String region, PageQuery query, UserPrincipal principal) {
-        return repository.stateGoals(scope(farmId, null, principal), region, query);
+        return stateGoals(farmId, null, region, query, principal);
     }
 
     private Scope scope(Long farmId, Long enterpriseId, UserPrincipal principal) {
