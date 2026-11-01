@@ -40,10 +40,16 @@ public interface StateGoalRepository extends JpaRepository<StateGoal, Long>, Sta
                 UNION ALL
                 SELECT status FROM farm_goals WHERE id_farm = :farmId
             )
-            SELECT COALESCE(ROUND(AVG(CASE status
-                WHEN 'Concluída' THEN 100
-                WHEN 'Em andamento' THEN 50
-                WHEN 'Pendente' THEN 0
+            SELECT COALESCE(ROUND(AVG(CASE UPPER(status)
+                WHEN 'CONCLUÍDA' THEN 100
+                WHEN 'CONCLUIDA' THEN 100
+                WHEN 'COMPLETED' THEN 100
+                WHEN 'ACHIEVED' THEN 100
+                WHEN 'FINALIZADA' THEN 100
+                WHEN 'EM ANDAMENTO' THEN 50
+                WHEN 'IN_PROGRESS' THEN 50
+                WHEN 'PENDENTE' THEN 0
+                WHEN 'PENDING' THEN 0
                 ELSE 0 END), 2), 0)
             FROM goals
             """, nativeQuery = true)
