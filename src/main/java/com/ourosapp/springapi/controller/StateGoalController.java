@@ -57,7 +57,11 @@ public class StateGoalController {
             @Parameter(description = "Campo de ordenação: id, title, type, status, target_value, date_creation, date_end, region; padrão id") @RequestParam(defaultValue = "id") String sort,
             @Parameter(description = "Direção asc ou desc") @RequestParam(defaultValue = "desc") String direction,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(pagedListingService.stateGoals(farmId, enterpriseId, region, new PageQuery(page, size, search, sort, direction), principal));
+        PageQuery pageQuery = new PageQuery(page, size, search, sort, direction);
+        StateGoalPageResponseDTO response = enterpriseId != null
+                ? pagedListingService.stateGoals(farmId, enterpriseId, region, pageQuery, principal)
+                : pagedListingService.stateGoals(farmId, region, pageQuery, principal);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Cadastrar meta estadual", description = "Cria uma nova meta estadual para a fazenda com base na região.")
