@@ -85,7 +85,8 @@ class CompanyEmployeeControllerMockMvcTest {
                 "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
-                10L
+                10L,
+                "https://storage.ourosapp.com/profiles/1.jpg"
         );
 
         when(companyEmployeeService.createCompanyEmployee(any(CompanyEmployeeRequestDTO.class), eq(defaultPrincipal))).thenReturn(response);
@@ -101,7 +102,8 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(jsonPath("$.document_number").value("12345678909"))
                 .andExpect(jsonPath("$.email").value("carlos.pereira@empresa.com.br"))
                 .andExpect(jsonPath("$.telephone").value("11987654321"))
-                .andExpect(jsonPath("$.id_enterprise").value(10L));
+                .andExpect(jsonPath("$.id_enterprise").value(10L))
+                .andExpect(jsonPath("$.photo_url").value("https://storage.ourosapp.com/profiles/1.jpg"));
     }
 
     @Test
@@ -241,7 +243,7 @@ class CompanyEmployeeControllerMockMvcTest {
     }
 
     @Test
-    @DisplayName("GET /company-employees/me - Deve retornar 200 OK e dados do funcionário logado")
+    @DisplayName("GET /company-employees/me - Deve retornar 200 OK e dados do funcionário logado com photo_url")
     void testGetLoggedInEmployeeSuccess() throws Exception {
         UserPrincipal principal = new UserPrincipal(
                 1L,
@@ -257,7 +259,8 @@ class CompanyEmployeeControllerMockMvcTest {
                 "12345678909",
                 "carlos.pereira@empresa.com.br",
                 "11987654321",
-                10L
+                10L,
+                "https://storage.ourosapp.com/profiles/1.jpg"
         );
 
         when(companyEmployeeService.getLoggedInEmployee(any())).thenReturn(response);
@@ -266,7 +269,38 @@ class CompanyEmployeeControllerMockMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.name").value("Carlos Eduardo Pereira"))
-                .andExpect(jsonPath("$.email").value("carlos.pereira@empresa.com.br"));
+                .andExpect(jsonPath("$.email").value("carlos.pereira@empresa.com.br"))
+                .andExpect(jsonPath("$.photo_url").value("https://storage.ourosapp.com/profiles/1.jpg"));
+    }
+
+    @Test
+    @DisplayName("GET /company-employees/me - Deve retornar 200 OK para ADM logado")
+    void testGetLoggedInEmployeeAsAdmSuccess() throws Exception {
+        UserPrincipal admPrincipal = new UserPrincipal(
+                1L,
+                "adm@empresa.com.br",
+                null,
+                "ADM",
+                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+        );
+
+        CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
+                1L,
+                "Administrador da Plataforma",
+                "00000000000",
+                "adm@empresa.com.br",
+                "11999999999",
+                null,
+                null
+        );
+
+        when(companyEmployeeService.getLoggedInEmployee(any())).thenReturn(response);
+
+        mockMvc.perform(get("/company-employees/me").with(user(admPrincipal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.name").value("Administrador da Plataforma"))
+                .andExpect(jsonPath("$.email").value("adm@empresa.com.br"));
     }
 
     @Test
@@ -277,20 +311,20 @@ class CompanyEmployeeControllerMockMvcTest {
     }
 
     @Test
-    @DisplayName("GET /company-employees/me - Deve retornar 403 Forbidden quando perfil não for COMPANY_EMPLOYEE")
+    @DisplayName("GET /company-employees/me - Deve retornar 403 Forbidden quando perfil for FARM_OWNER")
     void testGetLoggedInEmployeeForbiddenForNonEmployee() throws Exception {
-        UserPrincipal admPrincipal = new UserPrincipal(
+        UserPrincipal farmOwnerPrincipal = new UserPrincipal(
                 1L,
-                "adm@empresa.com.br",
+                "produtor@fazenda.com.br",
                 null,
-                "ADM",
-                List.of(new SimpleGrantedAuthority("ROLE_ADM"))
+                "FARM_OWNER",
+                List.of(new SimpleGrantedAuthority("ROLE_FARM_OWNER"))
         );
 
         when(companyEmployeeService.getLoggedInEmployee(any()))
                 .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso restrito a funcionários"));
 
-        mockMvc.perform(get("/company-employees/me").with(user(admPrincipal)))
+        mockMvc.perform(get("/company-employees/me").with(user(farmOwnerPrincipal)))
                 .andExpect(status().isForbidden());
     }
 
@@ -333,20 +367,25 @@ class CompanyEmployeeControllerMockMvcTest {
     }
 
     @Test
-    @DisplayName("PATCH /company-employees/{id} - Deve atualizar funcionário e retornar 200 OK quando válido")
+    @DisplayName("PATCH /company-employees/{id} - Deve atualizar funcionário (incluindo name e photo_url) e retornar 200 OK")
     void testUpdateCompanyEmployeeSuccess() throws Exception {
-        CompanyEmployeeUpdateDTO request = new CompanyEmployeeUpdateDTO(
-                "carlos.novo@empresa.com.br",
-                "11999998888",
-                "NovaSenha@123"
-        );
+        String payload = """
+                {
+                    "name": "Carlos Eduardo Atualizado",
+                    "email": "carlos.novo@empresa.com.br",
+                    "telephone": "11999998888",
+                    "password": "NovaSenha@123",
+                    "photo_url": "https://storage.ourosapp.com/profiles/1_new.jpg"
+                }
+                """;
         CompanyEmployeeResponseDTO response = new CompanyEmployeeResponseDTO(
                 1L,
-                "Carlos Eduardo Pereira",
+                "Carlos Eduardo Atualizado",
                 "12345678909",
                 "carlos.novo@empresa.com.br",
                 "11999998888",
-                10L
+                10L,
+                "https://storage.ourosapp.com/profiles/1_new.jpg"
         );
 
         when(companyEmployeeService.updateCompanyEmployee(eq(1L), any(CompanyEmployeeUpdateDTO.class), eq(defaultPrincipal))).thenReturn(response);
@@ -354,11 +393,13 @@ class CompanyEmployeeControllerMockMvcTest {
         mockMvc.perform(patch("/company-employees/1")
                         .with(user(defaultPrincipal))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(payload))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.name").value("Carlos Eduardo Atualizado"))
                 .andExpect(jsonPath("$.email").value("carlos.novo@empresa.com.br"))
-                .andExpect(jsonPath("$.telephone").value("11999998888"));
+                .andExpect(jsonPath("$.telephone").value("11999998888"))
+                .andExpect(jsonPath("$.photo_url").value("https://storage.ourosapp.com/profiles/1_new.jpg"));
     }
 
     @Test
@@ -419,6 +460,21 @@ class CompanyEmployeeControllerMockMvcTest {
     @DisplayName("DELETE /company-employees/{id} - Deve retornar 401 Unauthorized quando não autenticado")
     void testDeleteCompanyEmployeeUnauthorized() throws Exception {
         mockMvc.perform(delete("/company-employees/1"))
+                .andExpect(status().isUnauthorized());
+    }
+    @Test
+    void deveAtualizarProprioPerfilPelaRotaMe() throws Exception {
+        when(companyEmployeeService.updateLoggedInEmployee(any(), any())).thenReturn(
+                new CompanyEmployeeResponseDTO(1L, "Novo nome", null, "carlos@empresa.com.br", null, null));
+        mockMvc.perform(patch("/company-employees/me").with(user(defaultPrincipal))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Novo nome\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Novo nome"));
+    }
+
+    @Test
+    void deveExigirAutenticacaoParaAtualizarProprioPerfil() throws Exception {
+        mockMvc.perform(patch("/company-employees/me").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Novo nome\"}"))
                 .andExpect(status().isUnauthorized());
     }
 }

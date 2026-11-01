@@ -40,11 +40,11 @@ public interface WaterRegistryRepository extends JpaRepository<WaterRegistry, Lo
     boolean existsByIdFarm(Long idFarm);
 
     /**
-     * Calcula o consumo mais recente de água da fazenda utilizando a função analítica PostgreSQL 'calculate_water_consumption'.
+     * Retorna a diferença da medição mais recente em m³, com desempate pelo ID.
      *
      * @param farmId identificador único da fazenda
      * @return consumo recente calculado baseado na variação do hidrômetro
      */
-    @Query(value = "SELECT calculate_water_consumption(CAST(:farmId AS INTEGER))", nativeQuery = true)
+    @Query(value = "SELECT COALESCE((SELECT end_hydrometer - start_hydrometer FROM water_registries WHERE id_farm = :farmId ORDER BY registration_date DESC, id DESC LIMIT 1), 0)", nativeQuery = true)
     BigDecimal getLatestWaterConsumption(@Param("farmId") Long farmId);
 }

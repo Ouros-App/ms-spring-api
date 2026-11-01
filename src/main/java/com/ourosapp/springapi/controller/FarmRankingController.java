@@ -1,5 +1,7 @@
 package com.ourosapp.springapi.controller;
 
+import com.ourosapp.springapi.dto.common.PageQuery;
+import com.ourosapp.springapi.dto.common.PageResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmPodiumRankingResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRankingResponseDTO;
 import com.ourosapp.springapi.dto.farm.FarmRankingSimulationResponseDTO;
@@ -34,6 +36,26 @@ import java.util.Map;
 @SecurityRequirement(name = "BearerAuth")
 @Validated
 public class FarmRankingController {
+    @Operation(summary = "Consultar ranking paginado", description = "ADM consulta todas as empresas ou uma empresa; funcionário consulta sua empresa. Produtor não acessa o ranking completo. Busca por nome/região e ordenação por score ou farm_name; posições do ranking filtrado são preservadas entre páginas.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Página e total do ranking filtrado"),
+            @ApiResponse(responseCode = "400", description = "Paginação ou ordenação inválida"),
+            @ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"),
+            @ApiResponse(responseCode = "404", description = "Usuário ou empresa não encontrados")})
+    @GetMapping("/rankings/paged")
+    public ResponseEntity<PageResponseDTO<FarmRankingResponseDTO>> getRankingsPaged(
+            @RequestParam(name = "id_enterprise", required = false) Long enterpriseId,
+            @RequestParam(required = false) String region,
+            @Parameter(description = "Página iniciada em zero") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamanho entre 1 e 100") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "Busca por nome ou região") @RequestParam(defaultValue = "") String search,
+            @Parameter(description = "score ou farm_name") @RequestParam(defaultValue = "score") String sort,
+            @Parameter(description = "asc ou desc; menor score é melhor") @RequestParam(defaultValue = "asc") String direction,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(farmRankingService.getRankingsPaged(enterpriseId, region,
+                new PageQuery(page, size, search, sort, direction), principal));
+    }
+
 
     private final FarmRankingService farmRankingService;
 

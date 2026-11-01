@@ -112,35 +112,51 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
         Set<GrantedAuthority> authorities = new HashSet<>();
 
         // Extrai roles do Realm
-        Map<String, Object> realmAccess = jwt.getClaim("realm_access");
-        if (realmAccess != null && realmAccess.get("roles") instanceof List<?> roles) {
-            for (Object roleObj : roles) {
-                if (roleObj instanceof String role) {
-                    mapRoleToAuthority(role).ifPresent(authorities::add);
-                }
-            }
-        }
+        extractRealmRoles(jwt, authorities);
 
         // Extrai roles de Resource (Client) especificamente para este microserviço
+        extractResourceRoles(jwt, authorities);
+
+        // Suporte adicional caso a role venha como claim simples customizada
+        extractClaimRole(jwt, "role").ifPresent(authorities::add);
+
+        // Suporte para claim account_type (canônica do ecossistema Ouros / ms-auth-service)
+        extractClaimRole(jwt, "account_type").ifPresent(authorities::add);
+
+        return authorities;
+    }
+
+    private void extractRealmRoles(Jwt jwt, Set<GrantedAuthority> authorities) {
+        Map<String, Object> realmAccess = jwt.getClaim("realm_access");
+        if (realmAccess != null && realmAccess.get("roles") instanceof List<?> roles) {
+            extractRolesFromList(roles, authorities);
+        }
+    }
+
+    private void extractResourceRoles(Jwt jwt, Set<GrantedAuthority> authorities) {
         Map<String, Object> resourceAccess = jwt.getClaim("resource_access");
         if (resourceAccess != null) {
             Object clientObj = resourceAccess.get(clientId);
             if (clientObj instanceof Map<?, ?> clientMap && clientMap.get("roles") instanceof List<?> clientRoles) {
-                for (Object roleObj : clientRoles) {
-                    if (roleObj instanceof String role) {
-                        mapRoleToAuthority(role).ifPresent(authorities::add);
-                    }
-                }
+                extractRolesFromList(clientRoles, authorities);
             }
         }
+    }
 
-        // Suporte adicional caso a role venha como claim simples customizada
-        String directRole = jwt.getClaimAsString("role");
-        if (directRole != null && !directRole.isBlank()) {
-            mapRoleToAuthority(directRole).ifPresent(authorities::add);
+    private void extractRolesFromList(List<?> roles, Set<GrantedAuthority> authorities) {
+        for (Object roleObj : roles) {
+            if (roleObj instanceof String role) {
+                mapRoleToAuthority(role).ifPresent(authorities::add);
+            }
         }
+    }
 
-        return authorities;
+    private Optional<GrantedAuthority> extractClaimRole(Jwt jwt, String claimName) {
+        String role = jwt.getClaimAsString(claimName);
+        if (role != null && !role.isBlank()) {
+            return mapRoleToAuthority(role);
+        }
+        return Optional.empty();
     }
 
     private Optional<GrantedAuthority> mapRoleToAuthority(String role) {

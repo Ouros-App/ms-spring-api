@@ -8,7 +8,9 @@ import static com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeRequestDTO;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeResponseDTO;
 import com.ourosapp.springapi.dto.companyemployee.CompanyEmployeeUpdateDTO;
+import com.ourosapp.springapi.entity.Adm;
 import com.ourosapp.springapi.entity.CompanyEmployee;
+import com.ourosapp.springapi.repository.AdmRepository;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
@@ -32,6 +34,7 @@ public class CompanyEmployeeService {
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final EnterpriseRepository enterpriseRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AdmRepository admRepository;
 
     @Transactional
     public CompanyEmployeeResponseDTO createCompanyEmployee(CompanyEmployeeRequestDTO request, UserPrincipal principal) {
@@ -102,6 +105,31 @@ public class CompanyEmployeeService {
     @Transactional(readOnly = true)
     public CompanyEmployeeResponseDTO getLoggedInEmployee(UserPrincipal principal) {
         ensureAuthenticated(principal);
+        if (ADM.equals(principal.getRole())) {
+            Adm adm = null;
+            if (principal.getId() != null) {
+                adm = admRepository.findById(principal.getId()).orElse(null);
+            }
+            if (adm == null && principal.getEmail() != null) {
+                adm = admRepository.findByEmailIgnoreCase(principal.getEmail()).orElse(null);
+            }
+            String name = (adm != null && adm.getName() != null && !adm.getName().isBlank())
+                    ? adm.getName()
+                    : "Administrador da Plataforma";
+            String email = (adm != null && adm.getEmail() != null)
+                    ? adm.getEmail()
+                    : principal.getEmail();
+            String photoUrl = adm != null ? adm.getPhotoUrl() : null;
+            return new CompanyEmployeeResponseDTO(
+                    principal.getId(),
+                    name,
+                    null,
+                    email,
+                    null,
+                    null,
+                    photoUrl
+            );
+        }
         if (!COMPANY_EMPLOYEE.equals(principal.getRole())) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
@@ -117,9 +145,32 @@ public class CompanyEmployeeService {
     }
 
     @Transactional
+    public CompanyEmployeeResponseDTO updateLoggedInEmployee(CompanyEmployeeUpdateDTO request, UserPrincipal principal) {
+        ensureAuthenticated(principal);
+        if (!ADM.equals(principal.getRole()) && !COMPANY_EMPLOYEE.equals(principal.getRole()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso restrito a funcionários e administradores");
+        if (request.password() != null && !request.password().isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Altere a senha pelo fluxo de recuperação de senha");
+        if (!ADM.equals(principal.getRole())) return updateCompanyEmployee(principal.getId(), request, principal);
+        Adm adm = admRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Administrador não encontrado"));
+        if (request.name() != null && !request.name().isBlank()) adm.setName(request.name());
+        if (request.email() != null && !request.email().isBlank()) {
+            admRepository.findByEmailIgnoreCase(request.email()).filter(other -> !other.getId().equals(adm.getId()))
+                    .ifPresent(other -> { throw new ResponseStatusException(HttpStatus.CONFLICT, "E-mail já utilizado por outro administrador"); });
+            adm.setEmail(request.email());
+        }
+        if (request.photoUrl() != null) adm.setPhotoUrl(request.photoUrl().isBlank() ? null : request.photoUrl());
+        admRepository.save(adm);
+        return new CompanyEmployeeResponseDTO(adm.getId(), adm.getName(), null, adm.getEmail(), null, null, adm.getPhotoUrl());
+    }
+
+    @Transactional
     public CompanyEmployeeResponseDTO updateCompanyEmployee(Long id, CompanyEmployeeUpdateDTO request, UserPrincipal principal) {
         Objects.requireNonNull(request, "O payload da requisição não pode ser nulo");
         ensureAuthenticated(principal);
+
+        // Removido fluxo de AdmOwnProfile para evitar colisão de IDs.
 
         CompanyEmployee employee = companyEmployeeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -131,6 +182,10 @@ public class CompanyEmployeeService {
 
         if (!request.hasUpdates()) {
             return CompanyEmployeeResponseDTO.fromEntity(employee);
+        }
+
+        if (request.name() != null && !request.name().isBlank()) {
+            employee.setName(request.name());
         }
 
         if (request.email() != null && !request.email().isBlank()) {
@@ -151,6 +206,10 @@ public class CompanyEmployeeService {
 
         if (request.password() != null && !request.password().isBlank()) {
             employee.setPassword(passwordEncoder.encode(request.password()));
+        }
+
+        if (request.photoUrl() != null) {
+            employee.setPhotoUrl(request.photoUrl().isBlank() ? null : request.photoUrl());
         }
 
         try {

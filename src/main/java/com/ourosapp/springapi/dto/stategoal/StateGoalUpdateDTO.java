@@ -34,13 +34,18 @@ public record StateGoalUpdateDTO(
         @JsonAlias("targetValue")
         @Positive(message = "O valor alvo deve ser maior que zero")
         @Digits(integer = 15, fraction = 4, message = "O valor alvo deve ter no máximo 15 dígitos inteiros e 4 casas decimais")
-        BigDecimal targetValue
+        BigDecimal targetValue,
+
+        @Schema(description = "Novo título da meta", example = "Reduzir consumo de água")
+        @Size(min = 1, max = 50, message = "O título deve ter entre 1 e 50 caracteres")
+        String title
 ) {
     /**
      * Construtor compacto para sanitização de strings.
      */
     public StateGoalUpdateDTO {
         status = status != null ? status.trim() : null;
+        title = title != null ? title.trim() : null;
     }
 
     /**
@@ -48,7 +53,11 @@ public record StateGoalUpdateDTO(
      *
      * @return {@code true} se houver pelo menos um campo preenchido, {@code false} caso contrário
      */
+    public StateGoalUpdateDTO(String status, LocalDate dateEnd, BigDecimal targetValue) {
+        this(status, dateEnd, targetValue, null);
+    }
+
     public boolean hasUpdates() {
-        return (status != null && !status.isBlank()) || dateEnd != null || targetValue != null;
+        return (status != null && !status.isBlank()) || dateEnd != null || targetValue != null || title != null;
     }
 }

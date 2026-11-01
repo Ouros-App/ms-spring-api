@@ -3,6 +3,7 @@ package com.ourosapp.springapi.service;
 import com.ourosapp.springapi.dto.lot.LotRequestDTO;
 import com.ourosapp.springapi.dto.lot.LotResponseDTO;
 import com.ourosapp.springapi.dto.lot.LotUpdateDTO;
+import com.ourosapp.springapi.dto.lot.ProductionRegistryResponseDTO;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Farm;
 import com.ourosapp.springapi.entity.FarmOwner;
@@ -12,6 +13,7 @@ import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.repository.FarmOwnerRepository;
 import com.ourosapp.springapi.repository.FarmRepository;
 import com.ourosapp.springapi.repository.LotRepository;
+import com.ourosapp.springapi.repository.projection.ProductionRegistryProjection;
 import com.ourosapp.springapi.security.UserPrincipal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,9 @@ import static org.mockito.Mockito.*;
  */
 @ExtendWith(MockitoExtension.class)
 class LotServiceTest {
+
+    @Mock
+    private WaterRegistryService waterRegistryService;
 
     @Mock
     private LotRepository lotRepository;
@@ -841,5 +846,287 @@ class LotServiceTest {
                 lotService.getLotsForUser(null, null, null));
 
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+    }
+
+    // ==========================================
+    // GET PRODUCTION SUMMARIES (BFF)
+    // ==========================================
+
+    private ProductionRegistryProjection createSampleProjection() {
+        return new ProductionRegistryProjection() {
+            @Override
+            public Long getId() {
+                return 10L;
+            }
+
+            @Override
+            public String getIdLote() {
+                return "L-10";
+            }
+
+            @Override
+            public LocalDate getDataEmissao() {
+                return LocalDate.of(2026, 8, 1);
+            }
+
+            @Override
+            public Double getHidrometro() {
+                return 7000.0;
+            }
+
+            @Override
+            public Double getCusto() {
+                return 6000.0;
+            }
+
+            @Override
+            public Integer getEntraram() {
+                return 6500;
+            }
+
+            @Override
+            public Integer getSairam() {
+                return 500;
+            }
+
+            @Override
+            public Integer getGalinhasAtuais() {
+                return 6000;
+            }
+
+            @Override
+            public Long getIdFarm() {
+                return 10L;
+            }
+
+            @Override
+            public String getFarmName() {
+                return "Granja São Judas";
+            }
+        };
+    }
+
+    @Test
+    @DisplayName("Deve retornar resumo de produção para funcionário corporativo da sua empresa")
+    void deveRetornarResumoDeProducaoParaFuncionarioCorporativo() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(lotRepository.findProductionSummaries(1L, null)).thenReturn(List.of(createSampleProjection()));
+
+        List<ProductionRegistryResponseDTO> summaries = lotService.getProductionSummaries(null, null, employeePrincipal);
+
+        assertEquals(1, summaries.size());
+        ProductionRegistryResponseDTO dto = summaries.get(0);
+        assertEquals(10L, dto.id());
+        assertEquals("L-10", dto.idLote());
+        assertEquals(LocalDate.of(2026, 8, 1), dto.dataEmissao());
+        assertEquals(7000.0, dto.hidrometro());
+        assertEquals(6000.0, dto.custo());
+        assertEquals(6500, dto.entraram());
+        assertEquals(500, dto.sairam());
+        assertEquals(6000, dto.galinhasAtuais());
+        assertEquals(10L, dto.idFarm());
+        assertEquals("Granja São Judas", dto.farmName());
+    }
+
+    @Test
+    @DisplayName("Deve permitir ADM consultar resumos de produção de qualquer empresa ou global")
+    void devePermitirAdmFiltrarPorQualquerEmpresa() {
+        when(lotRepository.findProductionSummaries(2L, 10L)).thenReturn(List.of(createSampleProjection()));
+
+        List<ProductionRegistryResponseDTO> summaries = lotService.getProductionSummaries(10L, 2L, admPrincipal);
+
+        assertEquals(1, summaries.size());
+        verify(lotRepository, times(1)).findProductionSummaries(2L, 10L);
+    }
+
+    @Test
+    @DisplayName("Deve bloquear funcionário consultando fazenda de outra empresa nos resumos de produção")
+    void deveBloquearFuncionarioConsultandoFazendaDeOutraEmpresa() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+        Farm otherFarm = Farm.builder().id(20L).idEnterprise(99L).build();
+
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(farmRepository.findById(20L)).thenReturn(Optional.of(otherFarm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getProductionSummaries(20L, null, employeePrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear funcionário tentando filtrar por outra empresa nos resumos de produção")
+    void deveBloquearFuncionarioConsultandoOutraEmpresa() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getProductionSummaries(null, 99L, employeePrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve retornar resumos de produção para FARM_OWNER da sua própria fazenda")
+    void deveRetornarResumoDeProducaoParaProdutorRural() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(lotRepository.findProductionSummaries(null, 10L)).thenReturn(List.of(createSampleProjection()));
+
+        List<ProductionRegistryResponseDTO> summaries = lotService.getProductionSummaries(null, null, ownerPrincipal);
+
+        assertEquals(1, summaries.size());
+        assertEquals(10L, summaries.get(0).idFarm());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear FARM_OWNER consultando resumos de outra fazenda")
+    void deveBloquearProdutorRuralConsultandoOutraFazenda() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getProductionSummaries(99L, null, ownerPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve retornar lista vazia quando produtor rural não possui fazenda vinculada")
+    void deveRetornarListaVaziaQuandoProdutorNaoPossuiFazendaVinculada() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(null).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+
+        List<ProductionRegistryResponseDTO> summaries = lotService.getProductionSummaries(null, null, ownerPrincipal);
+
+        assertTrue(summaries.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Deve retornar resumos de produção para FARM_OWNER filtrando por sua empresa com sucesso")
+    void deveRetornarResumosParaProdutorRuralComEmpresaCorrespondente() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(lotRepository.findProductionSummaries(1L, 10L)).thenReturn(List.of(createSampleProjection()));
+
+        List<ProductionRegistryResponseDTO> summaries = lotService.getProductionSummaries(null, 1L, ownerPrincipal);
+
+        assertEquals(1, summaries.size());
+        verify(lotRepository).findProductionSummaries(1L, 10L);
+    }
+
+    @Test
+    @DisplayName("Deve bloquear FARM_OWNER tentando filtrar por empresa diferente da sua fazenda")
+    void deveBloquearProdutorRuralFiltrandoEmpresaDiferente() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getProductionSummaries(null, 99L, ownerPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando fazenda do produtor não for encontrada")
+    void deveLancar404QuandoFazendaDoProdutorNaoEncontrada() {
+        FarmOwner owner = FarmOwner.builder().id(3L).idFarm(10L).build();
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(owner));
+        when(farmRepository.findById(10L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getProductionSummaries(null, 1L, ownerPrincipal));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 403 para perfil desconhecido ao obter resumos de produção")
+    void deveLancar403ParaPerfilDesconhecidoAoObterResumosProducao() {
+        UserPrincipal otherPrincipal = new UserPrincipal(99L, "outro@ouros.com", "pass", "OTHER", List.of());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getProductionSummaries(null, null, otherPrincipal));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve permitir funcionário consultar resumos filtrando por fazenda da mesma empresa")
+    void devePermitirFuncionarioConsultarFazendaDaMesmaEmpresa() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+        Farm farm = Farm.builder().id(10L).idEnterprise(1L).build();
+
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(farm));
+        when(lotRepository.findProductionSummaries(1L, 10L)).thenReturn(List.of(createSampleProjection()));
+
+        List<ProductionRegistryResponseDTO> summaries = lotService.getProductionSummaries(10L, 1L, employeePrincipal);
+
+        assertEquals(1, summaries.size());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando funcionário consulta fazenda inexistente")
+    void deveLancar404QuandoFuncionarioConsultaFazendaInexistente() {
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(farmRepository.findById(999L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                lotService.getProductionSummaries(999L, null, employeePrincipal));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+    @Test
+    void deveCadastrarLoteComLeituraInicial() {
+        var reading = new java.math.BigDecimal("120.5000");
+        var request = new com.ourosapp.springapi.dto.lot.LotAggregatedRequestDTO(100, 0, null, 1.0, 10L, 1L, reading);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(Farm.builder().id(10L).idEnterprise(1L).build()));
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(lotRepository.save(any(Lot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lotService.createAggregatedLot(request, admPrincipal);
+        verify(waterRegistryService).createWaterRegistry(argThat(w -> w.idFarm().equals(10L)
+                && w.startHydrometer().equals(reading) && w.endHydrometer().equals(reading)), eq(admPrincipal));
+    }
+
+    @Test
+    void deveNegarResumoDeLoteDeOutraFazenda() {
+        when(lotRepository.findById(100L)).thenReturn(Optional.of(Lot.builder().id(100L).idFarm(10L).build()));
+        when(farmOwnerRepository.findById(3L)).thenReturn(Optional.of(FarmOwner.builder().idFarm(20L).build()));
+        var error = assertThrows(ResponseStatusException.class, () -> lotService.getProductionSummaryById(100L, ownerPrincipal));
+        assertEquals(HttpStatus.FORBIDDEN, error.getStatusCode());
+        verify(lotRepository, never()).findProductionSummaryById(any(), any(), any());
+    }
+
+    @Test
+    void deveConsultarResumoDoLoteAutorizado() {
+        when(lotRepository.findById(100L)).thenReturn(Optional.of(Lot.builder().id(100L).idFarm(10L).idEnterprise(1L).build()));
+        when(lotRepository.findProductionSummaryById(100L, 1L, 10L)).thenReturn(Optional.of(createSampleProjection()));
+        assertNotNull(lotService.getProductionSummaryById(100L, admPrincipal));
+    }
+    @Test
+    void deveOmitirMedicaoQuandoLeituraForZero() {
+        var request = new com.ourosapp.springapi.dto.lot.LotAggregatedRequestDTO(100, 0, null, 1.0, 10L, 1L, java.math.BigDecimal.ZERO);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(Farm.builder().id(10L).idEnterprise(1L).build()));
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(lotRepository.save(any(Lot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lotService.createAggregatedLot(request, admPrincipal);
+        verifyNoInteractions(waterRegistryService);
+    }
+    @Test
+    void deveOmitirMedicaoQuandoLeituraNaoForInformada() {
+        var request = new com.ourosapp.springapi.dto.lot.LotAggregatedRequestDTO(100, 0, null, 1.0, 10L, 1L, null);
+        when(farmRepository.findById(10L)).thenReturn(Optional.of(Farm.builder().id(10L).idEnterprise(1L).build()));
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(lotRepository.save(any(Lot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lotService.createAggregatedLot(request, admPrincipal);
+        verifyNoInteractions(waterRegistryService);
     }
 }

@@ -12,6 +12,24 @@ import java.util.List;
 @Repository
 public interface FarmRepository extends JpaRepository<Farm, Long> {
 
+    @org.springframework.data.jpa.repository.Query("""
+            SELECT f FROM Farm f, Address a
+            WHERE f.idAddress = a.id AND f.idEnterprise = :enterpriseId
+              AND UPPER(TRIM(a.state)) = :state AND UPPER(TRIM(a.country)) = 'BR'
+            ORDER BY f.id
+            """)
+    List<Farm> findParticipantsByState(@org.springframework.data.repository.query.Param("state") String state,
+            @org.springframework.data.repository.query.Param("enterpriseId") Long enterpriseId);
+
+    @org.springframework.data.jpa.repository.Query("""
+            SELECT DISTINCT UPPER(TRIM(a.state)) FROM Farm f, Address a
+            WHERE f.idAddress = a.id AND f.idEnterprise = :enterpriseId
+              AND UPPER(TRIM(a.country)) = 'BR' AND a.state IS NOT NULL
+            ORDER BY UPPER(TRIM(a.state))
+            """)
+    List<String> findDistinctStatesByEnterprise(@org.springframework.data.repository.query.Param("enterpriseId") Long enterpriseId);
+
+
     /**
      * Busca todas as fazendas vinculadas a uma empresa integradora específica.
      *

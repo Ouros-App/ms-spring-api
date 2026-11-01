@@ -905,6 +905,54 @@ class FarmServiceTest {
         verify(farmRepository, never()).save(any(Farm.class));
     }
 
+    @Test
+    void devePermitirProdutorAtualizarSomenteSaldoDaPropriaFazenda() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(farmOwnerRepository.findById(200L)).thenReturn(Optional.of(FarmOwner.builder().idFarm(1L).build()));
+        when(farmRepository.save(any(Farm.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        assertEquals(123, farmService.updateFarm(1L, new FarmUpdateDTO(null, null, null, null, null, 123, null), farmOwnerPrincipal).chickensNow());
+    }
+
+    @Test
+    void deveNegarProdutorSemVinculoOuDeOutraFazenda() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        FarmUpdateDTO request = new FarmUpdateDTO(null, null, null, null, null, 123, null);
+        for (Long farmId : new Long[]{null, 2L}) {
+            when(farmOwnerRepository.findById(200L)).thenReturn(Optional.of(FarmOwner.builder().idFarm(farmId).build()));
+            assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
+                    () -> farmService.updateFarm(1L, request, farmOwnerPrincipal)).getStatusCode());
+        }
+        verify(farmRepository, never()).save(any());
+    }
+
+    @Test
+    void deveNegarProdutorComQualquerOutroCampo() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        FarmUpdateDTO[] requests = {
+            new FarmUpdateDTO("Nome", null, null, null, null, 123, null),
+            new FarmUpdateDTO(null, BigDecimal.ONE, null, null, null, 123, null),
+            new FarmUpdateDTO(null, null, "Região", null, null, 123, null),
+            new FarmUpdateDTO(null, null, null, 1000, null, 123, null),
+            new FarmUpdateDTO(null, null, null, null, "Local", 123, null),
+            new FarmUpdateDTO(null, null, null, null, null, 123, "foto"),
+            new FarmUpdateDTO(null, null, null, null, null, null, null)
+        };
+        for (FarmUpdateDTO request : requests) {
+            assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
+                    () -> farmService.updateFarm(1L, request, farmOwnerPrincipal)).getStatusCode());
+        }
+        verify(farmRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRejeitarSaldoAcimaDaCapacidadeParaProdutor() {
+        when(farmRepository.findById(1L)).thenReturn(Optional.of(sampleFarm));
+        when(farmOwnerRepository.findById(200L)).thenReturn(Optional.of(FarmOwner.builder().idFarm(1L).build()));
+        assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
+                () -> farmService.updateFarm(1L, new FarmUpdateDTO(null, null, null, null, null, 999999, null), farmOwnerPrincipal)).getStatusCode());
+        verify(farmRepository, never()).save(any());
+    }
+
     /**
      * Testa atualização de fazenda sem modificações quando DTO for vazio.
      */

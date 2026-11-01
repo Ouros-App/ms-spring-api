@@ -270,4 +270,24 @@ class KeycloakJwtAuthenticationConverterTest {
         assertTrue(authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_FARM_OWNER")));
         assertFalse(authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADM")));
     }
+
+    @Test
+    @DisplayName("Deve extrair autoridade a partir da claim account_type (canonica do ecossistema Ouros)")
+    void testExtractAuthoritiesFromAccountTypeClaim() {
+        Jwt jwt = new Jwt(
+                "token-account-type",
+                Instant.now(),
+                Instant.now().plusSeconds(3600),
+                Map.of("alg", "RS256"),
+                Map.of(
+                        "sub", "uuid-account-type",
+                        "email", "producer@ouros.com",
+                        "account_type", "farm_owner"
+                )
+        );
+
+        var authorities = converter.extractAuthorities(jwt);
+        assertEquals(1, authorities.size());
+        assertTrue(authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_FARM_OWNER")));
+    }
 }

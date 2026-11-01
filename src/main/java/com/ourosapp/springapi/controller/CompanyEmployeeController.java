@@ -59,9 +59,9 @@ public class CompanyEmployeeController {
         return ResponseEntity.created(location).body(response);
     }
 
-    @Operation(summary = "Obter funcionário logado", description = "Retorna os dados cadastrais do funcionário autenticado via token JWT.")
+    @Operation(summary = "Obter funcionário ou administrador logado", description = "Retorna os dados cadastrais do funcionário corporativo ou administrador autenticado via token JWT.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Dados do funcionário retornados com sucesso"),
+            @ApiResponse(responseCode = "200", description = "Dados do perfil retornados com sucesso"),
             @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
             @ApiResponse(responseCode = "403", description = "Acesso negado para este perfil de usuário"),
             @ApiResponse(responseCode = "404", description = "Funcionário não encontrado no banco de dados")
@@ -71,6 +71,20 @@ public class CompanyEmployeeController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         return ResponseEntity.ok(companyEmployeeService.getLoggedInEmployee(principal));
+    }
+
+    @Operation(summary = "Atualizar o próprio perfil", description = "Atualiza o funcionário ou administrador autenticado sem colisão de IDs entre tabelas.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Perfil atualizado"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Acesso negado"),
+            @ApiResponse(responseCode = "404", description = "Perfil não encontrado")})
+    @PatchMapping("/me")
+    public ResponseEntity<CompanyEmployeeResponseDTO> updateOwnProfile(
+            @RequestBody @Valid CompanyEmployeeUpdateDTO request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(companyEmployeeService.updateLoggedInEmployee(request, principal));
     }
 
     @Operation(summary = "Buscar funcionário por ID", description = "Retorna as informações de um funcionário específico.")
@@ -89,7 +103,7 @@ public class CompanyEmployeeController {
         return ResponseEntity.ok(companyEmployeeService.getCompanyEmployeeById(id, principal));
     }
 
-    @Operation(summary = "Atualizar funcionário parcialmente", description = "Atualiza telefone, e-mail e/ou senha de um funcionário existente.")
+    @Operation(summary = "Atualizar funcionário parcialmente", description = "Atualiza nome, telefone, e-mail, foto de perfil e/ou senha de um funcionário existente.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Funcionário atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos"),
@@ -125,4 +139,3 @@ public class CompanyEmployeeController {
         return ResponseEntity.noContent().build();
     }
 }
-

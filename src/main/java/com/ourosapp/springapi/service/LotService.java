@@ -3,9 +3,12 @@ package com.ourosapp.springapi.service;
 import static com.ourosapp.springapi.constants.ErrorMessages.USER_NOT_AUTHENTICATED;
 
 import com.ourosapp.springapi.constants.RoleConstants;
+import com.ourosapp.springapi.dto.lot.LotAggregatedRequestDTO;
 import com.ourosapp.springapi.dto.lot.LotRequestDTO;
+import com.ourosapp.springapi.dto.waterregistry.WaterRegistryRequestDTO;
 import com.ourosapp.springapi.dto.lot.LotResponseDTO;
 import com.ourosapp.springapi.dto.lot.LotUpdateDTO;
+import com.ourosapp.springapi.dto.lot.ProductionRegistryResponseDTO;
 import com.ourosapp.springapi.entity.CompanyEmployee;
 import com.ourosapp.springapi.entity.Farm;
 import com.ourosapp.springapi.entity.FarmOwner;
@@ -35,6 +38,7 @@ import java.util.Objects;
 public class LotService {
 
     private final LotRepository lotRepository;
+    private final WaterRegistryService waterRegistryService;
     private final EnterpriseRepository enterpriseRepository;
     private final FarmRepository farmRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
@@ -81,6 +85,28 @@ public class LotService {
         }
     }
 
+    @Transactional
+    public LotResponseDTO createAggregatedLot(LotAggregatedRequestDTO request, UserPrincipal principal) {
+        LotRequestDTO lotRequest = new LotRequestDTO(request.receivedChickens(), request.deliveredChickens(),
+                request.deliveryDate(), null, request.cost(), request.idEnterprise(), request.idFarm());
+        LotResponseDTO lot = createLot(lotRequest, principal);
+        if (request.hydrometerReading() != null && request.hydrometerReading().signum() > 0) {
+            waterRegistryService.createWaterRegistry(new WaterRegistryRequestDTO(LocalDate.now(),
+                    request.hydrometerReading(), request.hydrometerReading(), request.idFarm()), principal);
+        }
+        return lot;
+    }
+
+    @Transactional(readOnly = true)
+    public ProductionRegistryResponseDTO getProductionSummaryById(Long id, UserPrincipal principal) {
+        ensureAuthenticated(principal);
+        Lot lot = findLotByIdOrThrow(id);
+        validateLotAccessPermission(lot, principal);
+        return lotRepository.findProductionSummaryById(id, lot.getIdEnterprise(), lot.getIdFarm())
+                .map(ProductionRegistryResponseDTO::fromProjection)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Resumo de produção não encontrado"));
+    }
+
     /**
      * Retorna a lista de lotes disponíveis de acordo com o perfil do usuário logado e filtros opcionais.
      *
@@ -110,6 +136,91 @@ public class LotService {
         throw new ResponseStatusException(
                 HttpStatus.FORBIDDEN,
                 "Perfil de usuário sem permissão para listar lotes"
+        );
+    }
+
+    /**
+     * Retorna a lista consolidada de resumos de produção avícola (lotes, leituras de hidrômetro e saldo de aves).
+     *
+     * @param idFarm       filtro opcional por fazenda
+     * @param idEnterprise filtro opcional por empresa integradora
+     * @param principal    usuário autenticado no JWT
+     * @return lista de DTOs agregados de produção
+     */
+    @Transactional(readOnly = true)
+    public List<ProductionRegistryResponseDTO> getProductionSummaries(Long idFarm, Long idEnterprise, UserPrincipal principal) {
+        ensureAuthenticated(principal);
+
+        String role = principal.getRole();
+        if (RoleConstants.ADM.equals(role)) {
+            return lotRepository.findProductionSummaries(idEnterprise, idFarm)
+                    .stream()
+                    .map(ProductionRegistryResponseDTO::fromProjection)
+                    .toList();
+        }
+
+        if (RoleConstants.COMPANY_EMPLOYEE.equals(role)) {
+            CompanyEmployee employee = getCompanyEmployeeOrThrow(principal.getId());
+            if (idEnterprise != null && !Objects.equals(idEnterprise, employee.getIdEnterprise())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Funcionário não tem permissão para visualizar registros de produção de outra empresa integradora"
+                );
+            }
+            if (idFarm != null) {
+                Farm farm = farmRepository.findById(idFarm)
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Fazenda não encontrada para o ID: " + idFarm
+                        ));
+                if (!Objects.equals(farm.getIdEnterprise(), employee.getIdEnterprise())) {
+                    throw new ResponseStatusException(
+                            HttpStatus.FORBIDDEN,
+                            "Acesso negado a registros de produção de fazenda pertencente a outra integradora"
+                    );
+                }
+            }
+            return lotRepository.findProductionSummaries(employee.getIdEnterprise(), idFarm)
+                    .stream()
+                    .map(ProductionRegistryResponseDTO::fromProjection)
+                    .toList();
+        }
+
+        if (RoleConstants.FARM_OWNER.equals(role)) {
+            FarmOwner owner = getFarmOwnerOrThrow(principal.getId());
+            if (owner.getIdFarm() == null) {
+                return List.of();
+            }
+            if (idFarm != null && !Objects.equals(idFarm, owner.getIdFarm())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Produtor rural não tem permissão para visualizar registros de produção de outra fazenda"
+                );
+            }
+            Long targetEnterpriseId = null;
+            if (idEnterprise != null) {
+                Farm farm = farmRepository.findById(owner.getIdFarm())
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Fazenda vinculada ao produtor rural não encontrada para o ID: " + owner.getIdFarm()
+                        ));
+                if (!Objects.equals(idEnterprise, farm.getIdEnterprise())) {
+                    throw new ResponseStatusException(
+                            HttpStatus.FORBIDDEN,
+                            "Produtor rural não tem permissão para visualizar registros de produção de outra empresa integradora"
+                    );
+                }
+                targetEnterpriseId = farm.getIdEnterprise();
+            }
+            return lotRepository.findProductionSummaries(targetEnterpriseId, owner.getIdFarm())
+                    .stream()
+                    .map(ProductionRegistryResponseDTO::fromProjection)
+                    .toList();
+        }
+
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Perfil de usuário sem permissão para listar resumos de produção"
         );
     }
 
