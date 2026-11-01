@@ -19,8 +19,8 @@ public record StateGoalByStateRequestDTO(
         @Schema(description = "Empresa obrigatória para ADM; para funcionário, inferida da identidade", example = "1")
         @JsonProperty("id_enterprise") @JsonAlias("idEnterprise")
         @Positive(message = "O ID da empresa deve ser positivo") Long idEnterprise,
-        @Schema(description = "Dados da meta; não informe id_farm nem region")
-        @Valid @NotNull(message = "Os dados da meta são obrigatórios") StateGoalRequestDTO goal
+        @Schema(description = "Dados descritivos da meta; participantes definidos pela UF")
+        @Valid @NotNull(message = "Os dados da meta são obrigatórios") StateGoalTaskRequestDTO goal
 ) {
     public StateGoalByStateRequestDTO {
         state = state == null ? null : state.trim().toUpperCase(Locale.ROOT);

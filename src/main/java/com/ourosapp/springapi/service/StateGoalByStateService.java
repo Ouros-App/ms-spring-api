@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import java.util.Locale;
+import java.math.BigDecimal;
 import java.util.Set;
 import static com.ourosapp.springapi.constants.RoleConstants.*;
 
@@ -36,15 +37,12 @@ public class StateGoalByStateService {
     public StateGoalByStateResponseDTO create(StateGoalByStateRequestDTO request, UserPrincipal principal) {
         Long scope = resolveEnterprise(request.idEnterprise(), principal);
         String uf = normalizeState(request.state());
-        StateGoalRequestDTO data = request.goal();
-        if (data.idFarm() != null || data.region() != null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe apenas a UF para selecionar as granjas, sem id_farm ou region");
-        }
+        StateGoalTaskRequestDTO data = request.goal();
         if (!data.isDateRangeValid()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O prazo não pode ser anterior ao início");
         var farms = farmRepository.findParticipantsByState(uf, scope);
         if (farms.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nenhuma granja elegível nesta UF e empresa");
         StateGoal goal = goalRepository.save(StateGoal.builder().title(data.title()).description(data.description())
-                .type(data.type()).targetValue(data.targetValue()).dateCreation(data.dateCreation()).dateEnd(data.dateEnd()).build());
+                .type("TASK_COMPLETION").targetValue(BigDecimal.ONE).dateCreation(data.dateCreation()).dateEnd(data.dateEnd()).build());
         farmGoalRepository.saveAll(farms.stream().map(farm -> FarmGoal.builder()
                 .idGoal(goal.getId()).idFarm(farm.getId()).status("Pendente").build()).toList());
         RegionGoal region = regionRepository.save(RegionGoal.builder().idGoal(goal.getId()).region(uf).build());

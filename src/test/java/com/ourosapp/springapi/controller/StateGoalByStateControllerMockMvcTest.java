@@ -28,8 +28,7 @@ class StateGoalByStateControllerMockMvcTest {
     @MockitoBean UserDetailsServiceImpl userDetails;
     private final UserPrincipal principal = new UserPrincipal(1L,"adm@example.com",null,"ADM",List.of());
     private static final String BODY = """
-        {"state":" sp ","id_enterprise":2,"goal":{"title":"Economizar água","type":"WATER_CONSUMPTION",
-        "target_value":12.5,"date_creation":"2026-01-01","date_end":"2026-02-01"}}
+        {"state":" sp ","id_enterprise":2,"goal":{"title":"Realizar manutenção","date_creation":"2026-01-01","date_end":"2026-02-01"}}
         """;
 
     @Test void deveCriarMetaComLocationEQuantidadeRealDeParticipantes() throws Exception {
@@ -37,7 +36,7 @@ class StateGoalByStateControllerMockMvcTest {
         mvc.perform(post("/state-goals/by-state").with(user(principal)).contentType("application/json").content(BODY))
                 .andExpect(status().isCreated()).andExpect(header().string("Location","http://localhost/state-goals/10"))
                 .andExpect(jsonPath("$.participants_count").value(3));
-        verify(service).create(argThat(request -> request.state().equals("SP") && request.goal().idFarm()==null),any());
+        verify(service).create(argThat(request -> request.state().equals("SP")),any());
     }
     @Test void deveConsultarPublicoDaUfEEmpresa() throws Exception {
         when(service.preview(eq("SP"),eq(2L),any())).thenReturn(new StateGoalAudienceDTO("SP",2L,0));
@@ -45,7 +44,7 @@ class StateGoalByStateControllerMockMvcTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.participants_count").value(0));
     }
     @Test void deveValidarUfEDadosAninhadosAntesDeGravar() throws Exception {
-        for (String invalid : List.of(BODY.replace(" sp ","XX"), BODY.replace("12.5","0"),
+        for (String invalid : List.of(BODY.replace(" sp ","XX"), BODY.replace("Realizar manutenção",""),
                 BODY.replace("2026-02-01","2025-01-01"), "{\"state\":\"SP\"}")) {
             mvc.perform(post("/state-goals/by-state").with(user(principal)).contentType("application/json").content(invalid))
                     .andExpect(status().isBadRequest());

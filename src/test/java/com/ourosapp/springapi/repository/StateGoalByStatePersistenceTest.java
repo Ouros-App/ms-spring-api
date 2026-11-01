@@ -41,8 +41,7 @@ class StateGoalByStatePersistenceTest {
                 .idAddress(address(state,country).getId()).idEnterprise(enterpriseId).build());
     }
     private StateGoalByStateRequestDTO request(Long enterpriseId) {
-        return new StateGoalByStateRequestDTO("sp",enterpriseId,new StateGoalRequestDTO("Economizar água",null,
-                "WATER_CONSUMPTION",null,BigDecimal.TEN,LocalDate.of(2026,1,1),LocalDate.of(2026,2,1),null,null));
+        return new StateGoalByStateRequestDTO("sp",enterpriseId,new StateGoalTaskRequestDTO("Realizar manutenção",null,LocalDate.of(2026,1,1),LocalDate.of(2026,2,1)));
     }
     private UserPrincipal admin() { return new UserPrincipal(1L,"adm@example.com",null,"ADM",List.of()); }
 
@@ -56,6 +55,9 @@ class StateGoalByStatePersistenceTest {
         var result = service.create(request(own),admin());
         assertEquals(3,result.participantsCount());
         assertEquals(1,goals.count());
+        var saved = goals.findById(result.id()).orElseThrow();
+        assertEquals("TASK_COMPLETION",saved.getType());
+        assertEquals(0,BigDecimal.ONE.compareTo(saved.getTargetValue()));
         var participants = links.findByIdGoal(result.id());
         assertEquals(3,participants.size());
         assertTrue(participants.stream().allMatch(link -> link.getStatus().equals("Pendente")));

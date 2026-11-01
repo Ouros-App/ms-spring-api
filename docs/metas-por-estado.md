@@ -14,17 +14,16 @@ POST /state-goals/by-state recebe:
   "state": "SP",
   "id_enterprise": 1,
   "goal": {
-    "title": "Reduzir consumo de água",
-    "type": "WATER_CONSUMPTION",
-    "target_value": 100,
+    "title": "Realizar manutenção preventiva",
     "date_creation": "2026-10-31",
     "date_end": "2027-01-31"
   }
 }
 ```
 
-O objeto goal usa as validações existentes. Não informar id_farm ou region: o servidor
-seleciona as granjas por UF/empresa. Uma transação cria state_goals, todos os farm_goals
+O objeto goal recebe apenas título, descrição opcional e datas. A API define
+TASK_COMPLETION e target_value=1: uma unidade de conclusão por granja, acompanhada
+pelo status, sem alvo numérico no formulário. O servidor seleciona as granjas por UF/empresa. Uma transação cria state_goals, todos os farm_goals
 com status Pendente e o vínculo da UF em regions_goals/state_goal_regions. Resposta
 201 com Location /state-goals/{id}, id, state, id_enterprise e participants_count real.
 Uma UF sem granjas retorna 400 sem criar meta. A criação recalcula o público;

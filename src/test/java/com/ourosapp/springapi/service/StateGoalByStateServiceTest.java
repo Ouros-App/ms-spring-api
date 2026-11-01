@@ -28,9 +28,9 @@ class StateGoalByStateServiceTest {
     @InjectMocks StateGoalByStateService service;
 
     private UserPrincipal user(String role) { return new UserPrincipal(1L, "test@example.com", null, role, List.of()); }
-    private StateGoalRequestDTO data() {
-        return new StateGoalRequestDTO("Economizar água", null, "WATER_CONSUMPTION", null,
-                BigDecimal.TEN, LocalDate.of(2026,1,1), LocalDate.of(2026,2,1), null, null);
+    private StateGoalTaskRequestDTO data() {
+        return new StateGoalTaskRequestDTO("Realizar manutenção", null,
+                LocalDate.of(2026,1,1), LocalDate.of(2026,2,1));
     }
     private void employee() {
         when(employees.findById(1L)).thenReturn(Optional.of(CompanyEmployee.builder().id(1L).idEnterprise(2L).build()));
@@ -47,7 +47,7 @@ class StateGoalByStateServiceTest {
         var response = service.create(new StateGoalByStateRequestDTO(" sp ",null,data()),user("COMPANY_EMPLOYEE"));
         assertEquals(2,response.participantsCount());
         assertEquals(10L,response.id());
-        verify(goals,times(1)).save(any());
+        verify(goals,times(1)).save(argThat(goal -> goal.getType().equals("TASK_COMPLETION") && goal.getTargetValue().compareTo(BigDecimal.ONE)==0));
         @SuppressWarnings("unchecked") ArgumentCaptor<Iterable<FarmGoal>> captor = ArgumentCaptor.forClass(Iterable.class);
         verify(links).saveAll(captor.capture());
         var iterator = captor.getValue().iterator();
@@ -90,15 +90,10 @@ class StateGoalByStateServiceTest {
         status(400,() -> service.preview("XX",null,user("COMPANY_EMPLOYEE")));
         verifyNoInteractions(farms);
     }
-    @Test void deveRejeitarSelecaoDeGranjaRegiaoOuPrazoInvalido() {
+    @Test void deveRejeitarPrazoInvalido() {
         employee();
-        var data = data();
-        for (var invalid : List.of(
-                new StateGoalRequestDTO(data.title(),null,data.type(),null,BigDecimal.TEN,data.dateCreation(),data.dateEnd(),3L,null),
-                new StateGoalRequestDTO(data.title(),null,data.type(),null,BigDecimal.TEN,data.dateCreation(),data.dateEnd(),null,"Sudeste"),
-                new StateGoalRequestDTO(data.title(),null,data.type(),null,BigDecimal.TEN,data.dateCreation(),LocalDate.of(2025,1,1),null,null))) {
-            status(400,() -> service.create(new StateGoalByStateRequestDTO("SP",null,invalid),user("COMPANY_EMPLOYEE")));
-        }
+        var invalid = new StateGoalTaskRequestDTO("Manutenção",null,LocalDate.of(2026,1,1),LocalDate.of(2025,1,1));
+        status(400,() -> service.create(new StateGoalByStateRequestDTO("SP",null,invalid),user("COMPANY_EMPLOYEE")));
         verifyNoInteractions(farms,goals,links);
     }
 }

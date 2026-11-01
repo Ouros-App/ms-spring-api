@@ -37,7 +37,7 @@ public class StateGoalByStateController {
     }
 
     @PostMapping("/by-state")
-    @Operation(summary = "Criar meta para as granjas de uma UF", description = "Cria uma única meta e todos os vínculos na mesma transação. Recalcula o público na criação e inicia cada participante como Pendente. ADM deve selecionar empresa; funcionário usa sua própria empresa.")
+    @Operation(summary = "Criar meta para as granjas de uma UF", description = "Cria uma meta descritiva acompanhada por status, sem alvo numérico no cadastro, e todos os vínculos na mesma transação. Recalcula o público na criação e inicia cada participante como Pendente. ADM deve selecionar empresa; funcionário usa sua própria empresa.")
     @ApiResponses({@ApiResponse(responseCode = "201", description = "Meta e participantes cadastrados"),
             @ApiResponse(responseCode = "400", description = "Dados inválidos ou nenhuma granja elegível"),
             @ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
