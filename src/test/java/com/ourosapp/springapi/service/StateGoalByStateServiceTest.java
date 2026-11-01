@@ -39,6 +39,12 @@ class StateGoalByStateServiceTest {
         assertEquals(expected, assertThrows(ResponseStatusException.class, action::run).getStatusCode().value());
     }
 
+    @Test void deveListarEstadosElegiveisComGranjas() {
+        employee();
+        when(farms.findDistinctStatesByEnterprise(2L)).thenReturn(List.of("MG", "SP"));
+        assertEquals(List.of("MG", "SP"), service.listEligibleStates(2L, user("COMPANY_EMPLOYEE")));
+    }
+
     @Test void deveCriarUmaMetaComTodosOsParticipantesEStatusIndependente() {
         employee();
         when(farms.findParticipantsByState("SP",2L)).thenReturn(List.of(Farm.builder().id(3L).build(),Farm.builder().id(4L).build()));

@@ -27,6 +27,12 @@ public class StateGoalByStateService {
     private final StateGoalRegionRepository goalRegionRepository;
 
     @Transactional(readOnly = true)
+    public java.util.List<String> listEligibleStates(Long enterpriseId, UserPrincipal principal) {
+        Long scope = resolveEnterprise(enterpriseId, principal);
+        return farmRepository.findDistinctStatesByEnterprise(scope);
+    }
+
+    @Transactional(readOnly = true)
     public StateGoalAudienceDTO preview(String state, Long enterpriseId, UserPrincipal principal) {
         Long scope = resolveEnterprise(enterpriseId, principal);
         String uf = normalizeState(state);

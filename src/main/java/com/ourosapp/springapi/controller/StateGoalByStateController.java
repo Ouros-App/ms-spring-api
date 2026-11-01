@@ -23,6 +23,19 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 public class StateGoalByStateController {
     private final StateGoalByStateService service;
 
+    @GetMapping("/states")
+    @Operation(summary = "Listar UFs com granjas elegíveis", description = "Retorna apenas as UFs que possuem granjas elegíveis cadastradas para a empresa no Brasil.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Lista de UFs com granjas"),
+            @ApiResponse(responseCode = "400", description = "Empresa não informada ou inválida"),
+            @ApiResponse(responseCode = "401", description = "Usuário não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Escopo não autorizado"),
+            @ApiResponse(responseCode = "404", description = "Empresa não encontrada")})
+    public ResponseEntity<java.util.List<String>> listEligibleStates(
+            @RequestParam(name = "id_enterprise", required = false) Long enterpriseId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(service.listEligibleStates(enterpriseId, principal));
+    }
+
     @GetMapping("/audience")
     @Operation(summary = "Prévia de participantes da UF", description = "Conta granjas pelo estado do endereço, no Brasil, respeitando a empresa. Não vincula novas granjas automaticamente após o lançamento.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Público elegível"),
