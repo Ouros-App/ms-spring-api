@@ -34,7 +34,7 @@ class StateGoalByStatePersistenceTest {
     }
     private Enterprise enterprise(String name) {
         return enterprises.saveAndFlush(Enterprise.builder().name(name).email(name+"@example.com")
-                .documentNumber("12345678000190").telephone("11999999999").idAddress(address("SP","BR").getId()).build());
+                .documentNumber(String.format("%014d", Math.abs((long) name.hashCode()))).telephone("11999999999").idAddress(address("SP","BR").getId()).build());
     }
     private Farm farm(String state,String country,Long enterpriseId) {
         return farms.saveAndFlush(Farm.builder().name("Granja").areaProperty(BigDecimal.ONE).region("Sudeste")
