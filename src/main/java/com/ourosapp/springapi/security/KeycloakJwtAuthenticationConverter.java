@@ -140,6 +140,12 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
             mapRoleToAuthority(directRole).ifPresent(authorities::add);
         }
 
+        // Suporte para claim account_type (canônica do ecossistema Ouros / ms-auth-service)
+        String accountType = jwt.getClaimAsString("account_type");
+        if (accountType != null && !accountType.isBlank()) {
+            mapRoleToAuthority(accountType).ifPresent(authorities::add);
+        }
+
         return authorities;
     }
 
