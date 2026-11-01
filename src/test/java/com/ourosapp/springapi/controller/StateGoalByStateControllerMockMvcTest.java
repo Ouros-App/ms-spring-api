@@ -38,6 +38,14 @@ class StateGoalByStateControllerMockMvcTest {
                 .andExpect(jsonPath("$.participants_count").value(3));
         verify(service).create(argThat(request -> request.state().equals("SP")),any());
     }
+    @Test void deveListarEstadosElegiveis() throws Exception {
+        when(service.listEligibleStates(eq(2L), any())).thenReturn(List.of("MG", "SP"));
+        mvc.perform(get("/state-goals/states").param("id_enterprise", "2").with(user(principal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("MG"))
+                .andExpect(jsonPath("$[1]").value("SP"));
+    }
+
     @Test void deveConsultarPublicoDaUfEEmpresa() throws Exception {
         when(service.preview(eq("SP"),eq(2L),any())).thenReturn(new StateGoalAudienceDTO("SP",2L,0));
         mvc.perform(get("/state-goals/audience").param("state","SP").param("id_enterprise","2").with(user(principal)))
