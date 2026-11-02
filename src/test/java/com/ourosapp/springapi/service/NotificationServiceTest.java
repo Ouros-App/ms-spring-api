@@ -5,6 +5,7 @@ import com.ourosapp.springapi.dto.notification.NotificationResponseDTO;
 import com.ourosapp.springapi.dto.notification.UnreadCountResponseDTO;
 import com.ourosapp.springapi.entity.Notification;
 import com.ourosapp.springapi.repository.NotificationRepository;
+import com.ourosapp.springapi.repository.NotificationDispatchRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +38,9 @@ class NotificationServiceTest {
 
     @Mock
     private NotificationRepository notificationRepository;
+
+    @Mock
+    private NotificationDispatchRepository dispatchRepository;
 
     @InjectMocks
     private NotificationService notificationService;
@@ -228,6 +232,29 @@ class NotificationServiceTest {
         assertEquals("{\"tip_id\":77}", created.getDataPayload());
         assertFalse(created.isRead());
         verify(notificationRepository).save(any(Notification.class));
+    }
+
+    @Test
+    @DisplayName("createNotificationWithPush - Persiste in-app e enfileira o push")
+    void deveEnfileirarPushDepoisDePersistirNotificacao() {
+        when(notificationRepository.save(any(Notification.class))).thenAnswer(invocation -> {
+            Notification notification = invocation.getArgument(0);
+            notification.setId(55L);
+            return notification;
+        });
+
+        Notification created = notificationService.createNotificationWithPush(
+                10L,
+                RoleConstants.FARM_OWNER,
+                "Dica nova",
+                "Confira a dica",
+                "TIP_ACTIVATED",
+                77L,
+                "{\"tip_id\":77}"
+        );
+
+        assertEquals(55L, created.getId());
+        verify(dispatchRepository).enqueuePush(55L);
     }
 
     @Test

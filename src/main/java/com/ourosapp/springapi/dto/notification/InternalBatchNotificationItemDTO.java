@@ -14,7 +14,8 @@ import jakarta.validation.constraints.Size;
 @Schema(description = "Item de notificação para ingestão e processamento em lote")
 public record InternalBatchNotificationItemDTO(
 
-        @Schema(description = "Identificador único do evento para garantia de idempotência e deduplicação", example = "aud:high_water_consumption:v1:user:10:farm:5")
+        @Schema(description = "Identificador único obrigatório do evento para idempotência", example = "aud:high_water_consumption:v1:user:10:farm:5")
+        @NotBlank(message = "O identificador do evento é obrigatório")
         @Size(max = 255, message = "O identificador do evento não pode exceder 255 caracteres")
         @JsonProperty("event_id")
         @JsonAlias("eventId")
@@ -58,7 +59,7 @@ public record InternalBatchNotificationItemDTO(
         @JsonAlias("dataPayload")
         String dataPayload,
 
-        @Schema(description = "Indica se deve disparar Push Notification imediato via FCM (se falso, apenas persiste in-app)", example = "true", defaultValue = "true")
+        @Schema(description = "Indica se deve enfileirar Push Notification via FCM (se falso, apenas persiste in-app)", example = "true", defaultValue = "true")
         @JsonProperty("send_push")
         @JsonAlias("sendPush")
         Boolean sendPush

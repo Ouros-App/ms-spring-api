@@ -32,28 +32,32 @@ class FcmPushServiceTest {
     private FcmPushService fcmPushService;
 
     @Test
-    @DisplayName("sendMulticastPush - Deve retornar imediatamente quando a lista de tokens for nula ou vazia")
+    @DisplayName("sendMulticastPushNow - Retorna imediatamente sem tokens")
     void deveRetornarQuandoListaTokensNulaOuVazia() {
-        fcmPushService.sendMulticastPush(null, "Título", "Corpo", Map.of());
-        fcmPushService.sendMulticastPush(List.of(), "Título", "Corpo", Map.of());
+        fcmPushService.sendMulticastPushNow(null, "Título", "Corpo", Map.of());
+        fcmPushService.sendMulticastPushNow(List.of(), "Título", "Corpo", Map.of());
 
         verifyNoInteractions(deviceTokenRepository);
     }
 
     @Test
-    @DisplayName("sendMulticastPush - Deve ignorar push quando Firebase não estiver inicializado")
-    void deveIgnorarPushQuandoFirebaseNaoInicializado() {
+    @DisplayName("sendMulticastPushNow - Propaga erro quando Firebase não estiver inicializado")
+    void devePropagarErroQuandoFirebaseNaoInicializado() {
         try (MockedStatic<FirebaseApp> firebaseAppMock = mockStatic(FirebaseApp.class)) {
             firebaseAppMock.when(FirebaseApp::getApps).thenReturn(Collections.emptyList());
 
-            fcmPushService.sendMulticastPush(List.of("token_123"), "Título", "Corpo", Map.of("key", "val"));
-
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    IllegalStateException.class,
+                    () -> fcmPushService.sendMulticastPushNow(
+                            List.of("token_123"), "Título", "Corpo", Map.of("key", "val")
+                    )
+            );
             verifyNoInteractions(deviceTokenRepository);
         }
     }
 
     @Test
-    @DisplayName("sendMulticastPush - Deve ignorar envio se todos os tokens forem nulos ou em branco")
+    @DisplayName("sendMulticastPushNow - Ignora tokens nulos ou em branco")
     void deveIgnorarQuandoTokensForemBrancosOuNulos() {
         FirebaseApp mockApp = mock(FirebaseApp.class);
         try (MockedStatic<FirebaseApp> firebaseAppMock = mockStatic(FirebaseApp.class)) {
@@ -64,14 +68,14 @@ class FcmPushServiceTest {
             blankTokens.add("   ");
             blankTokens.add("");
 
-            fcmPushService.sendMulticastPush(blankTokens, "Título", "Corpo", null);
+            fcmPushService.sendMulticastPushNow(blankTokens, "Título", "Corpo", null);
 
             verifyNoInteractions(deviceTokenRepository);
         }
     }
 
     @Test
-    @DisplayName("sendMulticastPush - Deve enviar push com sucesso para tokens distintos")
+    @DisplayName("sendMulticastPushNow - Envia para tokens distintos")
     void deveEnviarPushComSucesso() throws Exception {
         FirebaseApp mockApp = mock(FirebaseApp.class);
         FirebaseMessaging mockMessaging = mock(FirebaseMessaging.class);
@@ -88,7 +92,7 @@ class FcmPushServiceTest {
             messagingStatic.when(FirebaseMessaging::getInstance).thenReturn(mockMessaging);
 
             List<String> tokens = List.of("token_1", "token_2", "token_1");
-            fcmPushService.sendMulticastPush(tokens, "Título Teste", "Corpo Teste", Map.of("id", "123"));
+            fcmPushService.sendMulticastPushNow(tokens, "Título Teste", "Corpo Teste", Map.of("id", "123"));
 
             verify(mockMessaging, times(1)).sendEachForMulticast(any(MulticastMessage.class));
             verifyNoInteractions(deviceTokenRepository);
@@ -96,7 +100,7 @@ class FcmPushServiceTest {
     }
 
     @Test
-    @DisplayName("sendMulticastPush - Deve particionar em lotes quando exceder 500 tokens")
+    @DisplayName("sendMulticastPushNow - Particiona acima de 500 tokens")
     void deveParticionarEmLotesQuandoExceder500Tokens() throws Exception {
         FirebaseApp mockApp = mock(FirebaseApp.class);
         FirebaseMessaging mockMessaging = mock(FirebaseMessaging.class);
@@ -117,7 +121,7 @@ class FcmPushServiceTest {
                 tokens.add("fcm_token_index_" + i);
             }
 
-            fcmPushService.sendMulticastPush(tokens, "Aviso Geral", "Mensagem", null);
+            fcmPushService.sendMulticastPushNow(tokens, "Aviso Geral", "Mensagem", null);
 
             // 505 tokens divididos em batch de 500 e batch de 5 = 2 chamadas
             verify(mockMessaging, times(2)).sendEachForMulticast(any(MulticastMessage.class));
@@ -125,7 +129,7 @@ class FcmPushServiceTest {
     }
 
     @Test
-    @DisplayName("sendMulticastPush - Deve remover tokens inválidos quando houver falhas UNREGISTERED e INVALID_ARGUMENT")
+    @DisplayName("sendMulticastPushNow - Remove tokens inválidos")
     void deveRemoverTokensInvalidosEmFalhas() throws Exception {
         FirebaseApp mockApp = mock(FirebaseApp.class);
         FirebaseMessaging mockMessaging = mock(FirebaseMessaging.class);
@@ -169,7 +173,10 @@ class FcmPushServiceTest {
             messagingStatic.when(FirebaseMessaging::getInstance).thenReturn(mockMessaging);
 
             List<String> tokens = List.of("token_valido", "token_unregistered", "token_invalid", "token_internal_err");
-            fcmPushService.sendMulticastPush(tokens, "Título", "Corpo", Map.of());
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    IllegalStateException.class,
+                    () -> fcmPushService.sendMulticastPushNow(tokens, "Título", "Corpo", Map.of())
+            );
 
             verify(deviceTokenRepository).deleteByToken("token_unregistered");
             verify(deviceTokenRepository).deleteByToken("token_invalid");
@@ -179,22 +186,22 @@ class FcmPushServiceTest {
     }
 
     @Test
-    @DisplayName("sendMulticastPush - Não deve quebrar quando ocorrer exceção inesperada no envio")
-    void naoDeveQuebrarComExcecaoInesperada() throws Exception {
+    @DisplayName("sendMulticastPushNow - Propaga falha transitória para a outbox tentar novamente")
+    void propagaFalhaDoFirebaseParaRetry() throws Exception {
         FirebaseApp mockApp = mock(FirebaseApp.class);
         FirebaseMessaging mockMessaging = mock(FirebaseMessaging.class);
-
         when(mockMessaging.sendEachForMulticast(any(MulticastMessage.class)))
                 .thenThrow(new RuntimeException("Falha de rede com Firebase"));
 
         try (MockedStatic<FirebaseApp> appStatic = mockStatic(FirebaseApp.class);
              MockedStatic<FirebaseMessaging> messagingStatic = mockStatic(FirebaseMessaging.class)) {
-
             appStatic.when(FirebaseApp::getApps).thenReturn(List.of(mockApp));
             messagingStatic.when(FirebaseMessaging::getInstance).thenReturn(mockMessaging);
 
-            fcmPushService.sendMulticastPush(List.of("token_1"), "Título", "Corpo", Map.of());
-
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    RuntimeException.class,
+                    () -> fcmPushService.sendMulticastPushNow(List.of("token_1"), "Título", "Corpo", Map.of())
+            );
             verifyNoInteractions(deviceTokenRepository);
         }
     }

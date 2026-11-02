@@ -5,13 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.constants.RoleConstants;
 import com.ourosapp.springapi.dto.farm.FarmRankingResponseDTO;
 import com.ourosapp.springapi.entity.CompanyEmployee;
-import com.ourosapp.springapi.entity.DeviceToken;
 import com.ourosapp.springapi.entity.FarmOwner;
 import com.ourosapp.springapi.event.RankingUpdatedEvent;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
-import com.ourosapp.springapi.repository.DeviceTokenRepository;
 import com.ourosapp.springapi.repository.FarmOwnerRepository;
-import com.ourosapp.springapi.service.FcmPushService;
 import com.ourosapp.springapi.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,8 +32,6 @@ public class RankingNotificationListener {
     private final FarmOwnerRepository farmOwnerRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final NotificationService notificationService;
-    private final DeviceTokenRepository deviceTokenRepository;
-    private final FcmPushService fcmPushService;
     private final ObjectMapper objectMapper;
 
     @Async("notificationTaskExecutor")
@@ -115,29 +110,15 @@ public class RankingNotificationListener {
 
             String jsonPayload = toJson(payloadMap);
 
-            // Persiste notificação In-App
-            notificationService.createNotification(
+            notificationService.createNotificationWithPush(
                     owner.getId(),
                     RoleConstants.FARM_OWNER,
                     title,
                     message,
                     "RANKING_UPDATED",
+                    null,
                     jsonPayload
             );
-
-            // Envia Push Notification aos aparelhos do produtor
-            List<DeviceToken> deviceTokens = deviceTokenRepository.findAllByUserIdAndUserRole(
-                    owner.getId(),
-                    RoleConstants.FARM_OWNER
-            );
-
-            if (!deviceTokens.isEmpty()) {
-                List<String> tokens = deviceTokens.stream()
-                        .map(DeviceToken::getToken)
-                        .filter(Objects::nonNull)
-                        .toList();
-                fcmPushService.sendMulticastPush(tokens, title, message, payloadMap);
-            }
         }
     }
 
@@ -168,34 +149,16 @@ public class RankingNotificationListener {
         // Cria notificação In-App para cada funcionário
         for (CompanyEmployee emp : employees) {
             if (emp.getId() != null) {
-                notificationService.createNotification(
+                notificationService.createNotificationWithPush(
                         emp.getId(),
                         RoleConstants.COMPANY_EMPLOYEE,
                         title,
                         message,
                         "RANKING_UPDATED",
+                        null,
                         jsonPayload
                 );
             }
-        }
-
-        // Envia Push Notification aos aparelhos de todos os funcionários da integradora
-        List<Long> employeeIds = employees.stream()
-                .map(CompanyEmployee::getId)
-                .filter(Objects::nonNull)
-                .toList();
-
-        List<DeviceToken> deviceTokens = deviceTokenRepository.findAllByUserRoleAndUserIdIn(
-                RoleConstants.COMPANY_EMPLOYEE,
-                employeeIds
-        );
-
-        if (!deviceTokens.isEmpty()) {
-            List<String> tokens = deviceTokens.stream()
-                    .map(DeviceToken::getToken)
-                    .filter(Objects::nonNull)
-                    .toList();
-            fcmPushService.sendMulticastPush(tokens, title, message, payloadMap);
         }
     }
 

@@ -5,6 +5,7 @@ import com.ourosapp.springapi.dto.notification.NotificationResponseDTO;
 import com.ourosapp.springapi.dto.notification.UnreadCountResponseDTO;
 import com.ourosapp.springapi.entity.Notification;
 import com.ourosapp.springapi.repository.NotificationRepository;
+import com.ourosapp.springapi.repository.NotificationDispatchRepository;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,8 @@ import java.util.Objects;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+
+    private final NotificationDispatchRepository dispatchRepository;
 
     /**
      * Consulta as notificações paginadas do usuário autenticado, com filtro opcional por não lidas.
@@ -134,6 +137,19 @@ public class NotificationService {
                 .build();
 
         return notificationRepository.save(notification);
+    }
+
+    /**
+     * Creates an in-app notification and queues its push in the same database transaction.
+     */
+    @Transactional
+    public Notification createNotificationWithPush(
+            Long userId, String userRole, String title, String message,
+            String type, Long idTip, String dataPayload
+    ) {
+        Notification notification = createNotification(userId, userRole, title, message, type, idTip, dataPayload);
+        dispatchRepository.enqueuePush(notification.getId());
+        return notification;
     }
 
     /**

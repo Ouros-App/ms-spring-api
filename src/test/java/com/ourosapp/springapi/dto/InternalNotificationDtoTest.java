@@ -241,7 +241,7 @@ class InternalNotificationDtoTest {
         assertTrue(jsonResponse.contains("\"total_received\":10"));
         assertTrue(jsonResponse.contains("\"total_created\":8"));
         assertTrue(jsonResponse.contains("\"total_skipped\":2"));
-        assertTrue(jsonResponse.contains("\"total_push_dispatched\":8"));
+        assertTrue(jsonResponse.contains("\"total_push_queued\":8"));
         assertTrue(jsonResponse.contains("\"processed_at\":\"2026-10-21T11:45:00\""));
 
         InternalBatchNotificationResponseDTO parsedResponse = objectMapper.readValue(jsonResponse, InternalBatchNotificationResponseDTO.class);
