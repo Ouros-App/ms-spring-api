@@ -62,11 +62,6 @@ class TipServiceTest {
     @Mock
     private NotificationService notificationService;
 
-    @Mock
-    private DeviceTokenRepository deviceTokenRepository;
-
-    @Mock
-    private FcmPushService fcmPushService;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -174,42 +169,20 @@ class TipServiceTest {
     }
 
     @Test
-    @DisplayName("createTip - Deve gerar notificação in-app e push FCM para os produtores da fazenda")
-    void deveNotificarProdutoresRuraisEEnviarPushAoCadastrarDica() {
+    @DisplayName("createTip - Enfileira notificação in-app e push para produtores da fazenda")
+    void deveNotificarProdutoresRuraisAoCadastrarDica() {
         TipRequestDTO request = new TipRequestDTO("Ajustar a vazão dos bebedouros", 10L, List.of(5L));
-        DeviceToken token = DeviceToken.builder()
-                .id(1L)
-                .userId(3L)
-                .userRole(RoleConstants.FARM_OWNER)
-                .token("fcm_token_owner_123")
-                .platform("ANDROID")
-                .build();
-
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
         when(tipRepository.callCreateTip("Dica Operacional", "Ajustar a vazão dos bebedouros", null, 10, 5)).thenReturn(101);
         when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of(sampleFarmOwner));
-        when(deviceTokenRepository.findAllByUserIdAndUserRole(3L, RoleConstants.FARM_OWNER))
-                .thenReturn(List.of(token));
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
 
-        assertNotNull(response);
         assertEquals(101L, response.id());
-        verify(notificationService).createNotification(
-                eq(3L),
-                eq(RoleConstants.FARM_OWNER),
-                contains("Dica"),
-                anyString(),
-                eq("TIP_CREATED"),
-                eq(101L),
-                anyString()
-        );
-        verify(fcmPushService).sendMulticastPush(
-                eq(List.of("fcm_token_owner_123")),
-                contains("Dica"),
-                anyString(),
-                anyMap()
+        verify(notificationService).createNotificationWithPush(
+                eq(3L), eq(RoleConstants.FARM_OWNER), contains("Dica"), anyString(),
+                eq("TIP_CREATED"), eq(101L), anyString()
         );
     }
 
@@ -231,10 +204,9 @@ class TipServiceTest {
     }
 
     @Test
-    @DisplayName("createTip - Deve ignorar notificacao quando lista de produtores for vazia")
+    @DisplayName("createTip - Não cria notificações quando a lista de produtores está vazia")
     void deveIgnorarNotificacaoQuandoListaDeProdutoresForVazia() {
         TipRequestDTO request = new TipRequestDTO("Dica sem donos", 10L, List.of(5L));
-
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
         when(tipRepository.callCreateTip("Dica Operacional", "Dica sem donos", null, 10, 5)).thenReturn(103);
@@ -242,14 +214,12 @@ class TipServiceTest {
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
 
-        assertNotNull(response);
         assertEquals(103L, response.id());
         verifyNoInteractions(notificationService);
-        verifyNoInteractions(fcmPushService);
     }
 
     @Test
-    @DisplayName("createTip - Deve ignorar produtor com id nulo e usar 'sua fazenda' quando o nome da fazenda for em branco")
+    @DisplayName("createTip - Ignora produtor sem ID e enfileira para o dono válido")
     void deveIgnorarProdutorSemIdEUsarNomePadraoQuandoNomeFazendaEmBranco() {
         TipRequestDTO request = new TipRequestDTO("Dica fazenda sem nome", 10L, List.of(5L));
         Farm farmSemNome = Farm.builder().id(10L).name("   ").build();
@@ -260,52 +230,19 @@ class TipServiceTest {
         when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
         when(tipRepository.callCreateTip("Dica Operacional", "Dica fazenda sem nome", null, 10, 5)).thenReturn(104);
         when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of(ownerSemId, ownerValido));
-        when(deviceTokenRepository.findAllByUserIdAndUserRole(3L, RoleConstants.FARM_OWNER)).thenReturn(List.of());
 
         TipResponseDTO response = tipService.createTip(request, adminPrincipal);
 
-        assertNotNull(response);
         assertEquals(104L, response.id());
-        verify(notificationService).createNotification(
-                eq(3L),
-                eq(RoleConstants.FARM_OWNER),
-                contains("Nova Dica Técnica!"),
-                contains("sua fazenda"),
-                eq("TIP_CREATED"),
-                eq(104L),
-                anyString()
+        verify(notificationService).createNotificationWithPush(
+                eq(3L), eq(RoleConstants.FARM_OWNER), contains("Nova Dica Técnica!"),
+                contains("sua fazenda"), eq("TIP_CREATED"), eq(104L), anyString()
         );
-        verify(notificationService, never()).createNotification(
-                isNull(), anyString(), anyString(), anyString(), anyString(), anyLong(), anyString()
-        );
-        verifyNoInteractions(fcmPushService);
-    }
-
-    @Test
-    @DisplayName("createTip - Deve filtrar tokens nulos ao enviar notificacao push multicast")
-    void deveFiltrarTokensNulosAoEnviarPushMulticast() {
-        TipRequestDTO request = new TipRequestDTO("Dica com tokens", 10L, List.of(5L));
-        DeviceToken tokenValido = DeviceToken.builder().id(1L).token("fcm_token_ok").build();
-        DeviceToken tokenNulo = DeviceToken.builder().id(2L).token(null).build();
-
-        when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
-        when(categoryRepository.findByIdIn(List.of(5L))).thenReturn(List.of(sampleCategory));
-        when(tipRepository.callCreateTip("Dica Operacional", "Dica com tokens", null, 10, 5)).thenReturn(105);
-        when(farmOwnerRepository.findAllByIdFarm(10L)).thenReturn(List.of(sampleFarmOwner));
-        when(deviceTokenRepository.findAllByUserIdAndUserRole(3L, RoleConstants.FARM_OWNER))
-                .thenReturn(List.of(tokenValido, tokenNulo));
-
-        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
-
-        assertNotNull(response);
-        assertEquals(105L, response.id());
-        verify(fcmPushService).sendMulticastPush(
-                eq(List.of("fcm_token_ok")),
-                contains("Dica"),
-                anyString(),
-                anyMap()
+        verify(notificationService, never()).createNotificationWithPush(
+                isNull(), anyString(), anyString(), anyString(), anyString(), any(), anyString()
         );
     }
+
 
     @Test
     @DisplayName("createTip - Deve cadastrar dica técnica com sucesso por COMPANY_EMPLOYEE da mesma empresa")

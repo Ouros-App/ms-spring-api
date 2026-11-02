@@ -38,7 +38,7 @@ public class InternalNotificationController {
      */
     @Operation(
             summary = "Ingere e dispara notificações em lote",
-            description = "Processa lote de notificações de serviços internos com deduplicação estrita via event_id e envio opcional de push via FCM. Requer cabeçalho X-Internal-Service-Key."
+            description = "Persiste em lote notificações de serviços internos com deduplicação por event_id e enfileira opcionalmente o push via FCM. Requer cabeçalho X-Internal-Service-Key."
     )
     @ApiResponses({
             @ApiResponse(

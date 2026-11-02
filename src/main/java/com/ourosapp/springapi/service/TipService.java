@@ -44,8 +44,6 @@ public class TipService {
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final FarmOwnerRepository farmOwnerRepository;
     private final NotificationService notificationService;
-    private final DeviceTokenRepository deviceTokenRepository;
-    private final FcmPushService fcmPushService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -504,33 +502,15 @@ public class TipService {
                 if (owner.getId() == null) {
                     continue;
                 }
-
-                if (notificationService != null) {
-                    notificationService.createNotification(
-                            owner.getId(),
-                            RoleConstants.FARM_OWNER,
-                            title,
-                            message,
-                            "TIP_CREATED",
-                            tipId,
-                            jsonPayload
-                    );
-                }
-
-                if (deviceTokenRepository != null && fcmPushService != null) {
-                    List<DeviceToken> deviceTokens = deviceTokenRepository.findAllByUserIdAndUserRole(
-                            owner.getId(),
-                            RoleConstants.FARM_OWNER
-                    );
-
-                    if (deviceTokens != null && !deviceTokens.isEmpty()) {
-                        List<String> tokens = deviceTokens.stream()
-                                .map(DeviceToken::getToken)
-                                .filter(Objects::nonNull)
-                                .toList();
-                        fcmPushService.sendMulticastPush(tokens, title, message, payloadMap);
-                    }
-                }
+                notificationService.createNotificationWithPush(
+                        owner.getId(),
+                        RoleConstants.FARM_OWNER,
+                        title,
+                        message,
+                        "TIP_CREATED",
+                        tipId,
+                        jsonPayload
+                );
             }
         } catch (Exception ex) {
             log.error("Erro ao notificar produtores rurais sobre nova dica técnica ID {}: {}", tipId, ex.getMessage(), ex);
