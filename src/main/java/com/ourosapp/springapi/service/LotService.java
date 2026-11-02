@@ -17,7 +17,9 @@ import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
 import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.repository.FarmOwnerRepository;
 import com.ourosapp.springapi.repository.FarmRepository;
+import com.ourosapp.springapi.event.LotCreatedEvent;
 import com.ourosapp.springapi.repository.LotRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import com.ourosapp.springapi.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -43,6 +45,7 @@ public class LotService {
     private final FarmRepository farmRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final FarmOwnerRepository farmOwnerRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     /**
      * Inicia e cadastra um novo Lote de Aves vinculado a uma Fazenda e a uma Empresa Integradora.
@@ -75,6 +78,22 @@ public class LotService {
 
         try {
             Lot savedLot = lotRepository.save(lot);
+
+            if (applicationEventPublisher != null &&
+                    (RoleConstants.COMPANY_EMPLOYEE.equals(principal.getRole()) || RoleConstants.ADM.equals(principal.getRole()))) {
+                applicationEventPublisher.publishEvent(new LotCreatedEvent(
+                        savedLot.getId(),
+                        farm.getId(),
+                        farm.getName(),
+                        farm.getIdEnterprise(),
+                        savedLot.getReceivedChickens(),
+                        savedLot.getDeliveryDate(),
+                        savedLot.getCost(),
+                        principal.getRole(),
+                        principal.getId()
+                ));
+            }
+
             return LotResponseDTO.fromEntity(savedLot);
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(
