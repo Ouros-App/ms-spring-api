@@ -49,6 +49,7 @@ public class StateGoalController {
     @GetMapping("/paged")
     public ResponseEntity<StateGoalPageResponseDTO> getPaged(
             @RequestParam(name = "farm_id", required = false) Long farmId,
+            @Parameter(description = "ID opcional da empresa integradora para filtrar as metas", example = "15")
             @RequestParam(name = "id_enterprise", required = false) Long enterpriseId,
             @RequestParam(name = "region", required = false) String region,
             @Parameter(description = "Página iniciada em zero", example = "0") @RequestParam(defaultValue = "0") int page,
@@ -98,7 +99,6 @@ public class StateGoalController {
     public ResponseEntity<List<StateGoalResponseDTO>> getStateGoals(
             @Parameter(description = "ID opcional da fazenda para filtrar as metas", example = "1")
             @RequestParam(name = "farm_id", required = false) Long farmId,
-            @RequestParam(name = "id_enterprise", required = false) Long enterpriseId,
             @Parameter(description = "Região opcional para filtrar as metas", example = "Sudeste")
             @RequestParam(name = "region", required = false) String region,
             @AuthenticationPrincipal UserPrincipal principal
