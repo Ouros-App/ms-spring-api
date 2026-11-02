@@ -1,6 +1,7 @@
 package com.ourosapp.springapi.dto.tip;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ourosapp.springapi.entity.Tip;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -19,6 +20,7 @@ import java.util.List;
  * @param categories    Lista de nomes das categorias vinculadas
  * @param totalReviews  Total de avaliações recebidas pela dica
  * @param averageRating Média das notas de avaliação (0.0 a 5.0)
+ * @param audienceMatch Indica se a dica pertence a uma audiência do produtor autenticado
  */
 @Schema(description = "Dados de resposta de uma dica técnica operacional")
 public record TipResponseDTO(
@@ -58,20 +60,45 @@ public record TipResponseDTO(
         @Schema(description = "Média de notas de avaliação da dica", example = "4.5")
         @JsonProperty("average_rating")
         @JsonAlias("averageRating")
-        double averageRating
+        double averageRating,
+
+        @Schema(
+                description = "Indica se a dica corresponde a alguma audiência do produtor autenticado; campo omitido quando não aplicável ou indisponível.",
+                nullable = true
+        )
+        @JsonProperty("audience_match")
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        Boolean audienceMatch
 ) {
     /**
      * Construtor de sobrecarga retrocompatível para instanciações sem título e foto explícitos.
      */
     public TipResponseDTO(Long id, String tip, Long idFarm, List<String> categories, long totalReviews, double averageRating) {
-        this(id, "Dica Operacional", tip, null, null, idFarm, categories, totalReviews, averageRating);
+        this(id, "Dica Operacional", tip, null, null, idFarm, categories, totalReviews, averageRating, null);
     }
 
     /**
      * Construtor de sobrecarga para chamadas que forneçam apenas uma URL de imagem/foto.
      */
     public TipResponseDTO(Long id, String title, String tip, String fotoUrl, Long idFarm, List<String> categories, long totalReviews, double averageRating) {
-        this(id, title, tip, fotoUrl, fotoUrl, idFarm, categories, totalReviews, averageRating);
+        this(id, title, tip, fotoUrl, fotoUrl, idFarm, categories, totalReviews, averageRating, null);
+    }
+
+    /**
+     * Construtor retrocompatível para chamadas que fornecem URLs de imagem e foto separadas.
+     */
+    public TipResponseDTO(
+            Long id,
+            String title,
+            String tip,
+            String imageUrl,
+            String fotoUrl,
+            Long idFarm,
+            List<String> categories,
+            long totalReviews,
+            double averageRating
+    ) {
+        this(id, title, tip, imageUrl, fotoUrl, idFarm, categories, totalReviews, averageRating, null);
     }
 
     /**
@@ -98,7 +125,23 @@ public record TipResponseDTO(
                 idFarm,
                 categories != null ? categories : List.of(),
                 totalReviews,
-                averageRating
+                averageRating,
+                null
+        );
+    }
+
+    public TipResponseDTO withAudienceMatch(Boolean audienceMatch) {
+        return new TipResponseDTO(
+                id,
+                title,
+                tip,
+                imageUrl,
+                fotoUrl,
+                idFarm,
+                categories,
+                totalReviews,
+                averageRating,
+                audienceMatch
         );
     }
 }
