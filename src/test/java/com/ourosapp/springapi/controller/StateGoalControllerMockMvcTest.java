@@ -277,6 +277,14 @@ class StateGoalControllerMockMvcTest {
                 .andExpect(jsonPath("$.totalElements").value(21)).andExpect(jsonPath("$.totalPages").value(3))
                 .andExpect(jsonPath("$.page").value(1)).andExpect(jsonPath("$.size").value(10));
     }
+    @Test void deveRetornarEnvelopePaginadoComFiltroEmpresa() throws Exception {
+        when(pagedListingService.stateGoals(any(), eq(15L), any(), any(), any())).thenReturn(com.ourosapp.springapi.dto.stategoal.StateGoalPageResponseDTO.from(com.ourosapp.springapi.dto.common.PageResponseDTO.of(List.of(), 5, 0, 10), java.util.Map.of("Pendente", 5L)));
+        mockMvc.perform(get("/state-goals/paged").param("id_enterprise", "15").with(user(mockPrincipal)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.totalElements").value(5)).andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.page").value(0)).andExpect(jsonPath("$.size").value(10));
+    }
+
     @Test void deveRejeitarPaginacaoInvalida() throws Exception {
         for (String size : List.of("0", "101", "abc")) {
             mockMvc.perform(get("/state-goals/paged").param("size", size).with(user(mockPrincipal)))

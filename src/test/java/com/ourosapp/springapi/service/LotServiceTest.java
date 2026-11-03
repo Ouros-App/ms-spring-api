@@ -13,7 +13,10 @@ import com.ourosapp.springapi.repository.EnterpriseRepository;
 import com.ourosapp.springapi.repository.FarmOwnerRepository;
 import com.ourosapp.springapi.repository.FarmRepository;
 import com.ourosapp.springapi.repository.LotRepository;
+import com.ourosapp.springapi.event.LotCreatedEvent;
 import com.ourosapp.springapi.repository.projection.ProductionRegistryProjection;
+import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import com.ourosapp.springapi.security.UserPrincipal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,6 +61,9 @@ class LotServiceTest {
     @Mock
     private FarmOwnerRepository farmOwnerRepository;
 
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
+
     @InjectMocks
     private LotService lotService;
 
@@ -80,6 +86,50 @@ class LotServiceTest {
     // ==========================================
     // CREATE LOT
     // ==========================================
+
+    @Test
+    @DisplayName("Deve publicar LotCreatedEvent com os dados corretos quando funcionário da integradora cadastrar lote")
+    void devePublicarLotCreatedEventQuandoFuncionarioCadastraLote() {
+        LotRequestDTO request = new LotRequestDTO(
+                40000, 0, LocalDate.of(2026, 12, 10),
+                0, 16000.0, 1L, 15L
+        );
+        Farm farm = Farm.builder().id(15L).name("Granja Alvorada").idEnterprise(1L).build();
+        CompanyEmployee employee = CompanyEmployee.builder().id(2L).idEnterprise(1L).build();
+        Lot savedLot = Lot.builder()
+                .id(205L)
+                .receivedChickens(40000)
+                .deliveredChickens(0)
+                .deliveryDate(LocalDate.of(2026, 12, 10))
+                .losts(0)
+                .cost(16000.0)
+                .idEnterprise(1L)
+                .idFarm(15L)
+                .build();
+
+        when(enterpriseRepository.existsById(1L)).thenReturn(true);
+        when(farmRepository.findById(15L)).thenReturn(Optional.of(farm));
+        when(companyEmployeeRepository.findById(2L)).thenReturn(Optional.of(employee));
+        when(lotRepository.save(any(Lot.class))).thenReturn(savedLot);
+
+        LotResponseDTO response = lotService.createLot(request, employeePrincipal);
+
+        assertNotNull(response);
+        ArgumentCaptor<LotCreatedEvent> eventCaptor = ArgumentCaptor.forClass(LotCreatedEvent.class);
+        verify(applicationEventPublisher, times(1)).publishEvent(eventCaptor.capture());
+
+        LotCreatedEvent event = eventCaptor.getValue();
+        assertEquals(205L, event.lotId());
+        assertEquals(15L, event.farmId());
+        assertEquals("Granja Alvorada", event.farmName());
+        assertEquals(1L, event.enterpriseId());
+        assertEquals(40000, event.receivedChickens());
+        assertEquals(LocalDate.of(2026, 12, 10), event.deliveryDate());
+        assertEquals(16000.0, event.cost());
+        assertEquals(com.ourosapp.springapi.constants.RoleConstants.COMPANY_EMPLOYEE, event.creatorRole());
+        assertEquals(2L, event.creatorId());
+    }
+
 
     @Test
     @DisplayName("Deve cadastrar lote com sucesso quando usuário for ADM")
