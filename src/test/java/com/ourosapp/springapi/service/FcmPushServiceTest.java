@@ -41,6 +41,53 @@ class FcmPushServiceTest {
     }
 
     @Test
+    @DisplayName("sendMulticastPushNow - Completa com sucesso se falhas forem apenas permanentes")
+    void deveCompletarComSucessoQuandoFalhasApenasPermanentes() throws Exception {
+        FirebaseApp mockApp = mock(FirebaseApp.class);
+        FirebaseMessaging mockMessaging = mock(FirebaseMessaging.class);
+        BatchResponse mockBatchResponse = mock(BatchResponse.class);
+
+        SendResponse successResponse = mock(SendResponse.class);
+        when(successResponse.isSuccessful()).thenReturn(true);
+
+        SendResponse unregisteredResponse = mock(SendResponse.class);
+        when(unregisteredResponse.isSuccessful()).thenReturn(false);
+        FirebaseMessagingException unregisteredEx = mock(FirebaseMessagingException.class);
+        when(unregisteredEx.getMessagingErrorCode()).thenReturn(MessagingErrorCode.UNREGISTERED);
+        when(unregisteredResponse.getException()).thenReturn(unregisteredEx);
+
+        SendResponse invalidResponse = mock(SendResponse.class);
+        when(invalidResponse.isSuccessful()).thenReturn(false);
+        FirebaseMessagingException invalidEx = mock(FirebaseMessagingException.class);
+        when(invalidEx.getMessagingErrorCode()).thenReturn(MessagingErrorCode.INVALID_ARGUMENT);
+        when(invalidResponse.getException()).thenReturn(invalidEx);
+
+        when(mockBatchResponse.getFailureCount()).thenReturn(2);
+        when(mockBatchResponse.getSuccessCount()).thenReturn(1);
+        when(mockBatchResponse.getResponses()).thenReturn(List.of(
+                successResponse,
+                unregisteredResponse,
+                invalidResponse
+        ));
+        when(mockMessaging.sendEachForMulticast(any(MulticastMessage.class))).thenReturn(mockBatchResponse);
+
+        try (MockedStatic<FirebaseApp> appStatic = mockStatic(FirebaseApp.class);
+             MockedStatic<FirebaseMessaging> messagingStatic = mockStatic(FirebaseMessaging.class)) {
+
+            appStatic.when(FirebaseApp::getApps).thenReturn(List.of(mockApp));
+            messagingStatic.when(FirebaseMessaging::getInstance).thenReturn(mockMessaging);
+
+            List<String> tokens = List.of("token_valido", "token_unregistered", "token_invalid");
+            
+            fcmPushService.sendMulticastPushNow(tokens, "Título", "Corpo", Map.of());
+
+            verify(deviceTokenRepository).deleteByToken("token_unregistered");
+            verify(deviceTokenRepository).deleteByToken("token_invalid");
+            verify(deviceTokenRepository, never()).deleteByToken("token_valido");
+        }
+    }
+
+    @Test
     @DisplayName("sendMulticastPushNow - Propaga erro quando Firebase não estiver inicializado")
     void devePropagarErroQuandoFirebaseNaoInicializado() {
         try (MockedStatic<FirebaseApp> firebaseAppMock = mockStatic(FirebaseApp.class)) {

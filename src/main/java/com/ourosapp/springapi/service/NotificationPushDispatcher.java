@@ -25,6 +25,7 @@ import java.util.Map;
 public class NotificationPushDispatcher {
 
     private static final int BATCH_SIZE = 100;
+    private static final int MAX_ATTEMPTS = 5;
 
     private final NotificationDispatchRepository dispatchRepository;
     private final DeviceTokenRepository deviceTokenRepository;
@@ -50,10 +51,16 @@ public class NotificationPushDispatcher {
                 );
                 dispatchRepository.markSent(item);
             } catch (Exception ex) {
-                Duration delay = Duration.ofSeconds(retryDelaySeconds(item.attemptCount()));
-                log.error("Push dispatch failed; notification outbox item {} will retry in {} seconds",
-                        item.id(), delay.toSeconds(), ex);
-                dispatchRepository.scheduleRetry(item, delay, ex.getMessage());
+                if (item.attemptCount() >= MAX_ATTEMPTS) {
+                    log.error("Push dispatch failed permanently after {} attempts; notification outbox item {}", 
+                            MAX_ATTEMPTS, item.id(), ex);
+                    dispatchRepository.markFailed(item, ex.getMessage());
+                } else {
+                    Duration delay = Duration.ofSeconds(retryDelaySeconds(item.attemptCount()));
+                    log.error("Push dispatch failed; notification outbox item {} will retry in {} seconds",
+                            item.id(), delay.toSeconds(), ex);
+                    dispatchRepository.scheduleRetry(item, delay, ex.getMessage());
+                }
             }
         }
     }

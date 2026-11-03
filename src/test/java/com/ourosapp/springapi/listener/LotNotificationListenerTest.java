@@ -131,7 +131,7 @@ class LotNotificationListenerTest {
         ArgumentCaptor<List<String>> tokensCaptor = ArgumentCaptor.forClass(List.class);
         ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
 
-        verify(fcmPushService, times(1)).sendMulticastPush(
+        verify(fcmPushService, times(1)).sendMulticastPushNow(
                 tokensCaptor.capture(),
                 eq("Novo Lote Iniciado!"),
                 eq(messageCaptor.getValue()),
@@ -171,7 +171,7 @@ class LotNotificationListenerTest {
         verify(notificationService, times(1)).createNotification(
                 eq(101L), eq(RoleConstants.FARM_OWNER), anyString(), anyString(), eq("LOT_CREATED"), anyString()
         );
-        verify(fcmPushService, never()).sendMulticastPush(any(), any(), any(), any());
+        verify(fcmPushService, never()).sendMulticastPushNow(any(), any(), any(), any());
     }
 
     @Test
@@ -198,7 +198,7 @@ class LotNotificationListenerTest {
         verify(notificationService, times(1)).createNotification(
                 eq(100L), eq(RoleConstants.FARM_OWNER), anyString(), anyString(), eq("LOT_CREATED"), anyString()
         );
-        verify(fcmPushService, never()).sendMulticastPush(any(), any(), any(), any());
+        verify(fcmPushService, never()).sendMulticastPushNow(any(), any(), any(), any());
     }
 
     @Test
@@ -221,7 +221,7 @@ class LotNotificationListenerTest {
         assertDoesNotThrow(() -> lotNotificationListener.onLotCreated(event));
 
         verify(notificationService, never()).createNotification(any(), any(), any(), any(), any(), any());
-        verify(fcmPushService, never()).sendMulticastPush(any(), any(), any(), any());
+        verify(fcmPushService, never()).sendMulticastPushNow(any(), any(), any(), any());
     }
 
     @Test

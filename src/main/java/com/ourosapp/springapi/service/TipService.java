@@ -478,42 +478,38 @@ public class TipService {
             return;
         }
 
-        try {
-            List<FarmOwner> owners = farmOwnerRepository.findAllByIdFarm(farm.getId());
-            if (owners == null || owners.isEmpty()) {
-                log.info("Nenhum produtor rural associado à fazenda ID {} para notificação da dica ID {}.", farm.getId(), tipId);
-                return;
-            }
+        List<FarmOwner> owners = farmOwnerRepository.findAllByIdFarm(farm.getId());
+        if (owners == null || owners.isEmpty()) {
+            log.info("Nenhum produtor rural associado à fazenda ID {} para notificação da dica ID {}.", farm.getId(), tipId);
+            return;
+        }
 
-            String title = "Nova Dica Técnica!";
-            String farmName = (farm.getName() != null && !farm.getName().isBlank()) ? farm.getName() : "sua fazenda";
-            String message = String.format("Uma nova recomendação técnica foi registrada para a fazenda %s. Confira no aplicativo!", farmName);
+        String title = "Nova Dica Técnica!";
+        String farmName = (farm.getName() != null && !farm.getName().isBlank()) ? farm.getName() : "sua fazenda";
+        String message = String.format("Uma nova recomendação técnica foi registrada para a fazenda %s. Confira no aplicativo!", farmName);
 
-            Map<String, String> payloadMap = new HashMap<>();
-            payloadMap.put("type", "TIP_CREATED");
-            payloadMap.put("tip_id", String.valueOf(tipId));
-            payloadMap.put("farm_id", String.valueOf(farm.getId()));
-            if (tipTitle != null && !tipTitle.isBlank()) {
-                payloadMap.put("tip_title", tipTitle);
-            }
-            String jsonPayload = toJson(payloadMap);
+        Map<String, String> payloadMap = new HashMap<>();
+        payloadMap.put("type", "TIP_CREATED");
+        payloadMap.put("tip_id", String.valueOf(tipId));
+        payloadMap.put("farm_id", String.valueOf(farm.getId()));
+        if (tipTitle != null && !tipTitle.isBlank()) {
+            payloadMap.put("tip_title", tipTitle);
+        }
+        String jsonPayload = toJson(payloadMap);
 
-            for (FarmOwner owner : owners) {
-                if (owner.getId() == null) {
-                    continue;
-                }
-                notificationService.createNotificationWithPush(
-                        owner.getId(),
-                        RoleConstants.FARM_OWNER,
-                        title,
-                        message,
-                        "TIP_CREATED",
-                        tipId,
-                        jsonPayload
-                );
+        for (FarmOwner owner : owners) {
+            if (owner.getId() == null) {
+                continue;
             }
-        } catch (Exception ex) {
-            log.error("Erro ao notificar produtores rurais sobre nova dica técnica ID {}: {}", tipId, ex.getMessage(), ex);
+            notificationService.createNotificationWithPush(
+                    owner.getId(),
+                    RoleConstants.FARM_OWNER,
+                    title,
+                    message,
+                    "TIP_CREATED",
+                    tipId,
+                    jsonPayload
+            );
         }
     }
 

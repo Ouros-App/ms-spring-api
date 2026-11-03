@@ -59,28 +59,33 @@ public class FcmPushService {
                     .sendEachForMulticast(builder.build());
             log.info("FCM accepted {} pushes; failures={}", response.getSuccessCount(), response.getFailureCount());
             if (response.getFailureCount() > 0) {
-                handleFailures(tokens, response.getResponses());
-                throw new IllegalStateException("FCM rejected " + response.getFailureCount() + " push notifications");
+                int retryable = handleFailures(tokens, response.getResponses());
+                if (retryable > 0) {
+                    throw new IllegalStateException("FCM rejected " + retryable + " push notifications");
+                }
             }
         } catch (FirebaseMessagingException ex) {
             throw new IllegalStateException("FCM dispatch failed", ex);
         }
     }
 
-    private void handleFailures(List<String> tokens, List<SendResponse> responses) {
+    private int handleFailures(List<String> tokens, List<SendResponse> responses) {
         List<String> tokensToRemove = new ArrayList<>();
+        int retryable = 0;
         for (int i = 0; i < responses.size(); i++) {
             SendResponse response = responses.get(i);
-            if (!response.isSuccessful()) {
-                FirebaseMessagingException exception = response.getException();
-                if (exception != null && exception.getMessagingErrorCode() != null) {
-                    MessagingErrorCode code = exception.getMessagingErrorCode();
-                    if (code == MessagingErrorCode.UNREGISTERED || code == MessagingErrorCode.INVALID_ARGUMENT) {
-                        tokensToRemove.add(tokens.get(i));
-                    }
-                }
+            if (response.isSuccessful()) {
+                continue;
+            }
+            FirebaseMessagingException exception = response.getException();
+            MessagingErrorCode code = exception != null ? exception.getMessagingErrorCode() : null;
+            if (code == MessagingErrorCode.UNREGISTERED || code == MessagingErrorCode.INVALID_ARGUMENT) {
+                tokensToRemove.add(tokens.get(i));
+            } else {
+                retryable++;
             }
         }
         tokensToRemove.forEach(deviceTokenRepository::deleteByToken);
+        return retryable;
     }
 }

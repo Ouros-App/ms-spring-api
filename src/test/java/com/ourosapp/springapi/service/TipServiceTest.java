@@ -187,8 +187,8 @@ class TipServiceTest {
     }
 
     @Test
-    @DisplayName("createTip - Não deve falhar criação de dica se ocorrer erro ao notificar produtores")
-    void naoDeveFalharCriacaoDeDicaQuandoOcorrerErroNaNotificacao() {
+    @DisplayName("createTip - Falha a criação de dica quando ocorrer erro na notificação")
+    void deveFalharCriacaoDeDicaQuandoOcorrerErroNaNotificacao() {
         TipRequestDTO request = new TipRequestDTO("Ajustar a vazão", 10L, List.of(5L));
 
         when(farmRepository.findById(10L)).thenReturn(Optional.of(sampleFarm));
@@ -196,10 +196,8 @@ class TipServiceTest {
         when(tipRepository.callCreateTip("Dica Operacional", "Ajustar a vazão", null, 10, 5)).thenReturn(102);
         when(farmOwnerRepository.findAllByIdFarm(10L)).thenThrow(new RuntimeException("Falha temporária de banco"));
 
-        TipResponseDTO response = tipService.createTip(request, adminPrincipal);
+        assertThrows(RuntimeException.class, () -> tipService.createTip(request, adminPrincipal));
 
-        assertNotNull(response);
-        assertEquals(102L, response.id());
         verify(tipRepository).callCreateTip("Dica Operacional", "Ajustar a vazão", null, 10, 5);
     }
 

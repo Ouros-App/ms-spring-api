@@ -146,6 +146,20 @@ public class NotificationDispatchRepository {
     }
 
     @Transactional
+    public void markFailed(NotificationPushOutboxItem item, String error) {
+        String safeError = error == null ? "Unknown error" : error.substring(0, Math.min(error.length(), 1000));
+        jdbcTemplate.update(
+                """
+                UPDATE public.notification_push_outbox
+                SET status = 'FAILED', locked_until = NULL, claim_token = NULL,
+                    last_error = ?
+                WHERE id = ? AND claim_token = ? AND status = 'PROCESSING'
+                """,
+                safeError, item.id(), item.claimToken()
+        );
+    }
+
+    @Transactional
     public void scheduleRetry(NotificationPushOutboxItem item, Duration delay, String error) {
         long delaySeconds = Math.max(1, delay.toSeconds());
         String safeError = error == null ? "Unknown FCM error" : error.substring(0, Math.min(error.length(), 1000));
