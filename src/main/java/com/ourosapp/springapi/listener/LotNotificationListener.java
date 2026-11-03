@@ -106,7 +106,7 @@ public class LotNotificationListener {
                         .toList();
 
                 if (!tokens.isEmpty()) {
-                    fcmPushService.sendMulticastPush(tokens, title, message, payloadMap);
+                    fcmPushService.sendMulticastPushNow(tokens, title, message, payloadMap);
                 }
             }
         }

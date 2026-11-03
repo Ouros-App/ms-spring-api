@@ -24,9 +24,9 @@ public record InternalBatchNotificationResponseDTO(
         @JsonProperty("total_skipped")
         int totalSkipped,
 
-        @Schema(description = "Total de notificações cujo push foi despachado para dispositivos móveis", example = "8")
-        @JsonProperty("total_push_dispatched")
-        int totalPushDispatched,
+        @Schema(description = "Total de notificações com push enfileirado para entrega assíncrona", example = "8")
+        @JsonProperty("total_push_queued")
+        int totalPushQueued,
 
         @Schema(description = "Data e hora de conclusão do processamento do lote", example = "2026-10-21T11:45:00")
         @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")

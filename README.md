@@ -25,6 +25,12 @@ interpretação dos arquivos acontece no AI Server.
 quando a dica pertence a uma das audiências do usuário, e `false` caso contrário.
 O campo é omitido para outros perfis ou quando o Audience Engine falha ou informa snapshot desatualizado.
 
+## Notificações e push
+
+O endpoint interno `POST /internal/v1/notifications/batch` grava notificações in-app com deduplicação por `event_id`. Quando `send_push=true`, grava também uma tarefa na outbox PostgreSQL; o scheduler Spring envia via FCM e repete falhas transitórias. O endpoint responde `total_push_queued`, não confirma entrega ao dispositivo. `send_push=false` persiste somente in-app.
+
+Antes do deploy que habilita o dispatcher, aplique a migration `notifications_push_outbox.sql` do repositório `postgres-segundo-prod-database`. Configure `INTERNAL_SERVICE_KEY` para chamadas do Audience Engine e `FIREBASE_CREDENTIALS_JSON` para push; `NOTIFICATION_PUSH_DISPATCHER_ENABLED` pode desativar somente o envio, e `NOTIFICATION_PUSH_DISPATCHER_DELAY_MS` define o intervalo (padrão: 30 segundos). A entrega externa é at-least-once em falhas entre o aceite do FCM e a confirmação no banco.
+
 ## Pré-requisitos
 
 - Java 17, conforme a configuração de compilação e o workflow de CI.

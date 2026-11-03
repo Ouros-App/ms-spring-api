@@ -4,13 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ourosapp.springapi.constants.RoleConstants;
 import com.ourosapp.springapi.dto.farm.FarmRankingResponseDTO;
 import com.ourosapp.springapi.entity.CompanyEmployee;
-import com.ourosapp.springapi.entity.DeviceToken;
 import com.ourosapp.springapi.entity.FarmOwner;
 import com.ourosapp.springapi.event.RankingUpdatedEvent;
 import com.ourosapp.springapi.repository.CompanyEmployeeRepository;
-import com.ourosapp.springapi.repository.DeviceTokenRepository;
 import com.ourosapp.springapi.repository.FarmOwnerRepository;
-import com.ourosapp.springapi.service.FcmPushService;
 import com.ourosapp.springapi.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,12 +37,6 @@ class RankingNotificationListenerTest {
 
     @Mock
     private NotificationService notificationService;
-
-    @Mock
-    private DeviceTokenRepository deviceTokenRepository;
-
-    @Mock
-    private FcmPushService fcmPushService;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -88,65 +79,29 @@ class RankingNotificationListenerTest {
         when(farmOwnerRepository.findAllByIdFarmIn(List.of(10L, 20L, 30L)))
                 .thenReturn(List.of(owner1));
 
-        DeviceToken ownerToken = DeviceToken.builder()
-                .id(1L)
-                .userId(100L)
-                .userRole(RoleConstants.FARM_OWNER)
-                .token("fcm_token_owner")
-                .build();
-
-        when(deviceTokenRepository.findAllByUserIdAndUserRole(100L, RoleConstants.FARM_OWNER))
-                .thenReturn(List.of(ownerToken));
-
         when(companyEmployeeRepository.findAllByIdEnterprise(1L))
                 .thenReturn(List.of(employee1));
 
-        DeviceToken empToken = DeviceToken.builder()
-                .id(2L)
-                .userId(200L)
-                .userRole(RoleConstants.COMPANY_EMPLOYEE)
-                .token("fcm_token_emp")
-                .build();
-
-        when(deviceTokenRepository.findAllByUserRoleAndUserIdIn(eq(RoleConstants.COMPANY_EMPLOYEE), eq(List.of(200L))))
-                .thenReturn(List.of(empToken));
 
         rankingNotificationListener.onRankingUpdated(event);
 
-        // Verifica notificação in-app do produtor (1º lugar -> Medalha de Ouro)
-        verify(notificationService).createNotification(
+        verify(notificationService).createNotificationWithPush(
                 eq(100L),
                 eq(RoleConstants.FARM_OWNER),
                 eq("Ranking Atualizado!"),
                 contains("Medalha de Ouro 🥇"),
                 eq("RANKING_UPDATED"),
+                isNull(),
                 anyString()
         );
-
-        // Verifica envio de push FCM para o produtor
-        verify(fcmPushService).sendMulticastPush(
-                eq(List.of("fcm_token_owner")),
-                eq("Ranking Atualizado!"),
-                contains("Medalha de Ouro 🥇"),
-                anyMap()
-        );
-
-        // Verifica notificação in-app do funcionário
-        verify(notificationService).createNotification(
+        verify(notificationService).createNotificationWithPush(
                 eq(200L),
                 eq(RoleConstants.COMPANY_EMPLOYEE),
                 eq("Ranking de Fazendas Atualizado"),
                 contains("3 granjas participantes"),
                 eq("RANKING_UPDATED"),
+                isNull(),
                 anyString()
-        );
-
-        // Verifica envio de push FCM para os funcionários
-        verify(fcmPushService).sendMulticastPush(
-                eq(List.of("fcm_token_emp")),
-                eq("Ranking de Fazendas Atualizado"),
-                contains("3 granjas participantes"),
-                anyMap()
         );
     }
 
@@ -159,7 +114,6 @@ class RankingNotificationListenerTest {
         verifyNoInteractions(farmOwnerRepository);
         verifyNoInteractions(companyEmployeeRepository);
         verifyNoInteractions(notificationService);
-        verifyNoInteractions(fcmPushService);
     }
 
     @Test
@@ -192,24 +146,25 @@ class RankingNotificationListenerTest {
 
         when(farmOwnerRepository.findAllByIdFarmIn(anyList()))
                 .thenReturn(List.of(ownerPrata, ownerBronze, ownerQuarto, ownerInvalido, ownerSemFazenda, ownerOutraFazenda));
-        when(deviceTokenRepository.findAllByUserIdAndUserRole(anyLong(), anyString()))
-                .thenReturn(List.of()); // device tokens vazios
 
         rankingNotificationListener.onRankingUpdated(event);
 
-        verify(notificationService).createNotification(
-                eq(101L), eq(RoleConstants.FARM_OWNER), anyString(), contains("Medalha de Prata 🥈"), anyString(), anyString()
+        verify(notificationService).createNotificationWithPush(
+                eq(101L), eq(RoleConstants.FARM_OWNER), anyString(),
+                contains("Medalha de Prata 🥈"), anyString(), isNull(), anyString()
         );
-        verify(notificationService).createNotification(
-                eq(102L), eq(RoleConstants.FARM_OWNER), anyString(), contains("Medalha de Bronze 🥉"), anyString(), anyString()
+        verify(notificationService).createNotificationWithPush(
+                eq(102L), eq(RoleConstants.FARM_OWNER), anyString(),
+                contains("Medalha de Bronze 🥉"), anyString(), isNull(), anyString()
         );
-        verify(notificationService).createNotification(
-                eq(103L), eq(RoleConstants.FARM_OWNER), anyString(), argThat(msg -> msg != null && !msg.contains("Medalha")), anyString(), anyString()
+        verify(notificationService).createNotificationWithPush(
+                eq(103L), eq(RoleConstants.FARM_OWNER), anyString(),
+                argThat(msg -> msg != null && !msg.contains("Medalha")),
+                anyString(), isNull(), anyString()
         );
 
         // Como enterpriseId é nulo, funcionários não são notificados
         verifyNoInteractions(companyEmployeeRepository);
-        verifyNoInteractions(fcmPushService);
     }
 
     @Test
@@ -224,7 +179,9 @@ class RankingNotificationListenerTest {
 
         rankingNotificationListener.onRankingUpdated(event);
 
-        verify(notificationService, never()).createNotification(anyLong(), anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(notificationService, never()).createNotificationWithPush(
+                anyLong(), anyString(), anyString(), anyString(), anyString(), any(), anyString()
+        );
     }
 
     @Test
@@ -235,13 +192,12 @@ class RankingNotificationListenerTest {
 
         RankingUpdatedEvent event = new RankingUpdatedEvent(1L, List.of(rank1));
         when(farmOwnerRepository.findAllByIdFarmIn(anyList())).thenReturn(List.of(owner1));
-        when(deviceTokenRepository.findAllByUserIdAndUserRole(anyLong(), anyString())).thenReturn(List.of());
         when(companyEmployeeRepository.findAllByIdEnterprise(1L)).thenReturn(List.of());
 
         rankingNotificationListener.onRankingUpdated(event);
 
-        verify(notificationService).createNotification(
-                eq(100L), eq(RoleConstants.FARM_OWNER), anyString(), anyString(), anyString(), eq("{}")
+        verify(notificationService).createNotificationWithPush(
+                eq(100L), anyString(), anyString(), anyString(), anyString(), isNull(), eq("{}")
         );
     }
 }

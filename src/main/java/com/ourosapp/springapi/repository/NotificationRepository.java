@@ -10,9 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Repositório Spring Data JPA para operações de persistência e consulta da entidade {@link Notification}.
@@ -86,6 +84,4 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
      * @param eventIds coleção de identificadores de evento a verificar
      * @return conjunto contendo os event_ids já existentes no banco de dados
      */
-    @Query("SELECT n.eventId FROM Notification n WHERE n.eventId IN :eventIds")
-    Set<String> findExistingEventIds(@Param("eventIds") Collection<String> eventIds);
 }

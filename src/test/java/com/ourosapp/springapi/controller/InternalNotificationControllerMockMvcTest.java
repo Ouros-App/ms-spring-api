@@ -84,7 +84,7 @@ class InternalNotificationControllerMockMvcTest {
                 .andExpect(jsonPath("$.total_received").value(1))
                 .andExpect(jsonPath("$.total_created").value(1))
                 .andExpect(jsonPath("$.total_skipped").value(0))
-                .andExpect(jsonPath("$.total_push_dispatched").value(1))
+                .andExpect(jsonPath("$.total_push_queued").value(1))
                 .andExpect(jsonPath("$.processed_at").value("2026-10-21T11:45:00"));
 
         verify(internalNotificationService).processBatch(any(InternalBatchNotificationRequestDTO.class));
